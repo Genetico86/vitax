@@ -3,23 +3,48 @@
     "name": "Vitax",
     "slug": "Vitax",
     "version": "1.0.0",
+    "scheme": "vitax",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0D1117",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.vitax.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0D1117",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-sqlite",
+      "expo-sharing",
+      "expo-document-picker",
+      "expo-updates"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c436d299-e9bd-4fae-a4e9-54fea42a8835"
+      }
+    },
+    "owner": "pymatth",
+    "updates": {
+      "url": "https://u.expo.dev/c436d299-e9bd-4fae-a4e9-54fea42a8835"
     }
   }
 }

@@ -1,0 +1,1539 @@
+{
+  "exercises": [
+    {
+      "id": "ex_bench_press",
+      "name": "Développé couché à la barre",
+      "description": "Allongé sur le banc, pieds au sol, descendez la barre de manière contrôlée jusqu'au milieu de la poitrine puis poussez explosivement sans verrouiller violemment les coudes.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_incline_dumbbells",
+      "name": "Développé incliné aux haltères",
+      "description": "Banc incliné à 30-45°. Poussez les haltères vers le haut en convergeant légèrement au sommet pour cibler le haut des pectoraux.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_pushups",
+      "name": "Pompes au sol",
+      "description": "Corps parfaitement gainé en planche, descendez la poitrine à quelques centimètres du sol, coudes à 45° du buste, puis remontez.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_dips",
+      "name": "Dips aux barres parallèles",
+      "description": "En appui sur les barres parallèles du rack, fléchissez les bras jusqu'à ce que les coudes forment un angle de 90°. Penchez légèrement le buste en avant pour cibler les pectoraux et triceps.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Barres parallèles",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_fly",
+      "name": "Écarté à la poulie",
+      "description": "Debout buste légèrement penché, serrez la poignée de poulie devant votre poitrine en gardant une légère flexion des coudes. Contrôlez l'ouverture.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_pullups",
+      "name": "Tractions en pronation",
+      "description": "Prise large sur la barre de traction du rack. Tirez avec le dos jusqu'à amener le menton au-dessus de la barre en resserrant les omoplates.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre de traction",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_barbell_row",
+      "name": "Rowing barre buste penché",
+      "description": "Buste à 45°, dos droit et genoux fléchis. Tirez la barre vers le bas du ventre en tirant les coudes vers l'arrière.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_lat_pulldown",
+      "name": "Tirage vertical poitrine (Poulie haute)",
+      "description": "Assis sous la poulie haute du rack, saisissez la barre large. Tirez la barre vers la partie supérieure des pectoraux sans vous cambrer excessivement.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_seated_cable_row",
+      "name": "Rowing assis à la poulie basse",
+      "description": "Assis face à la poulie basse du rack, pieds calés, dos droit. Tirez la poignée ou la barre droite vers le bas de l'estomac en resserrant les omoplates.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_straight_arm_pulldown",
+      "name": "Pull-over bras tendus (Poulie haute)",
+      "description": "Debout buste penché à 30°, bras quasi-tendus. Abaissez la barre de la poulie haute vers les cuisses en contractant fortement le grand dorsal.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_deadlift",
+      "name": "Soulevé de terre conventionnel",
+      "description": "Pieds écartés largeur du bassin, dos droit et regard neutre. Poussez dans les talons pour redresser le buste en gardant la barre au contact des tibias et cuisses.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_dumbbell_row",
+      "name": "Rowing bûcheron à un bras",
+      "description": "Un genou et une main en appui sur le banc. Tirez l'haltère vers la hanche en gardant le dos bien parallèle au sol.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_overhead_press",
+      "name": "Développé militaire à la barre",
+      "description": "Debout devant le rack, abdos et fessiers serrés, poussez la barre depuis les clavicules droit vers le plafond au-dessus de la tête.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_lateral_raise",
+      "name": "Élévations latérales aux haltères",
+      "description": "Debout, montez les haltères sur les côtés jusqu'à la hauteur des épaules en guidant le mouvement par les coudes. Contrôlez la descente.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_lateral_raise",
+      "name": "Élévations latérales à la poulie basse",
+      "description": "De profil à la poulie basse du rack, saisissez la poignée avec le bras opposé. Élevez le bras sur le côté jusqu'à l'horizontale avec une tension continue.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_face_pull",
+      "name": "Face pull à la poulie haute",
+      "description": "Avec la corde fixée à la poulie haute, tirez vers le visage en écartant les mains et en ouvrant les coudes vers l'extérieur pour renforcer l'arrière de l'épaule.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_bicep_curl_bar",
+      "name": "Curl biceps à la barre EZ",
+      "description": "Debout, coudes collés aux flancs, fléchissez les avant-bras vers le haut sans utiliser d'élan du bassin. Redescendez lentement.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_bicep_curl",
+      "name": "Curl biceps à la poulie basse",
+      "description": "Debout face à la poulie basse du rack avec la barre ou la corde. Fléchissez les avant-bras en gardant les coudes fixes pour une tension constante sans point mort.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_incline_curl",
+      "name": "Curl incliné aux haltères",
+      "description": "Assis sur un banc à 60°, bras ballants vers le sol pour un étirement optimal du chef long du biceps. Fléchissez les avant-bras en effectuant une supination.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_hammer_curl",
+      "name": "Curl prise marteau",
+      "description": "Paumes face à face, fléchissez les coudes pour solliciter le brachial antérieur et le brachioradial des avant-bras.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_skull_crushers",
+      "name": "Barre au front (Skull Crushers)",
+      "description": "Allongé sur un banc, bras verticaux, pliez les coudes pour amener la barre vers le front puis poussez pour retendre les bras.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_tricep_pushdown",
+      "name": "Extension triceps à la poulie haute",
+      "description": "Coudes verrouillés le long du corps, étendez les bras vers le bas en écartant la corde ou en appuyant sur la barre droite de la poulie haute.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_overhead_cable_triceps",
+      "name": "Extension triceps au-dessus de la tête (Poulie)",
+      "description": "Dos à la poulie avec la corde tenue au-dessus de la tête. Tendez les avant-bras vers l'avant pour étirer et contracter la longue portion du triceps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_squat",
+      "name": "Squat arrière dans la cage",
+      "description": "Barre reposant sur les trapèzes, réglez les barres de sécurité du rack. Descendez les hanches sous le niveau des genoux dos droit puis poussez fort.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_leg_press",
+      "name": "Presse à cuisses inclinée",
+      "description": "Pieds placés au centre du plateau, descendez le plateau jusqu'à former un angle droit avec les genoux sans décoller le bas du dos.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_walking_lunges",
+      "name": "Fentes avant marchées",
+      "description": "Faites un grand pas en avant, fléchissez le genou avant à 90° sans que le genou arrière ne tape brutalement le sol.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_romanian_deadlift",
+      "name": "Soulevé de terre jambes tendues / roumain",
+      "description": "Genoux très légèrement déverrouillés, poussez les fessiers vers l'arrière en descendant la barre ou les haltères le long des jambes pour étirer les ischio-jambiers.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_calf_raise",
+      "name": "Élévations des mollets debout",
+      "description": "En équilibre sur la pointe des pieds, montez au maximum en marquant 1 seconde de pause en contraction, puis descendez lentement au plus bas.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_crunch",
+      "name": "Crunch à la poulie haute à genoux",
+      "description": "À genoux face ou dos à la poulie haute avec la corde derrière la nuque. Enroulez la cage thoracique vers le bassin en contractant intensément la sangle abdominale.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_plank",
+      "name": "Gainage planche abdominale",
+      "description": "En appui sur les avant-bras et la pointe des pieds, rétroversez le bassin et contractez les abdos et fessiers. Maintenez la ligne droite parfaite.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_hanging_leg_raise",
+      "name": "Relevé de jambes à la barre fixe",
+      "description": "Suspendu à la barre fixe du rack sans balancer le corps, montez les jambes tendues ou fléchies jusqu'à l'horizontale en enroulant le bassin.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Barre de traction",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_treadmill",
+      "name": "Tapis de course (Course / Marche inclinée)",
+      "description": "Réglez la vitesse et l'inclinaison. Maintenez le buste droit et une foulée rythmée en respirant avec régularité pour développer l'endurance aérobie.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Tapis de course",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_elliptical",
+      "name": "Vélo elliptique",
+      "description": "Pieds calés sur les pédales et mains tenant les poignées mobiles. Effectuez un mouvement elliptique fluide coordonné sans choc articulaire.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Vélo elliptique",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_jump_rope",
+      "name": "Corde à sauter",
+      "description": "En appui sur l'avant des pieds, enchaînez les sauts légers et réguliers avec rotation des poignets pour un travail cardio et mollets intense.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Corde à sauter",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_rower",
+      "name": "Rameur cardio",
+      "description": "Poussez fermement dans les jambes puis tirez la poignée vers le bas des côtes en gardant le dos droit. Maîtrisez le retour.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_burpees",
+      "name": "Burpees complets",
+      "description": "Enchaînez squat, descente en pompe au sol, retour groupé et saut vertical avec les bras levés. Puissant stimulant cardio et métabolique.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_incline_barbell_press",
+      "name": "Développé incliné à la barre",
+      "description": "Banc incliné à 30°. Descendez la barre jusqu'au haut de la poitrine sous les clavicules puis poussez pour cibler le faisceau claviculaire.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_decline_bench_press",
+      "name": "Développé décliné à la barre",
+      "description": "Allongé tête vers le bas sur un banc décliné, descendez la barre vers le bas des pectoraux puis poussez avec force.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_dumbbell_fly",
+      "name": "Écarté couché aux haltères",
+      "description": "Allongé sur le banc, ouvrez largement les bras en gardant une légère flexion des coudes pour un étirement maximal des pectoraux, puis resserrez.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_diamond_pushups",
+      "name": "Pompes diamant",
+      "description": "Mains rapprochées sous la poitrine formant un triangle avec pouces et index. Descendez en gardant les coudes près du corps.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_chinups",
+      "name": "Tractions en supination (Chin-ups)",
+      "description": "Suspendu à la barre fixe mains paumes vers vous à largeur d'épaules. Tirez jusqu'à dépasser la barre avec le menton pour cibler grand dorsal et biceps.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre de traction",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_tbar_row",
+      "name": "Rowing barre en T (T-Bar Row)",
+      "description": "Buste penché dos gainé, tirez la poignée en V vers le bas de la poitrine en resserrant puissamment les omoplates pour développer l'épaisseur du dos.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_shrugs_barbell",
+      "name": "Shrugs à la barre (Haussements d'épaules)",
+      "description": "Debout barre tenue devant vous à bout de bras. Haussez les épaules verticalement vers les oreilles en marquant une contraction en haut.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_hyperextensions",
+      "name": "Hyperextensions lombaires au banc",
+      "description": "Bassin calé sur le banc incliné, descendez le buste puis redressez-vous à l'horizontale en contractant les érecteurs du rachis et les fessiers.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Banc",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_seated_dumbbell_press",
+      "name": "Développé épaules assis aux haltères",
+      "description": "Assis dos au dossier à 85°, poussez les haltères au-dessus de la tête jusqu'à extension complète des bras sans heurter les poids.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_front_raise",
+      "name": "Élévations frontales aux haltères",
+      "description": "Debout bras le long du corps, levez un haltère devant vous jusqu'à hauteur des yeux pour cibler le deltoïde antérieur.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_rear_delt_fly",
+      "name": "Oiseau aux haltères buste penché",
+      "description": "Buste penché parallèle au sol, ouvrez les bras sur les côtés en resserrant l'arrière des épaules pour solliciter le deltoïde postérieur.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_preacher_curl",
+      "name": "Curl pupitre Larry Scott à la barre EZ",
+      "description": "Bras calés sur le pupitre incliné pour éliminer tout élan corporel. Fléchissez la barre EZ pour isoler le pic du biceps.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_concentration_curl",
+      "name": "Curl concentré assis à un bras",
+      "description": "Assis coude calé contre l'intérieur de la cuisse, fléchissez l'haltère vers l'épaule pour une isolation totale sans triche.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_close_grip_bench",
+      "name": "Développé couché prise serrée",
+      "description": "Allongé sur le banc, mains espacées de la largeur des épaules, descendez la barre en gardant les coudes le long du buste pour cibler les triceps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_tricep_kickback",
+      "name": "Kickback triceps aux haltères",
+      "description": "Buste penché et coude relevé calé au flanc, étendez l'avant-bras vers l'arrière jusqu'au verrouillage pour contracter le triceps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_front_squat",
+      "name": "Squat avant à la barre (Front Squat)",
+      "description": "Barre calée sur l'avant des épaules et les clavicules, descendez en maintenant le buste très droit pour accentuer l'effort sur les quadriceps.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_bulgarian_split_squat",
+      "name": "Fentes bulgares aux haltères",
+      "description": "Pied arrière surélevé sur le banc, descendez sur la jambe avant jusqu'à flexion à 90°. Travail unilatéral d'une efficacité redoutable.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_hip_thrust",
+      "name": "Hip Thrust à la barre pour fessiers",
+      "description": "Haut du dos calé sur le banc et barre sur le bassin, poussez dans les talons jusqu'à aligner cuisses et buste en serrant fort les fessiers au sommet.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_leg_extension",
+      "name": "Leg Extension quadriceps",
+      "description": "Assis sur la machine, tendez les jambes vers le haut en contrôlant la charge pour isoler l'avant des cuisses.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_leg_curl",
+      "name": "Leg Curl allongé ischio-jambiers",
+      "description": "Allongé sur le ventre, fléchissez les genoux pour amener le boudin vers les fessiers pour isoler l'arrière des cuisses.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_floor_crunch",
+      "name": "Crunch abdominal au sol",
+      "description": "Allongé sur le dos genoux fléchis, enroulez les épaules vers le bassin en expirant à fond sans tirer sur la nuque.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_ab_wheel",
+      "name": "Roue abdominale (Ab Wheel Rollout)",
+      "description": "À genoux avec la roue, roulez vers l'avant en gardant le bassin gainé puis ramenez en contractant intensément la sangle abdominale.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Roue abdominale",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_russian_twist",
+      "name": "Russian Twists obliques",
+      "description": "Assis buste incliné pieds décollés, effectuez des rotations contrôlées du torse de gauche à droite pour sculpter les obliques.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_bodyweight_squat",
+      "name": "Squat au poids du corps (Air Squat)",
+      "description": "Debout pieds écartés largeur d'épaules, descendez les hanches vers l'arrière en fléchissant les genoux jusqu'à casser la parallèle. Gardez le torse fier et poussez dans les talons sans aucun matériel.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_superman",
+      "name": "Gainage lombaire au sol (Superman)",
+      "description": "Allongé à plat ventre sur le sol, tendez les bras devant vous et décollez simultanément le torse et les jambes tendues. Maintenez 2 secondes la contraction du dos et des fessiers.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_mountain_climbers",
+      "name": "Mountain Climbers (Grimpeurs)",
+      "description": "En appui sur les mains en position de planche, ramenez alternativement vos genoux vers la poitrine à un rythme vif et contrôlé. Renforce le tronc, les épaules et le cardio.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_standing_row",
+      "name": "Rowing debout à la poulie basse",
+      "description": "Debout face à la poulie basse, genoux légèrement fléchis et buste gainé à 45°. Tirez la barre ou la poignée vers le nombril en serrant les omoplates.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_single_arm_row",
+      "name": "Rowing unilatéral à la poulie basse",
+      "description": "Face à la poulie basse, saisissez la poignée simple à un bras. Tirez le coude vers la hanche avec rotation du poignet pour isoler le grand dorsal.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_single_arm_triceps",
+      "name": "Extension triceps unilatérale à la poulie",
+      "description": "Debout face à la poulie haute, saisissez la poignée simple en pronation ou supination. Tendez le bras vers le bas en gardant le coude verrouillé au corps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_rope_hammer_curl",
+      "name": "Curl biceps à la corde à la poulie (Prise marteau)",
+      "description": "Attaché à la poulie basse, saisissez la corde en prise neutre. Fléchissez les avant-bras vers le haut en écartant légèrement les extrémités au sommet.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_single_arm_curl",
+      "name": "Curl unilatéral à la poulie basse",
+      "description": "Debout face ou dos à la poulie basse, saisissez la poignée simple. Isolez le biceps brachial en contrôlant la descente sans élan du buste.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_front_raise",
+      "name": "Élévations frontales à la poulie basse",
+      "description": "Dos à la poulie basse, câble entre les jambes ou poignée simple. Levez les bras droit devant jusqu'à hauteur des yeux pour cibler le deltoïde antérieur.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_rear_delt_fly",
+      "name": "Oiseau à la poulie basse buste penché",
+      "description": "Buste penché à l'horizontale face à la poulie basse. Écartez le bras vers l'extérieur en tirant avec l'arrière de l'épaule et les rhomboïdes.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_glute_kickback",
+      "name": "Kickback fessier à la poulie basse",
+      "description": "Fixez la sangle de cheville à la poulie basse. En appui sur le rack, poussez la jambe vers l'arrière en contractant le grand fessier au sommet.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_hip_abduction",
+      "name": "Abduction de la hanche à la poulie basse",
+      "description": "Debout de profil par rapport à la poulie basse, sangle fixée à la cheville extérieure. Écartez la jambe vers l'extérieur pour cibler le moyen fessier.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_hip_adduction",
+      "name": "Adduction de la hanche à la poulie basse",
+      "description": "Debout de profil par rapport à la poulie basse, sangle fixée à la cheville intérieure. Ramenez la jambe vers l'intérieur pour cibler les adducteurs.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_standing_leg_curl",
+      "name": "Leg curl debout à la poulie basse",
+      "description": "Face au rack, sangle de cheville attachée à la poulie basse. Fléchissez le genou vers la fesse pour isoler les ischio-jambiers.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_belt_squat",
+      "name": "Belt Squat à la poulie basse",
+      "description": "Ceinture de lest reliée au mousqueton de la poulie basse. Effectuez un squat complet en soulageant la colonne vertébrale et en chargeant les quadriceps.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_woodchopper",
+      "name": "Woodchopper à la poulie (Bûcheron)",
+      "description": "Poulie réglée en hauteur, saisissez la poignée à deux mains. Effectuez une rotation diagonale du tronc vers le bas pour engager les obliques et le transverse.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_flat_bench_press",
+      "name": "Développé couché à la poulie basse sur banc",
+      "description": "Allongé sur le banc plat positionné au centre du rack. Poussez les poignées de poulie basse vers le haut avec tension continue constante sur les pectoraux.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_incline_bench_press",
+      "name": "Développé incliné à la poulie basse sur banc",
+      "description": "Banc incliné à 30-45° au centre du rack. Développez les poignées vers le haut en ciblant le faisceau claviculaire des pectoraux.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_incline_fly",
+      "name": "Écarté sur banc à la poulie basse",
+      "description": "Allongé sur banc plat ou incliné. Effectuez un mouvement d'écarté avec les câbles en gardant les coudes semi-fléchis pour une tension continue maximale.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_chest_supported_row",
+      "name": "Rowing sur banc incliné à la poulie basse",
+      "description": "Buste calé face au dossier du banc incliné à 30°, éliminant toute fatigue lombaire. Tirez les poignées vers vous pour cibler les trapèzes et rhomboïdes.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_incline_rear_delt",
+      "name": "Oiseau sur banc incliné à la poulie basse",
+      "description": "Poitrine appuyée sur le banc incliné face à la poulie basse. Écartez les bras pour isoler l'arrière d'épaule sans triche du bas du dos.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_seated_overhead_triceps",
+      "name": "Extension triceps assis au banc à la poulie haute",
+      "description": "Assis dos à la poulie sur le banc incliné à 75°. Développez la corde au-dessus de la tête pour un étirement maximal de la longue portion des triceps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_lying_triceps_extension",
+      "name": "Extension triceps allongé au banc à la poulie (French Press)",
+      "description": "Allongé sur le banc plat, tête orientée vers la poulie. Fléchissez les coudes vers le front puis tendez les avant-bras vers le haut.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_incline_curl",
+      "name": "Curl incliné au banc à la poulie basse",
+      "description": "Assis sur banc incliné à 45-60°, dos à la poulie basse. Fléchissez les bras pour un pic de contraction et un étirement profond du biceps.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_concentration_curl",
+      "name": "Curl concentré assis au banc à la poulie basse",
+      "description": "Assis sur le bord du banc, coude calé contre l'intérieur de la cuisse. Fléchissez la poignée vers l'épaule pour un pic d'isolation maximal du biceps.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_pin_press",
+      "name": "Pin Press / Spoto Press dans le rack",
+      "description": "Sur banc dans la cage, barres de sécurité réglées à quelques centimètres de la poitrine. Développez la barre depuis l'arrêt complet pour développer la force d'explosion.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_seated_barbell_overhead_press",
+      "name": "Développé assis à la barre",
+      "description": "Assis sur banc redressé à 75-80° dans la cage. Développez la barre olympique au-dessus de la tête pour focaliser l'effort sur les épaules sans triche du bas du corps.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_behind_neck_press",
+      "name": "Développé nuque assis à la barre",
+      "description": "Assis sur banc dans la cage. Descendez la barre de façon contrôlée derrière la tête jusqu'aux oreilles, puis poussez. Nécessite une bonne mobilité scapulaire.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_barbell_bulgarian_split_squat",
+      "name": "Squat bulgare à la barre sur banc",
+      "description": "Pied arrière posé sur le banc, barre sur les trapèzes. Descendez le genou arrière vers le sol pour un travail unilatéral intense des quadriceps et fessiers.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_box_squat",
+      "name": "Box Squat sur banc dans la cage",
+      "description": "Barre sur les trapèzes, descendez jusqu'à vous asseoir une fraction de seconde sur le banc avant de repartir explosivement en poussant dans les talons.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_barbell_lunges",
+      "name": "Fentes à la barre debout",
+      "description": "Barre sur les trapèzes, effectuez un grand pas en avant ou en arrière en descendant le genou à 90°. Travail puissant des cuisses et fessiers.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_good_morning",
+      "name": "Good Morning à la barre",
+      "description": "Barre sur les trapèzes, genoux légèrement déverrouillés. Poussez le bassin vers l'arrière en inclinant le buste dos droit pour recruter les ischio-jambiers et lombaires.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_barbell_calf_raise",
+      "name": "Élévations des mollets debout à la barre",
+      "description": "Barre sur les trapèzes dans la cage, montez sur la pointe des pieds en haut d'une cale pour une amplitude complète des mollets.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_rack_pull",
+      "name": "Rack Pull à la barre (Tirage partiel)",
+      "description": "Barre posée sur les crans de sécurité du rack au niveau des genoux. Tirez la barre pour verrouiller le dos et recruter puissamment les trapèzes et érecteurs du rachis.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_neutral_grip_pullups",
+      "name": "Tractions en prise neutre",
+      "description": "Paumes face à face sur les poignées transversales du Rack 900. Tirez jusqu'à amener la poitrine à hauteur des poignées en préservant les articulations des épaules.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Barre de traction",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_bench_dips",
+      "name": "Dips au bord du banc",
+      "description": "Mains appuyées sur le bord du banc derrière le dos, pieds au sol. Fléchissez les coudes à 90° puis poussez pour verrouiller les triceps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Banc",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_decline_pushups",
+      "name": "Pompes déclinées sur banc",
+      "description": "Pieds surélevés sur le banc, mains au sol. Effectuez des pompes en ciblant préférentiellement le haut des pectoraux et l'avant des épaules.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Banc",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_incline_pushups",
+      "name": "Pompes inclinées sur banc",
+      "description": "Mains en appui sur le banc, pieds au sol. Pompes avec buste surélevé pour cibler le bas des pectoraux avec une intensité modérée.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Banc",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_decline_bench_leg_raise",
+      "name": "Relevé de bassin / jambes sur banc décliné",
+      "description": "Allongé sur le banc réglé en déclinaison, mains agrippées en haut du banc. Relevez le bassin et les jambes vers le plafond en contrôlant la descente.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Banc",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_decline_bench_crunch",
+      "name": "Crunch sur banc décliné",
+      "description": "Pieds calés sur le banc décliné. Enroulez le buste vers les genoux en contractant puissamment le grand droit de l'abdomen.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Banc",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_flat_dumbbell_press",
+      "name": "Développé couché aux haltères",
+      "description": "Allongé sur banc plat, haltères à hauteur de poitrine. Poussez vers le haut avec une liberté articulaire complète et un étirement profond en bas.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_incline_dumbbell_row",
+      "name": "Rowing sur banc incliné aux haltères",
+      "description": "Buste appuyé face au dossier du banc incliné à 30°. Tirez les haltères vers les hanches en resserrant les omoplates sans solliciter les lombaires.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_chest_supported_rear_delt_fly",
+      "name": "Oiseau aux haltères sur banc incliné",
+      "description": "Ventre calé sur le banc incliné à 30-45°. Écartez les haltères latéralement pour isoler l'arrière des deltoïdes sans balancement du buste.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_dumbbell_pullover",
+      "name": "Pull-over aux haltères en travers du banc",
+      "description": "Haut du dos posé en travers du banc, haltère tenu à deux mains. Descendez l'haltère derrière la tête bras quasi-tendus pour ouvrir la cage et étirer le grand dorsal.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Haltères",
+      "is_custom": 0
+    }
+  ],
+  "programs": [
+    {
+      "id": "prog_rack900_fullbody",
+      "name": "Rack 900 - Full Body Cage & Poulies",
+      "description": "Programme idéal pour exploiter 100% de la cage Rack 900 Décathlon : Squat et Développé couché dans la cage, Tractions, Tirage poulie haute, Dips, Curls poulie basse et Crunch poulie.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_squat",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 120,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_bench_press",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 90,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_pullups",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 90,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_lat_pulldown",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_dips",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_cable_bicep_curl",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 5
+        },
+        {
+          "exercise_id": "ex_cable_crunch",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 6
+        }
+      ]
+    },
+    {
+      "id": "prog_rack900_upper_pulleys",
+      "name": "Rack 900 - Haut du Corps (Barre & Poulies)",
+      "description": "Séance complète du haut du corps combinant mouvements de force à la barre dans le rack et travail d'isolation précis aux poulies haute et basse.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_bench_press",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 90,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_lat_pulldown",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_seated_cable_row",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_overhead_press",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_face_pull",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_tricep_pushdown",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 5
+        },
+        {
+          "exercise_id": "ex_cable_bicep_curl",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 6
+        }
+      ]
+    },
+    {
+      "id": "prog_rack900_cables_only",
+      "name": "Rack 900 - 100% Câbles (Poulie Haute & Basse)",
+      "description": "Séance fluide à tension mécanique continue en utilisant exclusivement la poulie haute et basse du Rack 900. Moins traumatisant pour les articulations, brûlure musculaire maximale.",
+      "difficulty_level": "Débutant",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_lat_pulldown",
+          "default_sets": 4,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_seated_cable_row",
+          "default_sets": 4,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_cable_fly",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_cable_lateral_raise",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_tricep_pushdown",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_cable_bicep_curl",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 5
+        },
+        {
+          "exercise_id": "ex_cable_crunch",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 6
+        }
+      ]
+    },
+    {
+      "id": "prog_rack900_power_lower_pull",
+      "name": "Rack 900 - Force Bas du Corps & Dos",
+      "description": "Séance lourde et sécurisée dans la cage avec les barres de sécurité (Squat, Soulevé de terre, Tractions et Pull-over dos à la poulie haute).",
+      "difficulty_level": "Avancé",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_squat",
+          "default_sets": 4,
+          "default_reps": 6,
+          "rest_time_seconds": 150,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_deadlift",
+          "default_sets": 4,
+          "default_reps": 6,
+          "rest_time_seconds": 150,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_pullups",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 90,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_straight_arm_pulldown",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_romanian_deadlift",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_hanging_leg_raise",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 5
+        }
+      ]
+    },
+    {
+      "id": "prog_full_body_no_equipment",
+      "name": "Full Body sans matériel",
+      "description": "Idéal à la maison ou en déplacement. Routine 100% au poids du corps ciblée sur l'ensemble des grands groupes musculaires, sans aucun équipement (ni barre ni banc).",
+      "difficulty_level": "Débutant",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_pushups",
+          "default_sets": 4,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_bodyweight_squat",
+          "default_sets": 4,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_diamond_pushups",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 60,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_walking_lunges",
+          "default_sets": 3,
+          "default_reps": 14,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_superman",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 45,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_calf_raise",
+          "default_sets": 3,
+          "default_reps": 20,
+          "rest_time_seconds": 45,
+          "order_index": 5
+        },
+        {
+          "exercise_id": "ex_plank",
+          "default_sets": 3,
+          "default_reps": 45,
+          "rest_time_seconds": 60,
+          "order_index": 6
+        }
+      ]
+    },
+    {
+      "id": "prog_upper_bench_dumbbells",
+      "name": "Haut du corps sur banc avec haltères",
+      "description": "Entraînement complet du buste avec un banc et une paire d'haltères. Accent mis sur les pectoraux, le dos et les épaules.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_bench_press",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 90,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_dumbbell_row",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 90,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_incline_dumbbells",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 75,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_lateral_raise",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_incline_curl",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        }
+      ]
+    },
+    {
+      "id": "prog_split_push",
+      "name": "Push (Pectoraux, Épaules, Triceps)",
+      "description": "Séance classique de poussée pour maximiser l'hypertrophie des pectoraux, des faisceaux antérieurs/latéraux d'épaules et des triceps.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_bench_press",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 120,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_overhead_press",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 90,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_dips",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 90,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_lateral_raise",
+          "default_sets": 4,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_tricep_pushdown",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        }
+      ]
+    },
+    {
+      "id": "prog_split_pull",
+      "name": "Pull (Dos, Arrière d'épaules, Biceps)",
+      "description": "Séance de tirage pour développer la largeur et l'épaisseur du dos ainsi que les biceps.",
+      "difficulty_level": "Avancé",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_deadlift",
+          "default_sets": 4,
+          "default_reps": 6,
+          "rest_time_seconds": 150,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_pullups",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 90,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_barbell_row",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 90,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_face_pull",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_bicep_curl_bar",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        }
+      ]
+    },
+    {
+      "id": "prog_split_legs",
+      "name": "Legs & Core (Cuisses, Ischios, Abdos)",
+      "description": "Séance complète du bas du corps pour la force, le volume des quadriceps et la stabilité du tronc.",
+      "difficulty_level": "Avancé",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_squat",
+          "default_sets": 4,
+          "default_reps": 8,
+          "rest_time_seconds": 120,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_romanian_deadlift",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 90,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_walking_lunges",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 75,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_calf_raise",
+          "default_sets": 4,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_hanging_leg_raise",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        }
+      ]
+    },
+    {
+      "id": "prog_cardio_hiit",
+      "name": "Série Cardio - HIIT & Brûle-Graisses Intensif",
+      "description": "Circuit fractionné haute intensité combinant Tapis de course, Burpees explosifs, Corde à sauter, Rameur et Gainage pour booster le métabolisme et brûler un maximum de graisses.",
+      "difficulty_level": "Avancé",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_treadmill",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_burpees",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 45,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_jump_rope",
+          "default_sets": 3,
+          "default_reps": 100,
+          "rest_time_seconds": 45,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_rower",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_plank",
+          "default_sets": 3,
+          "default_reps": 60,
+          "rest_time_seconds": 45,
+          "order_index": 4
+        }
+      ]
+    },
+    {
+      "id": "prog_cardio_endurance",
+      "name": "Série Cardio - Tapis de Course & Endurance Fondamentale",
+      "description": "Séance continue pour développer le souffle, la capacité aérobie et le système cardiovasculaire sur tapis de course, vélo elliptique et rameur.",
+      "difficulty_level": "Débutant",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_treadmill",
+          "default_sets": 4,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_elliptical",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_rower",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_floor_crunch",
+          "default_sets": 3,
+          "default_reps": 20,
+          "rest_time_seconds": 45,
+          "order_index": 3
+        }
+      ]
+    },
+    {
+      "id": "prog_cardio_low_impact",
+      "name": "Série Cardio - Vélo Elliptique & Rameur (Zéro Choc)",
+      "description": "Entraînement cardio fluide préservant les articulations (genoux, chevilles, dos), axé sur le vélo elliptique, le rameur et le gainage dynamique.",
+      "difficulty_level": "Débutant",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_elliptical",
+          "default_sets": 4,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_rower",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_plank",
+          "default_sets": 3,
+          "default_reps": 45,
+          "rest_time_seconds": 45,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_russian_twist",
+          "default_sets": 3,
+          "default_reps": 20,
+          "rest_time_seconds": 45,
+          "order_index": 3
+        }
+      ]
+    },
+    {
+      "id": "prog_cardio_express",
+      "name": "Série Cardio Express 20 min (Flash Brûle-Calories)",
+      "description": "Séance express de 20 minutes pour activer la dépense calorique et relancer le métabolisme, parfaite avant ou après la musculation.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_treadmill",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 45,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_jump_rope",
+          "default_sets": 3,
+          "default_reps": 100,
+          "rest_time_seconds": 30,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_elliptical",
+          "default_sets": 3,
+          "default_reps": 1,
+          "rest_time_seconds": 45,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_burpees",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 45,
+          "order_index": 3
+        }
+      ]
+    },
+    {
+      "id": "prog_bodyweight_upper_core",
+      "name": "Haut du Corps & Abdos au sol (Sans matériel)",
+      "description": "Séance ciblée sur la poussée, les triceps, le dos au sol et la ceinture abdominale, sans aucun équipement requis.",
+      "difficulty_level": "Débutant",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_pushups",
+          "default_sets": 4,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_diamond_pushups",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_superman",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 45,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_floor_crunch",
+          "default_sets": 4,
+          "default_reps": 20,
+          "rest_time_seconds": 45,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_russian_twist",
+          "default_sets": 3,
+          "default_reps": 20,
+          "rest_time_seconds": 45,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_plank",
+          "default_sets": 3,
+          "default_reps": 45,
+          "rest_time_seconds": 60,
+          "order_index": 5
+        }
+      ]
+    },
+    {
+      "id": "prog_bodyweight_legs_hiit",
+      "name": "Bas du Corps & Cardio Brûle-Graisses (Sans matériel)",
+      "description": "Séance dynamique et tonifiante pour les cuisses, fessiers et mollets tout en activant la dépense calorique sans aucun matériel.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_bodyweight_squat",
+          "default_sets": 4,
+          "default_reps": 20,
+          "rest_time_seconds": 60,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_walking_lunges",
+          "default_sets": 4,
+          "default_reps": 16,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_calf_raise",
+          "default_sets": 4,
+          "default_reps": 25,
+          "rest_time_seconds": 45,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_mountain_climbers",
+          "default_sets": 3,
+          "default_reps": 30,
+          "rest_time_seconds": 45,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_burpees",
+          "default_sets": 3,
+          "default_reps": 10,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        }
+      ]
+    }
+  ]
+}

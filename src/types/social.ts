@@ -1,0 +1,125 @@
+export type LeagueTier = 'pierre' | 'cascade' | 'foudre' | 'volcan' | 'maitre';
+
+export interface LeagueConfig {
+  tier: LeagueTier;
+  name: string;
+  emoji: string;
+  color: string;
+  minXpRequirement: number;
+  promotionSpots: number;
+  relegationSpots: number;
+}
+
+export interface TrainerProfile {
+  id: string;
+  username: string;
+  friendCode: string; // e.g. "VTX-7429"
+  trainerTitle: string;
+  avatarPokemonId: string;
+  avatarPokemonEmoji: string;
+  currentLeague: LeagueTier;
+  totalXp: number;
+  totalWorkouts: number;
+  createdAt: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  trainerTitle: string;
+  avatarPokemonEmoji: string;
+  weeklyXp: number;
+  totalTonnageKg: number;
+  cardioMinutes: number;
+  workoutsCount: number;
+  isCurrentUser: boolean;
+  trend: 'up' | 'down' | 'same';
+}
+
+export type TradeStatus = 'available' | 'pending' | 'completed' | 'cancelled';
+
+export interface PokemonTradeOffer {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderCode: string;
+  offeredPokemon: {
+    id: string;
+    speciesId: string;
+    name: string;
+    emoji: string;
+    type: string;
+    cp: number;
+    isLegendary: boolean;
+  };
+  requestedSpeciesId?: string; // optionnel: souhaite un Pokémon précis
+  requestedCriteriaText?: string; // ex: "N'importe quel type Eau ou Feu"
+  receiverId?: string;
+  receiverName?: string;
+  returnedPokemon?: {
+    id: string;
+    speciesId: string;
+    name: string;
+    emoji: string;
+    type: string;
+    cp: number;
+    isLegendary: boolean;
+  };
+  friendsOnly?: boolean; // restreint l'échange aux amis du dresseur
+  status: TradeStatus;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface FriendEntry {
+  friendId: string;
+  username: string;
+  friendCode: string; // e.g. "VTX-7429"
+  trainerTitle: string;
+  avatarPokemonEmoji: string;
+  currentLeague: LeagueTier;
+  totalXp: number;
+  addedAt: string;
+}
+
+export interface AuthSession {
+  userId: string;
+  username: string;
+  friendCode: string;
+  token?: string;
+  isLoggedIn: boolean;
+  createdAt: string;
+}
+
+export type RaidMetric = 'tonnage_kg' | 'xp_points' | 'cardio_minutes';
+
+export interface RaidParticipant {
+  userId: string;
+  username: string;
+  avatarPokemonEmoji: string;
+  contributionValue: number;
+  percentage: number;
+  isCurrentUser: boolean;
+}
+
+export interface CoOpRaidBoss {
+  id: string;
+  title: string;
+  bossName: string;
+  bossEmoji: string;
+  bossType: string;
+  description: string;
+  targetMetric: RaidMetric;
+  targetMetricLabel: string;
+  targetValue: number;
+  currentProgress: number;
+  startTime: string;
+  endTime: string;
+  status: 'active' | 'victory' | 'failed';
+  rewardEggRarity: 'athlete' | 'champion' | 'legendary';
+  rewardDescription: string;
+  participants: RaidParticipant[];
+  hasClaimedReward?: boolean;
+}
+
