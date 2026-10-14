@@ -9,14 +9,17 @@ import {
   Alert,
   TextInput,
   Share,
+  Linking,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { exportAllData, importDataFromFile } from '../../database/backupService';
 import { resetDatabase } from '../../database/db';
 import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
+import { Badge } from '../../components/common/Badge';
 import { EQUIPMENT_CATALOG_METADATA } from '../../utils/exerciseUnits';
 import { EQUIPMENTS } from '../../constants/muscles';
 import { getOrCreateTrainerProfile, getFriendsList } from '../../services/multiplayerService';
@@ -92,6 +95,66 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+
+  const handleCheckUpdate = async () => {
+    if (!Updates.isEnabled) {
+      Alert.alert(
+        'Mises à jour non actives',
+        'Cette version installée sur votre smartphone ne contient pas le module natif de mise à jour automatique. Veuillez installer l’APK autonome officiel généré par EAS pour activer les mises à jour automatiques.',
+        [
+          { text: 'Compris' },
+          {
+            text: 'Télécharger le bon APK',
+            onPress: () =>
+              Linking.openURL(
+                'https://expo.dev/artifacts/eas/06idgnR7W-kUUaqdLC_8CLekX2jVI1aYRSOOj-nKw1c.apk'
+              ),
+          },
+        ]
+      );
+      return;
+    }
+
+    setCheckingUpdate(true);
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        Alert.alert(
+          'Mise à jour trouvée ! 🚀',
+          'Une nouvelle version est disponible sur le serveur. Téléchargement et application...',
+          [
+            {
+              text: 'Installer maintenant',
+              onPress: async () => {
+                try {
+                  await Updates.fetchUpdateAsync();
+                  await Updates.reloadAsync();
+                } catch (err: any) {
+                  Alert.alert('Erreur', err.message || 'Échec du téléchargement.');
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Application à jour ✅',
+          `Vous utilisez déjà la dernière version disponible sur le canal « ${Updates.channel || 'preview'} ».\n(ID: ${
+            Updates.updateId ? Updates.updateId.substring(0, 10) : 'Version initiale'
+          })`
+        );
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Erreur de vérification',
+        err.message || 'Impossible de contacter le serveur de mise à jour.'
+      );
+    } finally {
+      setCheckingUpdate(false);
+    }
   };
 
   const [draftName, setDraftName] = useState<string | null>(null);
@@ -574,6 +637,44 @@ export default function SettingsScreen() {
         />
       </Card>
 
+      {/* Section Mises à jour de l'application */}
+      <Text style={styles.sectionHeader}>MISES À JOUR DE L’APPLICATION</Text>
+
+      <Card style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <Text style={styles.label}>Mises à jour en direct (OTA)</Text>
+          <Badge
+            label={Updates.isEnabled ? 'Prêt (EAS)' : 'Non actif'}
+            color={Updates.isEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
+            textColor={Updates.isEnabled ? Colors.success : Colors.danger}
+          />
+        </View>
+
+        <Text style={styles.sublabel}>
+          Téléchargez les nouveaux modes, écrans et correctifs sans réinstaller l’APK.
+        </Text>
+
+        <View style={styles.updateInfoBox}>
+          <Text style={styles.updateInfoRow}>
+            Canal : <Text style={styles.updateInfoVal}>{Updates.channel || 'preview'}</Text>
+          </Text>
+          <Text style={styles.updateInfoRow}>
+            Version Runtime : <Text style={styles.updateInfoVal}>{Updates.runtimeVersion || '1.0.0'}</Text>
+          </Text>
+          <Text style={styles.updateInfoRow}>
+            Mise à jour active : <Text style={styles.updateInfoVal}>{Updates.updateId ? `${Updates.updateId.substring(0, 10)}...` : 'Version de base'}</Text>
+          </Text>
+        </View>
+
+        <Button
+          title={checkingUpdate ? 'Recherche en cours...' : '🔄 Vérifier les mises à jour en direct'}
+          variant="primary"
+          onPress={handleCheckUpdate}
+          disabled={checkingUpdate}
+          style={{ marginTop: 12 }}
+        />
+      </Card>
+
       {/* Footer À propos */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>Vitax Musculation • Version 1.0.0 Offline-First</Text>
@@ -958,5 +1059,23 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#1C293D',
     marginVertical: 10,
+  },
+  updateInfoBox: {
+    backgroundColor: '#0F1626',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1F2C40',
+    gap: 4,
+    marginTop: 4,
+  },
+  updateInfoRow: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  updateInfoVal: {
+    color: '#00E5FF',
+    fontWeight: '800',
   },
 });
