@@ -11,6 +11,7 @@ import {
   TextInput,
   Switch,
   Share,
+  Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '../../constants/colors';
@@ -45,6 +46,9 @@ import {
   getPersistedSession,
   logoutTrainer,
 } from '../../services/authService';
+
+const APK_DOWNLOAD_URL =
+  'https://expo.dev/artifacts/eas/06idgnR7W-kUUaqdLC_8CLekX2jVI1aYRSOOj-nKw1c.apk';
 
 type ArenaTab = 'leaderboard' | 'trades' | 'raids';
 type LeaderboardFilter = 'global' | 'friends';
@@ -155,7 +159,20 @@ export default function ArenaScreen() {
     if (!profile) return;
     try {
       await Share.share({
-        message: `Ajoute-moi sur Vitax pour comparer nos performances et échanger nos Pokémon ! Mon Code Dresseur : ${profile.friendCode} 🏆`,
+        title: 'Rejoins mon arène sur Vitax !',
+        message: `🔥 Rejoins-moi sur Vitax pour suivre nos entraînements et comparer nos classements !\n\n📲 Télécharge l'APK directement ici :\n${APK_DOWNLOAD_URL}\n\n🏆 Mon Code Ami : ${profile.friendCode}\n\nÀ tout de suite dans l'arène ! ⚔️`,
+      });
+    } catch {
+      // Ignorer
+    }
+  };
+
+  const handleShareApkInvite = async () => {
+    if (!profile) return;
+    try {
+      await Share.share({
+        title: 'Invitation à installer Vitax (APK direct)',
+        message: `🏋️‍♂️ Salut ! Je t'invite à installer Vitax, notre application de musculation & défis sportifs.\n\n📲 Télécharge l'APK ici :\n${APK_DOWNLOAD_URL}\n\n🏆 Dès l'installation, ajoute mon Code Ami pour qu'on partage nos classements et s'échange des Pokémon : ${profile.friendCode}\n\nÀ très vite dans l'arène ! ⚔️`,
       });
     } catch {
       // Ignorer
@@ -427,6 +444,42 @@ export default function ArenaScreen() {
                   : 'Entraînez-vous pour grimper au classement avant dimanche !'}
               </Text>
             </View>
+
+            {/* MODULE D'INVITATION À INSTALLER L'APPLICATION AVEC LIEN APK */}
+            <Card style={styles.inviteApkCard}>
+              <View style={styles.inviteApkTopRow}>
+                <View style={styles.inviteApkIconBox}>
+                  <Text style={{ fontSize: 22 }}>📲</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.inviteApkBadgeRow}>
+                    <Text style={styles.inviteApkTitle}>Inviter des amis sur Vitax</Text>
+                    <Badge label="Lien APK direct" color="rgba(0, 229, 255, 0.2)" textColor="#00E5FF" />
+                  </View>
+                  <Text style={styles.inviteApkSub}>
+                    Partagez l’application à vos partenaires de sport pour qu’ils installent l’APK et vous défient dans votre cercle d’amis.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.inviteApkLinkBox}>
+                <Text style={styles.inviteApkUrlText} numberOfLines={1}>
+                  {APK_DOWNLOAD_URL}
+                </Text>
+              </View>
+
+              <View style={styles.inviteApkButtonsRow}>
+                <TouchableOpacity
+                  style={styles.inviteApkShareBtn}
+                  onPress={handleShareApkInvite}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.inviteApkShareBtnText}>
+                    📤 Envoyer l’invitation (Lien APK + Code Ami)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
 
             {/* FILTRE : CLASSEMENT GÉNÉRAL VS MES AMIS */}
             <View style={styles.filterSegmentContainer}>
@@ -2033,5 +2086,73 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 11,
     fontWeight: '800',
+  },
+  inviteApkCard: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: '#00E5FF44',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+  },
+  inviteApkTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  inviteApkIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#00E5FF18',
+    borderWidth: 1,
+    borderColor: '#00E5FF44',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteApkBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  inviteApkTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  inviteApkSub: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  inviteApkLinkBox: {
+    backgroundColor: '#090E1A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  inviteApkUrlText: {
+    color: '#00E5FF',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  inviteApkButtonsRow: {
+    marginTop: 10,
+  },
+  inviteApkShareBtn: {
+    backgroundColor: '#00E5FF',
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteApkShareBtnText: {
+    color: '#090E1A',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });

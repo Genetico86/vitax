@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -16,19 +16,19 @@ import { getAllPrograms } from '../../database/programRepository';
 import { Program } from '../../types';
 import { useWorkoutSessionStore } from '../../stores/workoutSessionStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { isProgramCompatibleByEquipmentString } from '../../utils/exerciseUnits';
 import { Colors } from '../../constants/colors';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
-import { getUserGamificationStats, LevelInfo } from '../../services/gamificationService';
-import { UserLevelCard } from '../../components/stats/UserLevelCard';
+import {
+  getUserGamificationStats,
+  LevelInfo,
+  POKEMON_BADGE_TIERS,
+} from '../../services/gamificationService';
 import { WeightHomeWidget } from '../../components/weight/WeightHomeWidget';
 import { registerTrainer, loginTrainer } from '../../services/authService';
 
-type CategoryFilter = 'all' | 'cardio' | 'rack900' | 'split' | 'bodyweight' | 'custom';
-
-export default function ProgramsScreen() {
+export default function HomeScreen() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
   const [pokemonStats, setPokemonStats] = useState<{
@@ -38,21 +38,19 @@ export default function ProgramsScreen() {
   } | null>(null);
   const [weightRefreshKey, setWeightRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+
+  // Modal Profil / Nom d'utilisateur
   const [nameModalVisible, setNameModalVisible] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
-  const [showNamePrompt, setShowNamePrompt] = useState(true);
 
-  const {
-    user_name,
-    setUserName,
-    available_equipments,
-    filter_by_available_equipment,
-  } = useSettingsStore();
+  // Modal Badges & Pokémon Hub
+  const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+
+  const { user_name, setUserName } = useSettingsStore();
 
   const handleSaveName = async () => {
     const trimmed = nameInput.trim();
@@ -88,7 +86,6 @@ export default function ProgramsScreen() {
     isActive,
     programName,
     elapsedSeconds,
-    startWorkoutFromProgram,
     startFreeWorkout,
   } = useWorkoutSessionStore();
 
@@ -114,7 +111,7 @@ export default function ProgramsScreen() {
       });
       setWeightRefreshKey((k) => k + 1);
     } catch (err) {
-      console.error('Erreur chargement programmes:', err);
+      console.error('Erreur chargement accueil:', err);
     }
   }, []);
 
@@ -130,11 +127,6 @@ export default function ProgramsScreen() {
     setRefreshing(false);
   };
 
-  const handleStartProgram = async (programId: string) => {
-    await startWorkoutFromProgram(programId);
-    router.push('/workout/active');
-  };
-
   const handleStartFree = () => {
     startFreeWorkout();
     router.push('/workout/active');
@@ -145,110 +137,6 @@ export default function ProgramsScreen() {
     const s = sec % 60;
     return `${mins}m ${s.toString().padStart(2, '0')}s`;
   };
-
-  const getDifficultyColor = (diff: string) => {
-    switch (diff) {
-      case 'Débutant':
-        return Colors.success;
-      case 'Intermédiaire':
-        return Colors.accent;
-      case 'Avancé':
-        return Colors.primary;
-      default:
-        return Colors.buttonGray;
-    }
-  };
-
-  // Filtrage selon le matériel disponible coché dans les Paramètres
-  const compatiblePrograms = useMemo(() => {
-    if (!filter_by_available_equipment) return programs;
-    return programs.filter((p) =>
-      isProgramCompatibleByEquipmentString(p, available_equipments)
-    );
-  }, [programs, filter_by_available_equipment, available_equipments]);
-
-  // Indicateur si un filtrage matériel est effectivement restrictif (< 13 équipements)
-  const isEquipmentFilterRestricting = useMemo(() => {
-    return (
-      Boolean(filter_by_available_equipment) &&
-      (available_equipments || []).length < 13
-    );
-  }, [filter_by_available_equipment, available_equipments]);
-
-  // Nombre de programmes cardio compatibles
-  const cardioCount = useMemo(
-    () =>
-      compatiblePrograms.filter(
-        (p) =>
-          p.id.includes('cardio') ||
-          p.name.toLowerCase().includes('cardio') ||
-          p.name.toLowerCase().includes('endurance') ||
-          p.name.toLowerCase().includes('hiit') ||
-          p.name.toLowerCase().includes('tapis') ||
-          p.name.toLowerCase().includes('elliptique') ||
-          p.description?.toLowerCase().includes('cardio')
-      ).length,
-    [compatiblePrograms]
-  );
-
-  // Nombre de programmes 100% sans matériel
-  const bodyweightCount = useMemo(
-    () =>
-      compatiblePrograms.filter(
-        (p) =>
-          p.id.includes('no_equipment') ||
-          p.id.includes('bodyweight') ||
-          p.name.toLowerCase().includes('sans matériel') ||
-          p.description?.toLowerCase().includes('sans matériel') ||
-          p.description?.toLowerCase().includes('sans aucun équipement')
-      ).length,
-    [compatiblePrograms]
-  );
-
-  // Filtrage simple et lisible par catégorie
-  const filteredPrograms = useMemo(() => {
-    switch (selectedCategory) {
-      case 'cardio':
-        return compatiblePrograms.filter(
-          (p) =>
-            p.id.includes('cardio') ||
-            p.name.toLowerCase().includes('cardio') ||
-            p.name.toLowerCase().includes('endurance') ||
-            p.name.toLowerCase().includes('hiit') ||
-            p.name.toLowerCase().includes('tapis') ||
-            p.name.toLowerCase().includes('elliptique') ||
-            p.description?.toLowerCase().includes('cardio') ||
-            p.description?.toLowerCase().includes('tapis') ||
-            p.description?.toLowerCase().includes('vélo') ||
-            p.description?.toLowerCase().includes('velo')
-        );
-      case 'rack900':
-        return compatiblePrograms.filter(
-          (p) => p.name.includes('Rack 900') || p.id.includes('rack900')
-        );
-      case 'bodyweight':
-        return compatiblePrograms.filter(
-          (p) =>
-            p.id.includes('no_equipment') ||
-            p.id.includes('bodyweight') ||
-            p.name.toLowerCase().includes('sans matériel') ||
-            p.description?.toLowerCase().includes('sans matériel') ||
-            p.description?.toLowerCase().includes('sans aucun équipement')
-        );
-      case 'split':
-        return compatiblePrograms.filter(
-          (p) =>
-            p.name.includes('Push') ||
-            p.name.includes('Pull') ||
-            p.name.includes('Legs') ||
-            p.name.includes('Haut du corps')
-        );
-      case 'custom':
-        return compatiblePrograms.filter((p) => p.is_custom === 1);
-      default:
-        return compatiblePrograms;
-    }
-  }, [compatiblePrograms, selectedCategory]);
 
   return (
     <View style={styles.container}>
@@ -262,66 +150,88 @@ export default function ProgramsScreen() {
           />
         }
       >
-        {/* En-tête convivial */}
-        <View style={styles.welcomeHeader}>
-          <TouchableOpacity
-            style={styles.greetingTouch}
-            onPress={() => {
-              setNameInput(user_name || '');
-              setNameModalVisible(true);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.greetingRow}>
-              <Text style={styles.greetingText}>
-                Bonjour {user_name ? user_name : 'l’athlète'} 👋
+        {/* ======================================================== */}
+        {/* 1. TOUT EN HAUT : JAUGE D'EXPÉRIENCE, NIVEAU & BADGE      */}
+        {/* ======================================================== */}
+        <Card style={styles.topXpCard}>
+          <View style={styles.topUserHeader}>
+            <TouchableOpacity
+              style={styles.userNameTouch}
+              onPress={() => {
+                setNameInput(user_name || '');
+                setNameModalVisible(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.userGreetingRow}>
+                <Text style={styles.userGreetingText}>
+                  Bonjour {user_name ? user_name : 'l’athlète'} 👋
+                </Text>
+                <View style={styles.editNameIconBox}>
+                  <Text style={styles.editNameIcon}>✏️</Text>
+                </View>
+              </View>
+              <Text style={styles.userSubText}>
+                {levelInfo?.title || 'Dresseur Débutant'}
               </Text>
-              <View style={styles.editNameIconBox}>
-                <Text style={styles.editNameIcon}>✏️</Text>
-              </View>
+            </TouchableOpacity>
+
+            <View style={styles.offlineStatusPill}>
+              <View style={styles.greenDot} />
+              <Text style={styles.offlineStatusText}>100% Hors-ligne</Text>
             </View>
-            <Text style={styles.mainTitle}>Prêt à vous entraîner ?</Text>
-          </TouchableOpacity>
-
-          <View style={styles.offlineStatusPill}>
-            <View style={styles.greenDot} />
-            <Text style={styles.offlineStatusText}>100% Hors-ligne</Text>
           </View>
-        </View>
 
-        {/* Invitation conviviale à renseigner son prénom */}
-        {!user_name && showNamePrompt && (
-          <Card style={styles.namePromptCard}>
-            <View style={styles.namePromptContent}>
-              <View style={styles.namePromptIconBox}>
-                <Text style={styles.namePromptEmoji}>👋</Text>
+          {/* Jauge d'XP avec le Badge situé tout en haut en bout de jauge */}
+          <View style={styles.xpGaugeRow}>
+            {/* Niveau de l'athlète à gauche */}
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelBadgeText}>
+                Niv. {levelInfo?.level || 1}
+              </Text>
+            </View>
+
+            {/* Jauge de progression au centre */}
+            <View style={styles.xpTrackContainer}>
+              <View style={styles.xpTrack}>
+                <View
+                  style={[
+                    styles.xpFill,
+                    {
+                      width: `${Math.min(
+                        100,
+                        Math.max(6, levelInfo?.progressPercent ?? 0)
+                      )}%`,
+                    },
+                  ]}
+                />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.namePromptTitle}>Quel est votre prénom ?</Text>
-                <Text style={styles.namePromptSub}>
-                  Personnalisez Vitax pour remplacer la mention « Bonjour l’athlète ».
+              <View style={styles.xpLabelRow}>
+                <Text style={styles.xpNumbersText}>
+                  {levelInfo?.currentXp || 0} / {levelInfo?.nextLevelXp || 500} XP
+                </Text>
+                <Text style={styles.xpPercentText}>
+                  {levelInfo?.progressPercent || 0}%
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.namePromptBtn}
-                onPress={() => {
-                  setNameInput('');
-                  setNameModalVisible(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.namePromptBtnText}>Personnaliser</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.namePromptClose}
-                onPress={() => setShowNamePrompt(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Text style={styles.namePromptCloseText}>✕</Text>
-              </TouchableOpacity>
             </View>
-          </Card>
-        )}
+
+            {/* LE BADGE : En bout de jauge, ouvre badges & pokémons */}
+            <TouchableOpacity
+              style={styles.endBadgeButton}
+              onPress={() => setBadgeModalVisible(true)}
+              activeOpacity={0.75}
+              accessibilityLabel="Ouvrir les Badges et gestion des Pokémon"
+            >
+              <Text style={styles.endBadgeEmoji}>
+                {levelInfo?.badgeEmoji || '🏅'}
+              </Text>
+              <View style={styles.endBadgeNotificationDot}>
+                <Text style={styles.endBadgeSparkle}>✨</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Card>
 
         {/* Bannière de séance active PRIORITAIRE (si en cours) */}
         {isActive && (
@@ -352,490 +262,344 @@ export default function ProgramsScreen() {
         )}
 
         {/* ======================================================== */}
-        {/* SECTION 1 : HUB D'ENTRAÎNEMENT & MODES RAPIDES           */}
+        {/* 2. LES GRANDS BOUTONS STRUCTURANTS                        */}
         {/* ======================================================== */}
-        <View style={styles.launchpadSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.mainSectionTitle}>⚡ Lancer un Entraînement</Text>
-              <Text style={styles.mainSectionSubtitle}>
-                Modes rapides, générateur intelligent et ciblage direct
-              </Text>
-            </View>
+
+        {/* BOUTON : MES PROGRAMMES (ouvre la page dédiée) */}
+        <TouchableOpacity
+          style={styles.primaryActionCard}
+          onPress={() => router.push('/programs')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.primaryActionIconBox}>
+            <Text style={{ fontSize: 28 }}>📂</Text>
           </View>
-
-          {/* Hero Card : GÉNÉRATEUR DE SÉANCES PAR IA */}
-          <TouchableOpacity
-            style={styles.aiHeroCard}
-            onPress={() => router.push('/workout/ai-generator')}
-            activeOpacity={0.88}
-          >
-            <View style={styles.aiHeroContent}>
-              <View style={styles.aiHeroIconBox}>
-                <Text style={styles.aiHeroIcon}>🤖</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.aiHeroHeaderRow}>
-                  <View style={styles.aiHeroBadge}>
-                    <Text style={styles.aiHeroBadgeText}>IA EXPERTE • SUR-MESURE</Text>
-                  </View>
-                  <Text style={styles.aiHeroHint}>100% Hors-ligne</Text>
-                </View>
-                <Text style={styles.aiHeroTitle}>
-                  Générateur de Séances par IA
-                </Text>
-                <Text style={styles.aiHeroSubtitle}>
-                  Séance calibrée selon vos muscles cibles, durée, niveau et matériel
-                </Text>
-              </View>
-              <View style={styles.aiHeroArrowBox}>
-                <Text style={styles.aiHeroArrow}>❯</Text>
-              </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.primaryActionHeaderRow}>
+              <Text style={styles.primaryActionTitle}>Mes Programmes</Text>
+              <Badge
+                label={`${programs.length} dispo`}
+                color="rgba(255, 90, 31, 0.2)"
+                textColor={Colors.primary}
+              />
             </View>
-          </TouchableOpacity>
+            <Text style={styles.primaryActionSubtitle}>
+              Split, Rack 900, Sans Matériel, Cardio & Programmes sur mesure
+            </Text>
+          </View>
+          <Text style={styles.primaryActionArrow}>❯</Text>
+        </TouchableOpacity>
 
-          {/* Grille 2x2 des 4 Modes d'Accès Rapide */}
-          <View style={styles.launchGrid}>
-            {/* 1. Séance Libre Immédiate (1 CLIC) */}
+        {/* BOUTON : MULTIJOUEUR / SOCIAL */}
+        <TouchableOpacity
+          style={[styles.primaryActionCard, styles.multiplayerCardHighlight]}
+          onPress={() => router.push('/arena')}
+          activeOpacity={0.85}
+        >
+          <View
+            style={[
+              styles.primaryActionIconBox,
+              styles.multiplayerIconHighlight,
+            ]}
+          >
+            <Text style={{ fontSize: 28 }}>⚔️</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.primaryActionHeaderRow}>
+              <Text style={styles.primaryActionTitle}>Multijoueur / Social</Text>
+              <Badge
+                label="Arène Vitax"
+                color="rgba(168, 85, 247, 0.25)"
+                textColor="#C084FC"
+              />
+            </View>
+            <Text style={styles.primaryActionSubtitle}>
+              Classement général & amis, échanges de Pokémon, invitations et Raids Co-op
+            </Text>
+          </View>
+          <Text style={styles.primaryActionArrow}>❯</Text>
+        </TouchableOpacity>
+
+        {/* BOUTON : COURSE À PIED & ENDURANCE */}
+        <TouchableOpacity
+          style={[styles.primaryActionCard, styles.runningCardHighlight]}
+          onPress={() => router.push('/running')}
+          activeOpacity={0.85}
+        >
+          <View
+            style={[
+              styles.primaryActionIconBox,
+              styles.runningIconHighlight,
+            ]}
+          >
+            <Text style={{ fontSize: 28 }}>🏃‍♂️</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.primaryActionHeaderRow}>
+              <Text style={styles.primaryActionTitle}>Course à Pied</Text>
+              <Badge
+                label="Chrono & Graph"
+                color="rgba(0, 229, 255, 0.2)"
+                textColor="#00E5FF"
+              />
+            </View>
+            <Text style={styles.primaryActionSubtitle}>
+              Quantification temps & km, allure moyenne et courbe de performance
+            </Text>
+          </View>
+          <Text style={styles.primaryActionArrow}>❯</Text>
+        </TouchableOpacity>
+
+        {/* ======================================================== */}
+        {/* 3. MODES D'ACCÈS RAPIDE (GRILLE 2x2)                      */}
+        {/* ======================================================== */}
+        <View style={styles.quickAccessSection}>
+          <Text style={styles.sectionTitle}>⚡ Entraînement Rapide & Outils</Text>
+
+          <View style={styles.quickGrid}>
+            {/* 1. Séance Libre Immédiate */}
             <TouchableOpacity
-              style={[styles.launchTile, styles.launchTileFree]}
+              style={[styles.quickTile, styles.tileFree]}
               onPress={handleStartFree}
               activeOpacity={0.85}
             >
-              <View style={styles.launchTileTop}>
-                <View style={[styles.launchTileIconBox, styles.launchTileIconBoxFree]}>
-                  <Text style={styles.launchTileIcon}>⚡</Text>
-                </View>
-                <View style={styles.launchTileBadgeFree}>
-                  <Text style={styles.launchTileBadgeTextFree}>1 CLIC</Text>
+              <View style={styles.quickTileTop}>
+                <Text style={styles.quickTileIcon}>⚡</Text>
+                <View style={styles.quickTileBadge}>
+                  <Text style={styles.quickTileBadgeText}>1 CLIC</Text>
                 </View>
               </View>
-              <Text style={styles.launchTileTitle}>Séance Libre</Text>
-              <Text style={styles.launchTileSubtitle}>
-                Démarrage sans programme
-              </Text>
+              <Text style={styles.quickTileTitle}>Séance Libre</Text>
+              <Text style={styles.quickTileSub}>Démarrage direct</Text>
             </TouchableOpacity>
 
-            {/* 2. Ciblage Anatomique / Muscle Précis */}
+            {/* 2. Coach IA Sur-Mesure */}
             <TouchableOpacity
-              style={[styles.launchTile, styles.launchTileTarget]}
+              style={[styles.quickTile, styles.tileAi]}
+              onPress={() => router.push('/workout/ai-generator')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.quickTileTop}>
+                <Text style={styles.quickTileIcon}>🤖</Text>
+                <View style={[styles.quickTileBadge, styles.badgeAi]}>
+                  <Text style={styles.badgeAiText}>IA</Text>
+                </View>
+              </View>
+              <Text style={styles.quickTileTitle}>Générateur IA</Text>
+              <Text style={styles.quickTileSub}>Séance calibrée</Text>
+            </TouchableOpacity>
+
+            {/* 3. Cibler un Muscle */}
+            <TouchableOpacity
+              style={[styles.quickTile, styles.tileTarget]}
               onPress={() => router.push('/programs/target-muscle')}
               activeOpacity={0.85}
             >
-              <View style={styles.launchTileTop}>
-                <View style={[styles.launchTileIconBox, styles.launchTileIconBoxTarget]}>
-                  <Text style={styles.launchTileIcon}>🎯</Text>
-                </View>
-                <Text style={styles.launchTileArrow}>❯</Text>
+              <View style={styles.quickTileTop}>
+                <Text style={styles.quickTileIcon}>🎯</Text>
+                <Text style={styles.quickTileArrow}>❯</Text>
               </View>
-              <Text style={styles.launchTileTitle}>Cibler un Muscle</Text>
-              <Text style={styles.launchTileSubtitle}>
-                Par faisceau anatomique
-              </Text>
+              <Text style={styles.quickTileTitle}>Cibler un Muscle</Text>
+              <Text style={styles.quickTileSub}>Faisceau précis</Text>
             </TouchableOpacity>
 
-            {/* 3. Catalogue d'Exercices (103) */}
+            {/* 4. Catalogue d'Exercices */}
             <TouchableOpacity
-              style={[styles.launchTile, styles.launchTileCatalog]}
+              style={[styles.quickTile, styles.tileCatalog]}
               onPress={() => router.push('/exercises')}
               activeOpacity={0.85}
             >
-              <View style={styles.launchTileTop}>
-                <View style={[styles.launchTileIconBox, styles.launchTileIconBoxCatalog]}>
-                  <Text style={styles.launchTileIcon}>📖</Text>
-                </View>
-                <View style={styles.launchTileBadgeCatalog}>
-                  <Text style={styles.launchTileBadgeTextCatalog}>103 EXO</Text>
-                </View>
+              <View style={styles.quickTileTop}>
+                <Text style={styles.quickTileIcon}>📖</Text>
+                <Text style={styles.quickTileArrow}>❯</Text>
               </View>
-              <Text style={styles.launchTileTitle}>Catalogue</Text>
-              <Text style={styles.launchTileSubtitle}>
-                Guides & animations
-              </Text>
-            </TouchableOpacity>
-
-            {/* 4. Créer un Programme */}
-            <TouchableOpacity
-              style={[styles.launchTile, styles.launchTileCreate]}
-              onPress={() => router.push('/programs/create')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.launchTileTop}>
-                <View style={[styles.launchTileIconBox, styles.launchTileIconBoxCreate]}>
-                  <Text style={styles.launchTileIcon}>➕</Text>
-                </View>
-                <Text style={styles.launchTileArrow}>❯</Text>
-              </View>
-              <Text style={styles.launchTileTitle}>Nouveau Programme</Text>
-              <Text style={styles.launchTileSubtitle}>
-                Créer sa propre routine
-              </Text>
+              <Text style={styles.quickTileTitle}>Catalogue</Text>
+              <Text style={styles.quickTileSub}>103 exercices</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* ======================================================== */}
-        {/* SECTION 2 : VOS PROGRAMMES & SÉRIES                      */}
+        {/* 4. WIDGET SUIVI DU POIDS & OBJECTIFS                     */}
         {/* ======================================================== */}
-        <View style={styles.programsSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.mainSectionTitle}>📋 Vos Programmes & Séries</Text>
-              <Text style={styles.mainSectionSubtitle}>
-                {compatiblePrograms.length} programme{compatiblePrograms.length > 1 ? 's' : ''} disponible{compatiblePrograms.length > 1 ? 's' : ''}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.sectionActionBtn}
-              onPress={() => router.push('/programs/create')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.sectionActionBtnText}>+ Créer</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Onglets Catégories simples & fluides */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryPills}
-          >
-
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                selectedCategory === 'all' && styles.categoryPillActive,
-              ]}
-              onPress={() => setSelectedCategory('all')}
-            >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === 'all' && styles.categoryPillTextActive,
-                ]}
-              >
-                Tous ({programs.length})
-              </Text>
-            </TouchableOpacity>
-
-            {/* NOUVEAU : Série Cardio */}
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                selectedCategory === 'cardio' && styles.categoryPillActiveCardio,
-              ]}
-              onPress={() => setSelectedCategory('cardio')}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === 'cardio' && styles.categoryPillTextActiveCardio,
-                ]}
-              >
-                🏃 Série Cardio ({cardioCount})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                selectedCategory === 'rack900' && styles.categoryPillActive,
-              ]}
-              onPress={() => setSelectedCategory('rack900')}
-            >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === 'rack900' && styles.categoryPillTextActive,
-                ]}
-              >
-                🏋️ Rack 900 & Poulies
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                selectedCategory === 'split' && styles.categoryPillActive,
-              ]}
-              onPress={() => setSelectedCategory('split')}
-            >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === 'split' && styles.categoryPillTextActive,
-                ]}
-              >
-                💥 Split & Banc
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                selectedCategory === 'bodyweight' && styles.categoryPillActive,
-              ]}
-              onPress={() => setSelectedCategory('bodyweight')}
-            >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === 'bodyweight' && styles.categoryPillTextActive,
-                ]}
-              >
-                🏠 Sans Matériel ({bodyweightCount})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                selectedCategory === 'custom' && styles.categoryPillActive,
-              ]}
-              onPress={() => setSelectedCategory('custom')}
-            >
-              <Text
-                style={[
-                  styles.categoryPillText,
-                  selectedCategory === 'custom' && styles.categoryPillTextActive,
-                ]}
-              >
-                ⭐ Mes Programmes
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* Bandeau interactif si le filtrage matériel est actif */}
-        {isEquipmentFilterRestricting && (
-          <TouchableOpacity
-            style={styles.equipmentFilterBanner}
-            onPress={() => router.push('/(tabs)/settings')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.equipmentFilterBannerLeft}>
-              <View style={styles.equipmentFilterBannerIconBox}>
-                <Text style={styles.equipmentFilterBannerIcon}>🎛️</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.equipmentFilterBannerTitle}>
-                  Filtrage matériel actif ({available_equipments?.length ?? 0}/13)
-                </Text>
-                <Text style={styles.equipmentFilterBannerSubtitle}>
-                  {compatiblePrograms.length} programme{compatiblePrograms.length > 1 ? 's' : ''} réalisable{compatiblePrograms.length > 1 ? 's' : ''} avec vos équipements
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.equipmentFilterBannerAction}>Régler ⚙️</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Liste des programmes simplifiée et visuelle */}
-        {filteredPrograms.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyTitle}>Aucun programme trouvé</Text>
-            <Text style={styles.emptySubtitle}>
-              {isEquipmentFilterRestricting
-                ? 'Aucun programme ne correspond à cette sélection avec vos équipements actuellement cochés.'
-                : 'Vous pouvez créer votre propre programme sur mesure en quelques secondes.'}
-            </Text>
-            {isEquipmentFilterRestricting && (
-              <Button
-                title="⚙️ Modifier les équipements"
-                variant="outline"
-                size="sm"
-                onPress={() => router.push('/(tabs)/settings')}
-                style={{ marginTop: 12 }}
-              />
-            )}
-            <Button
-              title="+ Créer un programme"
-              variant="primary"
-              size="sm"
-              onPress={() => router.push('/programs/create')}
-              style={{ marginTop: 8 }}
-            />
-          </Card>
-        ) : (
-          filteredPrograms.map((item) => {
-            const diffColor = getDifficultyColor(item.difficulty_level);
-            const isRack900 = item.name.includes('Rack 900') || item.id.includes('rack900');
-            const isCardio =
-              item.id.includes('cardio') ||
-              item.name.toLowerCase().includes('cardio') ||
-              item.name.toLowerCase().includes('endurance') ||
-              item.name.toLowerCase().includes('tapis') ||
-              item.name.toLowerCase().includes('elliptique');
-
-            return (
-              <Card
-                key={item.id}
-                style={[
-                  styles.programCard,
-                  isRack900 && styles.rack900CardHighlight,
-                  isCardio && styles.cardioCardHighlight,
-                ]}
-                onPress={() => router.push(`/programs/${item.id}`)}
-              >
-                <View style={styles.cardTop}>
-                  <View style={styles.badgesRow}>
-                    <Badge
-                      label={item.difficulty_level}
-                      color={`${diffColor}22`}
-                      textColor={diffColor}
-                    />
-                    <Text style={styles.exercisesCountBadge}>
-                      {item.exercises_count ?? 0} exercices
-                    </Text>
-                    {isCardio && (
-                      <Badge
-                        label="🏃 Série Cardio"
-                        color="rgba(6, 182, 212, 0.2)"
-                        textColor="#22D3EE"
-                        style={{ marginLeft: 6 }}
-                      />
-                    )}
-                    {isRack900 && (
-                      <Badge
-                        label="Poulie Haute/Basse"
-                        color="rgba(249, 115, 22, 0.2)"
-                        textColor="#FB923C"
-                        style={{ marginLeft: 6 }}
-                      />
-                    )}
-                  </View>
-                </View>
-
-                <Text style={styles.programTitle}>{item.name}</Text>
-                <Text style={styles.programDescription} numberOfLines={2}>
-                  {item.description}
-                </Text>
-
-                {/* Bouton de lancement direct - 1 CLIC */}
-                <View style={styles.cardBottomActions}>
-                  <TouchableOpacity
-                    style={styles.detailsLink}
-                    onPress={() => router.push(`/programs/${item.id}`)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.detailsLinkText}>Voir les exercices ❯</Text>
-                  </TouchableOpacity>
-
-                  <Button
-                    title="Démarrer ▶"
-                    size="md"
-                    variant="primary"
-                    onPress={() => handleStartProgram(item.id)}
-                    style={styles.startProgramBtn}
-                  />
-                </View>
-              </Card>
-            );
-          })
-        )}
-
-        {/* ======================================================== */}
-        {/* SECTION 3 : ESPACE ATHLÈTE, PROGRESSION & RÉCOMPENSES     */}
-        {/* ======================================================== */}
-        <View style={styles.athleteSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View>
-              <Text style={styles.mainSectionTitle}>🏆 Espace Athlète & Progression</Text>
-              <Text style={styles.mainSectionSubtitle}>
-                Niveau XP, Pokédex, incubateurs et suivi corporel
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <TouchableOpacity
-                style={styles.arenaHeaderBtn}
-                onPress={() => router.push('/arena')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.arenaHeaderBtnText}>🏟️ Arène ❯</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.athleteHeaderBtn}
-                onPress={() => router.push('/(tabs)/history')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.athleteHeaderBtnText}>Historique ❯</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Carte Arène & Multijoueur */}
-          <TouchableOpacity
-            style={styles.arenaBannerCard}
-            onPress={() => router.push('/arena')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.arenaBannerContent}>
-              <View style={styles.arenaIconBox}>
-                <Text style={{ fontSize: 24 }}>🏟️</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.arenaHeaderRow}>
-                  <View style={styles.arenaBadge}>
-                    <Text style={styles.arenaBadgeText}>COMMUNAUTÉ & MULTI</Text>
-                  </View>
-                  <Text style={styles.arenaHint}>Ligues • Échanges • Raids</Text>
-                </View>
-                <Text style={styles.arenaTitle}>Arène Vitax & Classements</Text>
-                <Text style={styles.arenaSubtitle}>
-                  Participez aux ligues d’arènes, échangez des Pokémon et affrontez le Raid Boss en équipe
-                </Text>
-              </View>
-              <Text style={styles.arenaArrow}>❯</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* Carte de Niveau & Points XP */}
-          {levelInfo && (
-            <UserLevelCard
-              levelInfo={levelInfo}
-              onPress={() => router.push('/(tabs)/history?tab=achievements')}
-            />
-          )}
-
-          {/* Widget Incubateurs Pokémon & Oeufs */}
-          {pokemonStats && (
-            <TouchableOpacity
-              style={styles.pokemonWidgetCard}
-              onPress={() => router.push('/(tabs)/history?tab=pokemon')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.pokemonWidgetIconBox}>
-                <Text style={styles.pokemonWidgetIconEmoji}>🥚</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.pokemonWidgetTitleRow}>
-                  <Text style={styles.pokemonWidgetTitle}>
-                    Incubateurs & Pokédex
-                  </Text>
-                  <View style={styles.pokemonWidgetBadge}>
-                    <Text style={styles.pokemonWidgetBadgeText}>
-                      {pokemonStats.hatchedCount} Pokémon
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.pokemonWidgetSubtitle}>
-                  {pokemonStats.incubatingCount > 0
-                    ? `${pokemonStats.incubatingCount} œuf(s) en incubation • Prochaine éclosion dans ${pokemonStats.closestEggRemainingXp} XP`
-                    : 'Ouvrez vos incubateurs pour faire éclore des Pokémon !'}
-                </Text>
-              </View>
-              <Text style={styles.pokemonWidgetArrow}>❯</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Widget Suivi du Poids & Objectifs */}
+        <View style={{ marginTop: 6 }}>
           <WeightHomeWidget refreshTrigger={weightRefreshKey} />
         </View>
       </ScrollView>
 
-      {/* Modal de Saisie du Prénom */}
+      {/* ======================================================== */}
+      {/* MODAL : BADGES & GESTION DES POKÉMONS                    */}
+      {/* ======================================================== */}
+      <Modal
+        visible={badgeModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setBadgeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.badgeModalCard}>
+            {/* Header du modal */}
+            <View style={styles.badgeModalHeader}>
+              <View style={styles.badgeModalIconBox}>
+                <Text style={{ fontSize: 32 }}>{levelInfo?.badgeEmoji || '🏅'}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.badgeModalTitle}>
+                  {levelInfo?.badgeName || 'Badge Roche'}
+                </Text>
+                <Text style={styles.badgeModalSubtitle}>
+                  Niveau {levelInfo?.level || 1} • {levelInfo?.title}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeModalBtn}
+                onPress={() => setBadgeModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.closeModalText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Informations de palier */}
+            <View style={styles.badgeModalStatsRow}>
+              <View style={styles.badgeModalStat}>
+                <Text style={styles.badgeModalStatVal}>{levelInfo?.currentXp || 0}</Text>
+                <Text style={styles.badgeModalStatLabel}>XP Cumulés</Text>
+              </View>
+              <View style={styles.badgeModalStat}>
+                <Text style={styles.badgeModalStatVal}>
+                  {pokemonStats?.hatchedCount || 0}
+                </Text>
+                <Text style={styles.badgeModalStatLabel}>Pokémon Éclos</Text>
+              </View>
+              <View style={styles.badgeModalStat}>
+                <Text style={styles.badgeModalStatVal}>
+                  {pokemonStats?.incubatingCount || 0}
+                </Text>
+                <Text style={styles.badgeModalStatLabel}>En Incubation</Text>
+              </View>
+            </View>
+
+            {/* Défilement des 8 Badges de Kanto */}
+            <Text style={styles.kantoBadgesTitle}>
+              🏛️ Les 8 Badges de Kanto & Ligue
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.kantoBadgesScroll}
+            >
+              {POKEMON_BADGE_TIERS.map((tier) => {
+                const isUnlocked = (levelInfo?.currentXp ?? 0) >= tier.minXp;
+                const isCurrent = levelInfo?.level === tier.level;
+
+                return (
+                  <View
+                    key={tier.level}
+                    style={[
+                      styles.kantoBadgeItem,
+                      isCurrent && styles.kantoBadgeCurrent,
+                      !isUnlocked && styles.kantoBadgeLocked,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.kantoBadgeEmoji,
+                        !isUnlocked && { opacity: 0.3 },
+                      ]}
+                    >
+                      {tier.emoji}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.kantoBadgeName,
+                        isCurrent && { color: Colors.primary, fontWeight: '800' },
+                        !isUnlocked && { color: Colors.textMuted },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {tier.badgeName}
+                    </Text>
+                    <Text style={styles.kantoBadgeXp}>{tier.minXp} XP</Text>
+                    {isCurrent && (
+                      <View style={styles.currentBadgeTag}>
+                        <Text style={styles.currentBadgeTagText}>ACTUEL</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            {/* Raccourcis directs vers la gestion */}
+            <View style={styles.badgeModalActions}>
+              <TouchableOpacity
+                style={styles.badgeActionBtn}
+                onPress={() => {
+                  setBadgeModalVisible(false);
+                  router.push('/(tabs)/history?tab=pokemon');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.badgeActionBtnIcon}>🥚</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.badgeActionBtnTitle}>
+                    Incubateurs & Pokédex
+                  </Text>
+                  <Text style={styles.badgeActionBtnSub}>
+                    Gérer vos œufs, éclosions et collection
+                  </Text>
+                </View>
+                <Text style={styles.badgeActionBtnArrow}>❯</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.badgeActionBtn}
+                onPress={() => {
+                  setBadgeModalVisible(false);
+                  router.push('/(tabs)/history?tab=achievements');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.badgeActionBtnIcon}>🏆</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.badgeActionBtnTitle}>
+                    Trophées & Exploits
+                  </Text>
+                  <Text style={styles.badgeActionBtnSub}>
+                    Consulter vos défis dresseur et Pokémon légendaires
+                  </Text>
+                </View>
+                <Text style={styles.badgeActionBtnArrow}>❯</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.badgeActionBtn}
+                onPress={() => {
+                  setBadgeModalVisible(false);
+                  router.push('/arena');
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.badgeActionBtnIcon}>⚔️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.badgeActionBtnTitle}>
+                    Arène & Échanges
+                  </Text>
+                  <Text style={styles.badgeActionBtnSub}>
+                    Combattre en ligue, échanger des Pokémon et défier le Raid Boss
+                  </Text>
+                </View>
+                <Text style={styles.badgeActionBtnArrow}>❯</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ======================================================== */}
+      {/* MODAL : SAISIE DU PSEUDO / COMPTE                        */}
+      {/* ======================================================== */}
       <Modal
         visible={nameModalVisible}
         transparent
@@ -856,8 +620,8 @@ export default function ProgramsScreen() {
               </Text>
               <Text style={styles.nameModalSubtitle}>
                 {isLoginMode
-                  ? 'Connectez-vous pour retrouver vos classements et vos Pokémon'
-                  : 'Renseignez votre pseudo et votre mot de passe pour participer aux classements partagés.'}
+                  ? 'Connectez-vous pour synchroniser vos classements et Pokémon'
+                  : 'Renseignez votre pseudo et mot de passe pour les classements partagés.'}
               </Text>
             </View>
 
@@ -893,38 +657,42 @@ export default function ProgramsScreen() {
 
             <View style={styles.persistentLoginNote}>
               <Text style={styles.persistentLoginNoteText}>
-                🔒 Connexion permanente : vous n’aurez jamais besoin de resaisir votre mot de passe à l’ouverture de l’application.
+                🔒 Connexion permanente : aucune saisie répétée du mot de passe au lancement.
               </Text>
             </View>
 
             <TouchableOpacity
-              style={{ alignItems: 'center', marginBottom: 12 }}
+              style={styles.authToggleModeBtn}
               onPress={() => {
-                setIsLoginMode((m) => !m);
+                setIsLoginMode(!isLoginMode);
                 setAuthError(null);
               }}
             >
-              <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: '700' }}>
+              <Text style={styles.authToggleModeText}>
                 {isLoginMode
-                  ? 'Nouveau dresseur ? Créer un compte'
-                  : 'Vous avez déjà un compte ? Se connecter'}
+                  ? 'Nouveau dresseur ? Créer un compte ➔'
+                  : 'Déjà un compte ? Se connecter ➔'}
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.nameModalActions}>
+            <View style={styles.nameModalButtons}>
               <Button
                 title="Annuler"
                 variant="outline"
                 size="md"
-                onPress={() => setNameModalVisible(false)}
-                style={{ flex: 1, marginRight: 8 }}
+                onPress={() => {
+                  setNameModalVisible(false);
+                  setPasswordInput('');
+                  setAuthError(null);
+                }}
+                style={{ flex: 1 }}
               />
               <Button
                 title={
                   authLoading
                     ? 'Validation...'
                     : isLoginMode
-                    ? 'Connexion'
+                    ? 'Se connecter'
                     : 'Enregistrer'
                 }
                 variant="primary"
@@ -950,63 +718,162 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  welcomeHeader: {
+  topXpCard: {
+    backgroundColor: '#0F1626',
+    borderWidth: 1.5,
+    borderColor: '#1E2C42',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  topUserHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  userNameTouch: {
+    flex: 1,
+  },
+  userGreetingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 4,
+    gap: 6,
   },
-  greetingText: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  mainTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
+  userGreetingText: {
+    fontSize: 18,
     fontWeight: '900',
+    color: Colors.text,
+  },
+  editNameIconBox: {
+    padding: 2,
+  },
+  editNameIcon: {
+    fontSize: 13,
+    opacity: 0.7,
+  },
+  userSubText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '700',
+    marginTop: 2,
   },
   offlineStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#131E2E',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
     borderWidth: 1,
-    borderColor: '#1F314A',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   greenDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: Colors.success,
-    marginRight: 6,
   },
   offlineStatusText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
+    color: Colors.success,
   },
-  activeBanner: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
-    padding: 14,
+  xpGaugeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  levelBadge: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  levelBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#FBBF24',
+  },
+  xpTrackContainer: {
+    flex: 1,
+  },
+  xpTrack: {
+    height: 9,
+    backgroundColor: '#090E17',
+    borderRadius: 6,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#1E2C42',
+    marginBottom: 4,
+  },
+  xpFill: {
+    height: '100%',
+    backgroundColor: '#FF5A1F',
+    borderRadius: 6,
+  },
+  xpLabelRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    alignItems: 'center',
+  },
+  xpNumbersText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  xpPercentText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  endBadgeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#1A2338',
     borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  endBadgeEmoji: {
+    fontSize: 22,
+  },
+  endBadgeNotificationDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+  },
+  endBadgeSparkle: {
+    fontSize: 10,
+  },
+  activeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E140A',
     borderColor: Colors.primary,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    gap: 12,
   },
   activeBannerContent: {
     flex: 1,
-    marginRight: 10,
   },
   activeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 4,
   },
   pulsingDot: {
@@ -1014,750 +881,403 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: Colors.primary,
-    marginRight: 6,
   },
   activeBadgeText: {
-    color: Colors.primary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
+    color: Colors.primary,
     letterSpacing: 0.5,
   },
   activeTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+    color: Colors.text,
   },
   activeTimer: {
-    color: Colors.textSecondary,
-    fontSize: 13,
+    fontSize: 12,
+    color: Colors.textMuted,
     marginTop: 2,
   },
-  // Section Headers & Containers
-  launchpadSection: {
-    marginBottom: 22,
+  primaryActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderWidth: 1.5,
+    borderColor: '#1F2937',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    gap: 14,
   },
-  programsSection: {
-    marginBottom: 16,
+  multiplayerCardHighlight: {
+    borderColor: 'rgba(168, 85, 247, 0.4)',
+    backgroundColor: '#121324',
   },
-  athleteSection: {
-    marginTop: 16,
-    marginBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: '#1A2638',
-    paddingTop: 16,
+  runningCardHighlight: {
+    borderColor: 'rgba(0, 229, 255, 0.4)',
+    backgroundColor: '#0D1A24',
   },
-  sectionHeaderRow: {
+  primaryActionIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  multiplayerIconHighlight: {
+    backgroundColor: 'rgba(168, 85, 247, 0.18)',
+    borderColor: 'rgba(168, 85, 247, 0.4)',
+  },
+  runningIconHighlight: {
+    backgroundColor: 'rgba(0, 229, 255, 0.18)',
+    borderColor: 'rgba(0, 229, 255, 0.4)',
+  },
+  primaryActionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  mainSectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 0.2,
+  primaryActionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
   },
-  mainSectionSubtitle: {
+  primaryActionSubtitle: {
+    fontSize: 12,
     color: Colors.textMuted,
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  sectionActionBtn: {
-    backgroundColor: 'rgba(255, 90, 31, 0.15)',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  sectionActionBtnText: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  athleteHeaderBtn: {
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  athleteHeaderBtnText: {
-    color: '#60A5FA',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  arenaHeaderBtn: {
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.35)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  arenaHeaderBtnText: {
-    color: '#C4B5FD',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  arenaBannerCard: {
-    backgroundColor: '#13192B',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#8B5CF6',
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  arenaBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  arenaIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
-  },
-  arenaHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  arenaBadge: {
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  arenaBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  arenaHint: {
-    color: '#C4B5FD',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  arenaTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  arenaSubtitle: {
-    color: '#94A3B8',
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  arenaArrow: {
-    color: '#A78BFA',
-    fontSize: 16,
-    fontWeight: '800',
-    paddingLeft: 4,
-  },
-
-  // Hero Card IA
-  aiHeroCard: {
-    backgroundColor: '#121929',
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#6366F1',
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  aiHeroContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  aiHeroIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.4)',
-  },
-  aiHeroIcon: {
-    fontSize: 24,
-  },
-  aiHeroHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  aiHeroBadge: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  aiHeroBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  aiHeroHint: {
-    color: '#A5B4FC',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  aiHeroTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 3,
-  },
-  aiHeroSubtitle: {
-    color: '#94A3B8',
-    fontSize: 12,
     lineHeight: 16,
   },
-  aiHeroArrowBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.35)',
+  primaryActionArrow: {
+    fontSize: 18,
+    color: Colors.textMuted,
+    fontWeight: '700',
   },
-  aiHeroArrow: {
-    color: '#A5B4FC',
+  quickAccessSection: {
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  sectionTitle: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 10,
   },
-
-  // Grille 2x2 des 4 Modes d'Accès Rapide
-  launchGrid: {
+  quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
-  launchTile: {
-    width: '48.5%',
-    flexGrow: 1,
+  quickTile: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#1F2937',
     borderRadius: 16,
-    padding: 13,
-    borderWidth: 1.5,
+    padding: 14,
   },
-  launchTileFree: {
-    backgroundColor: '#161922',
-    borderColor: 'rgba(255, 90, 31, 0.45)',
+  tileFree: {
+    borderColor: 'rgba(255, 90, 31, 0.35)',
   },
-  launchTileTarget: {
-    backgroundColor: '#101A29',
-    borderColor: 'rgba(59, 130, 246, 0.45)',
+  tileAi: {
+    borderColor: 'rgba(168, 85, 247, 0.35)',
   },
-  launchTileCatalog: {
-    backgroundColor: '#14172B',
-    borderColor: 'rgba(139, 92, 246, 0.45)',
+  tileTarget: {
+    borderColor: 'rgba(59, 130, 246, 0.35)',
   },
-  launchTileCreate: {
-    backgroundColor: '#19181B',
-    borderColor: 'rgba(245, 158, 11, 0.45)',
+  tileCatalog: {
+    borderColor: 'rgba(34, 197, 94, 0.35)',
   },
-  launchTileTop: {
+  quickTileTop: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
-  launchTileIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  launchTileIconBoxFree: {
-    backgroundColor: 'rgba(255, 90, 31, 0.2)',
-  },
-  launchTileIconBoxTarget: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-  },
-  launchTileIconBoxCatalog: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-  },
-  launchTileIconBoxCreate: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-  },
-  launchTileIcon: {
-    fontSize: 18,
-  },
-  launchTileBadgeFree: {
-    backgroundColor: '#FF5A1F',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  launchTileBadgeTextFree: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  launchTileBadgeCatalog: {
-    backgroundColor: 'rgba(139, 92, 246, 0.25)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  launchTileBadgeTextCatalog: {
-    color: '#C4B5FD',
-    fontSize: 9,
-    fontWeight: '900',
-  },
-  launchTileArrow: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  launchTileTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  launchTileSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  categoriesSection: {
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  categoryPills: {
-    gap: 8,
-    paddingBottom: 4,
-  },
-  categoryPill: {
-    backgroundColor: '#131D2D',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#202E42',
-  },
-  categoryPillActive: {
-    backgroundColor: '#1E2D44',
-    borderColor: Colors.primary,
-  },
-  categoryPillText: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  categoryPillTextActive: {
-    color: '#FFFFFF',
-  },
-  categoryPillActiveCardio: {
-    backgroundColor: '#0E3A4A',
-    borderColor: '#06B6D4',
-  },
-  categoryPillTextActiveCardio: {
-    color: '#67E8F9',
-    fontWeight: '800',
-  },
-  categoryPillTarget: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#3B82F6',
-  },
-  categoryPillTargetText: {
-    color: '#60A5FA',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  programCard: {
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 16,
-  },
-  rack900CardHighlight: {
-    borderColor: 'rgba(249, 115, 22, 0.4)',
-  },
-  cardioCardHighlight: {
-    borderColor: 'rgba(6, 182, 212, 0.45)',
-    backgroundColor: '#0B1D28',
-  },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  exercisesCountBadge: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  programTitle: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  programDescription: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  cardBottomActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#1A2638',
-    paddingTop: 12,
-  },
-  detailsLink: {
-    paddingVertical: 6,
-  },
-  detailsLinkText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  startProgramBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-  },
-  emptyCard: {
-    padding: 24,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  emptyIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  emptySubtitle: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  pokemonWidgetCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 10,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  pokemonWidgetIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#0F172A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#475569',
-  },
-  pokemonWidgetIconEmoji: {
+  quickTileIcon: {
     fontSize: 24,
   },
-  pokemonWidgetTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  pokemonWidgetTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  pokemonWidgetBadge: {
-    backgroundColor: '#78350F',
+  quickTileBadge: {
+    backgroundColor: 'rgba(255, 90, 31, 0.2)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  pokemonWidgetBadgeText: {
-    color: '#FDE047',
-    fontSize: 10,
+  quickTileBadgeText: {
+    fontSize: 9,
     fontWeight: '800',
-  },
-  pokemonWidgetSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  pokemonWidgetArrow: {
     color: Colors.primary,
+  },
+  badgeAi: {
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+  },
+  badgeAiText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#C084FC',
+  },
+  quickTileArrow: {
     fontSize: 14,
-    fontWeight: '800',
-    marginLeft: 8,
-  },
-  greetingTouch: {
-    flex: 1,
-  },
-  greetingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  editNameIconBox: {
-    padding: 2,
-    opacity: 0.7,
-  },
-  editNameIcon: {
-    fontSize: 13,
-  },
-  namePromptCard: {
-    marginBottom: 14,
-    padding: 12,
-    backgroundColor: '#111D2D',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
-    borderRadius: 14,
-  },
-  namePromptContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  namePromptIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  namePromptEmoji: {
-    fontSize: 20,
-  },
-  namePromptTitle: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  namePromptSub: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 16,
-    marginTop: 1,
-  },
-  namePromptBtn: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    marginLeft: 8,
-  },
-  namePromptBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  namePromptClose: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    marginLeft: 4,
-  },
-  namePromptCloseText: {
     color: Colors.textMuted,
-    fontSize: 14,
     fontWeight: '700',
+  },
+  quickTileTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  quickTileSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
-    alignItems: 'center',
+    padding: 18,
+  },
+  badgeModalCard: {
+    backgroundColor: '#111A29',
+    borderRadius: 22,
     padding: 20,
+    borderWidth: 1.5,
+    borderColor: '#24344D',
+    maxHeight: '90%',
+  },
+  badgeModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  badgeModalIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#1E2C42',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeModalTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  badgeModalSubtitle: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  closeModalBtn: {
+    padding: 6,
+  },
+  closeModalText: {
+    fontSize: 18,
+    color: Colors.textMuted,
+    fontWeight: 'bold',
+  },
+  badgeModalStatsRow: {
+    flexDirection: 'row',
+    backgroundColor: '#090E17',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1E2C42',
+    marginBottom: 16,
+  },
+  badgeModalStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  badgeModalStatVal: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  badgeModalStatLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontWeight: '600',
+  },
+  kantoBadgesTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  kantoBadgesScroll: {
+    gap: 8,
+    paddingBottom: 14,
+  },
+  kantoBadgeItem: {
+    width: 90,
+    backgroundColor: '#0E1624',
+    borderWidth: 1,
+    borderColor: '#1E2C42',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  kantoBadgeCurrent: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#1A2338',
+  },
+  kantoBadgeLocked: {
+    opacity: 0.5,
+  },
+  kantoBadgeEmoji: {
+    fontSize: 26,
+    marginBottom: 4,
+  },
+  kantoBadgeName: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  kantoBadgeXp: {
+    fontSize: 9,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  currentBadgeTag: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    marginTop: 4,
+  },
+  currentBadgeTagText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#090E17',
+  },
+  badgeModalActions: {
+    gap: 8,
+    marginTop: 4,
+  },
+  badgeActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0E1624',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1E2C42',
+    gap: 12,
+  },
+  badgeActionBtnIcon: {
+    fontSize: 24,
+  },
+  badgeActionBtnTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  badgeActionBtnSub: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  badgeActionBtnArrow: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    fontWeight: '700',
   },
   nameModalCard: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#1A2434',
+    backgroundColor: '#161F30',
     borderRadius: 20,
-    padding: 24,
+    padding: 20,
     borderWidth: 1,
-    borderColor: '#2A3B54',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 10,
+    borderColor: '#2D3748',
   },
   nameModalHeader: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   nameModalIconCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(255, 90, 31, 0.15)',
     justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   nameModalTitle: {
-    color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '900',
-    marginBottom: 4,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
   },
   nameModalSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  nameModalInput: {
-    backgroundColor: '#0F1622',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#334766',
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  inputFieldLabel: {
-    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  persistentLoginNote: {
-    backgroundColor: '#111A29',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#1E2C42',
-    marginBottom: 14,
-  },
-  persistentLoginNoteText: {
-    color: '#93C5FD',
-    fontSize: 11,
-    lineHeight: 16,
+    color: Colors.textMuted,
     textAlign: 'center',
+    marginTop: 4,
   },
   authErrorBox: {
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderRadius: 8,
-    padding: 8,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.4)',
-    marginBottom: 10,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
   },
   authErrorText: {
     color: '#F87171',
     fontSize: 12,
-    fontWeight: '600',
     textAlign: 'center',
+    fontWeight: '600',
   },
-  nameModalActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  inputFieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    marginBottom: 6,
   },
-  equipmentFilterBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderRadius: 14,
+  nameModalInput: {
+    backgroundColor: '#0D1117',
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 16,
+    borderColor: '#2D3748',
+    borderRadius: 12,
+    padding: 12,
+    color: Colors.text,
+    fontSize: 15,
+    marginBottom: 12,
   },
-  equipmentFilterBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 10,
+  persistentLoginNote: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
   },
-  equipmentFilterBannerIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  equipmentFilterBannerIcon: {
-    fontSize: 18,
-  },
-  equipmentFilterBannerTitle: {
-    color: '#93C5FD',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  equipmentFilterBannerSubtitle: {
-    color: Colors.textSecondary,
+  persistentLoginNoteText: {
     fontSize: 11,
-    marginTop: 1,
+    color: '#93C5FD',
+    lineHeight: 15,
   },
-  equipmentFilterBannerAction: {
+  authToggleModeBtn: {
+    paddingVertical: 6,
+    marginBottom: 14,
+    alignItems: 'center',
+  },
+  authToggleModeText: {
     color: Colors.primary,
     fontSize: 12,
     fontWeight: '700',
-    marginLeft: 8,
+  },
+  nameModalButtons: {
+    flexDirection: 'row',
+    gap: 10,
   },
 });
-

@@ -104,6 +104,17 @@ export const CREATE_TABLES_SQL = `
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS running_sessions (
+    id TEXT PRIMARY KEY NOT NULL,
+    date TEXT NOT NULL,
+    distance_km REAL NOT NULL,
+    duration_seconds INTEGER NOT NULL,
+    pace_seconds_per_km REAL NOT NULL,
+    notes TEXT,
+    calories INTEGER,
+    created_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_workout_sessions_date ON workout_sessions(date DESC);
   CREATE INDEX IF NOT EXISTS idx_workout_sets_session ON workout_sets(workout_session_id);
   CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(exercise_id);
@@ -111,4 +122,5 @@ export const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_pokemon_eggs_status ON pokemon_eggs(status);
   CREATE INDEX IF NOT EXISTS idx_body_weights_date ON body_weights(date DESC);
   CREATE INDEX IF NOT EXISTS idx_fitness_goals_category ON fitness_goals(category);
+  CREATE INDEX IF NOT EXISTS idx_running_sessions_date ON running_sessions(date DESC);
 `;

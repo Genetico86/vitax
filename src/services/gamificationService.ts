@@ -217,6 +217,20 @@ export async function getUserGamificationStats(): Promise<{
     totalXp += summary.totalXp;
   });
 
+  // Prise en compte de la course à pied dans l'XP
+  try {
+    const runningSessions = await db.getAllAsync<{ distance_km: number; duration_seconds: number }>(
+      'SELECT distance_km, duration_seconds FROM running_sessions'
+    );
+    runningSessions?.forEach((r) => {
+      const kmXp = Math.round((r.distance_km || 0) * 75);
+      const timeXp = Math.floor((r.duration_seconds || 0) / 60) * 2;
+      totalXp += kmXp + timeXp + 50;
+    });
+  } catch {
+    // Table non encore migrée si ancien schéma
+  }
+
   // Détermination du palier / Badge Pokémon
   let currentTierIndex = 0;
   for (let i = POKEMON_BADGE_TIERS.length - 1; i >= 0; i--) {

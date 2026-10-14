@@ -247,3 +247,26 @@ export interface EggHatchResult {
   description: string;
 }
 
+// -------------------------------------------------------------
+// COURSE À PIED & ENDURANCE (RUNNING)
+// -------------------------------------------------------------
+export interface RunningSession {
+  id: string;
+  date: string;
+  distance_km: number;
+  duration_seconds: number;
+  pace_seconds_per_km: number;
+  notes: string | null;
+  calories: number | null;
+  created_at: string;
+}
+
+export interface RunningStats {
+  totalSessions: number;
+  totalDistanceKm: number;
+  totalDurationSeconds: number;
+  bestPaceSecondsPerKm: number;
+  averagePaceSecondsPerKm: number;
+  averageDistanceKm: number;
+}
+
