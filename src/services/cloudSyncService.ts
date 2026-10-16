@@ -845,12 +845,14 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
       // Ne jamais régresser l'XP
       const finalXp = Math.max(local?.current_xp || 0, egg.current_xp || 0);
 
+      const finalPokemonXp = Math.max(egg.current_pokemon_xp || 0, local?.current_pokemon_xp || 0);
+
       await db.runAsync(
         `INSERT OR REPLACE INTO pokemon_eggs (
           id, name, rarity, required_xp, current_xp, status, incubator_slot,
           obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name,
-          pokemon_emoji, pokemon_type, pokemon_cp, is_legendary
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          pokemon_emoji, pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           egg.id,
           egg.name,
@@ -868,6 +870,7 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
           egg.pokemon_type || local?.pokemon_type || null,
           egg.pokemon_cp || local?.pokemon_cp || null,
           egg.is_legendary ? 1 : 0,
+          finalPokemonXp,
         ]
       );
     }

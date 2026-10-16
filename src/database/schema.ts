@@ -77,7 +77,8 @@ export const CREATE_TABLES_SQL = `
     pokemon_emoji TEXT,
     pokemon_type TEXT,
     pokemon_cp INTEGER,
-    is_legendary INTEGER NOT NULL DEFAULT 0
+    is_legendary INTEGER NOT NULL DEFAULT 0,
+    current_pokemon_xp INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS body_weights (

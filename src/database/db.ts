@@ -66,6 +66,13 @@ export async function initDatabase(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(CREATE_TABLES_SQL);
 
+  // Migration douce non-bloquante pour les colonnes ajoutées
+  try {
+    await db.execAsync('ALTER TABLE pokemon_eggs ADD COLUMN current_pokemon_xp INTEGER NOT NULL DEFAULT 0;');
+  } catch {
+    // Colonne déjà existante
+  }
+
   // Insérer ou synchroniser les programmes et exercices de base de manière transparente
   await seedDatabase(db);
 }

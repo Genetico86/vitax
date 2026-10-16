@@ -34,6 +34,12 @@ import {
 import { getFavoriteExercises, getFavoriteExerciseIds } from '../../services/favoritesService';
 import { registerTrainer, loginTrainer, logoutTrainer, getPersistedSession } from '../../services/authService';
 import { getPendingFriendRequestsCount } from '../../services/multiplayerService';
+import {
+  getActiveBuddy,
+  getActiveBuddyBuff,
+  ActiveBuddyInfo,
+  ActiveBuddyBuffInfo,
+} from '../../services/pokemonEggService';
 
 export default function HomeScreen() {
   const { height: screenHeight } = useWindowDimensions();
@@ -570,6 +576,8 @@ export default function HomeScreen() {
   } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
+  const [activeBuddy, setActiveBuddy] = useState<ActiveBuddyInfo | null>(null);
+  const [activeBuddyBuff, setActiveBuddyBuff] = useState<ActiveBuddyBuffInfo | null>(null);
 
   // Modal Profil / Nom d'utilisateur
   const [nameModalVisible, setNameModalVisible] = useState(false);
@@ -695,6 +703,15 @@ export default function HomeScreen() {
       if (fitnessStatsRes.status === 'fulfilled') setWeeklyFitness(fitnessStatsRes.value);
       if (sessionRes.status === 'fulfilled') setIsUserLoggedIn(Boolean(sessionRes.value?.isLoggedIn));
       if (pendingInvitesRes.status === 'fulfilled') setPendingInvitesCount(pendingInvitesRes.value);
+
+      // Chargement du Compagnon Actif et de ses buffs sportifs (Option A)
+      try {
+        const [buddy, buff] = await Promise.all([getActiveBuddy(), getActiveBuddyBuff()]);
+        setActiveBuddy(buddy);
+        setActiveBuddyBuff(buff);
+      } catch (bErr) {
+        console.warn('Erreur chargement active buddy accueil:', bErr);
+      }
 
       // Si la base locale n'a aucune séance enregistrée cette semaine mais que l'utilisateur a des données cloud, synchroniser silencieusement
       if (fitnessStatsRes.status === 'fulfilled' && fitnessStatsRes.value.weekWorkoutsCount === 0) {
@@ -823,6 +840,25 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
+
+          {/* BADGE COMPAGNON ACTIF (OPTION A) */}
+          {activeBuddy && (
+            <TouchableOpacity
+              style={styles.activeBuddyHomeRow}
+              onPress={() => router.push({ pathname: '/(tabs)/history', params: { tab: 'pokemon' } })}
+              activeOpacity={0.8}
+            >
+              <View style={styles.activeBuddyHomePill}>
+                <Text style={styles.activeBuddyHomeEmoji}>{activeBuddy.egg.pokemon_emoji || '🐾'}</Text>
+                <Text style={styles.activeBuddyHomeName}>{activeBuddy.egg.pokemon_name}</Text>
+                <Text style={styles.activeBuddyHomeDot}>•</Text>
+                <Text style={styles.activeBuddyHomeBuff} numberOfLines={1}>
+                  {activeBuddyBuff?.shortLabel || activeBuddy.species.buddyBuffShort || 'Compagnon Actif'}
+                </Text>
+                <Text style={styles.activeBuddyHomeArrow}>❯</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </Card>
 
         {/* Bannière de connexion et synchronisation cloud (si invité non identifié) */}
@@ -2323,5 +2359,48 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '900',
+  },
+  activeBuddyHomeRow: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#283548',
+    paddingTop: 8,
+  },
+  activeBuddyHomePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  activeBuddyHomeEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  activeBuddyHomeName: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 4,
+  },
+  activeBuddyHomeDot: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    marginRight: 4,
+  },
+  activeBuddyHomeBuff: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+  },
+  activeBuddyHomeArrow: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 4,
   },
 });

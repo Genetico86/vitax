@@ -212,8 +212,8 @@ export async function importDataFromFile(): Promise<{
       for (const egg of backupData.pokemon_eggs) {
         await db.runAsync(
           `INSERT OR REPLACE INTO pokemon_eggs (
-             id, name, rarity, required_xp, current_xp, status, incubator_slot, obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name, pokemon_emoji, pokemon_type, pokemon_cp, is_legendary
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             id, name, rarity, required_xp, current_xp, status, incubator_slot, obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name, pokemon_emoji, pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             egg.id,
             egg.name,
@@ -231,6 +231,7 @@ export async function importDataFromFile(): Promise<{
             egg.pokemon_type || null,
             egg.pokemon_cp || null,
             egg.is_legendary,
+            egg.current_pokemon_xp || 0,
           ]
         );
       }

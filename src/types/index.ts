@@ -207,6 +207,15 @@ export interface PokemonSpecies {
   description: string;
   isLegendary: boolean;
   unlockedByChallenge?: string;
+  // Option A : Système d'évolution & Compagnon Actif
+  evolvesTo?: string; // id de l'espèce suivante
+  evolvesFrom?: string; // id de l'espèce précédente
+  evolutionXpRequired?: number; // XP d'entraînement nécessaire
+  evolutionStage?: 1 | 2 | 3;
+  possibleEvolutions?: string[]; // Pour Évoli (aquali, voltali, pyroli)
+  buddyBuffType?: 'combat' | 'electrik' | 'feu' | 'roche' | 'eau' | 'plante' | 'psy';
+  buddyBuffDescription?: string;
+  buddyBuffShort?: string;
 }
 
 export interface PokemonEgg {
@@ -226,6 +235,7 @@ export interface PokemonEgg {
   pokemon_type?: string | null;
   pokemon_cp?: number | null;
   is_legendary: number; // 0 or 1
+  current_pokemon_xp?: number; // XP accumulé par le Pokémon pour son évolution
 }
 
 export interface IncubatorSlot {
