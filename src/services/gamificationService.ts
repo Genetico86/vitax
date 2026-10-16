@@ -358,15 +358,24 @@ export async function getUserGamificationStats(): Promise<{
     const rawProfile = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
     if (rawProfile) {
       const parsed = JSON.parse(rawProfile);
+      let profileUpdated = false;
       if (parsed.totalXp && parsed.totalXp > totalXp) {
         totalXp = parsed.totalXp;
       } else if (totalXp > (parsed.totalXp || 0)) {
         // Le stockage SQLite local a plus d'XP : mettre à jour le profil pour ne jamais perdre l'XP gagné
         parsed.totalXp = totalXp;
-        await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
+        profileUpdated = true;
       }
       if (parsed.totalWorkouts && parsed.totalWorkouts > 0) {
         cloudWorkoutsCount = parsed.totalWorkouts;
+      }
+      if (profileUpdated) {
+        await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
+        import('./multiplayer/profileService')
+          .then(({ syncTrainerProfileToSupabase }) => {
+            void syncTrainerProfileToSupabase(parsed);
+          })
+          .catch(() => {});
       }
     }
   } catch (err) {
