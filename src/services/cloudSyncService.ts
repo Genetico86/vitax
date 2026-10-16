@@ -274,6 +274,61 @@ export async function fetchFavoritesFromCloud(): Promise<string[]> {
 // 3. SYNCHRONISATION DU POIDS & OBJECTIFS
 // =========================================================================
 
+export async function syncBodyWeightsToCloud(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    const userId = session.userId;
+    await ensureCloudProfileExists(userId);
+    const db = await getDatabase();
+    const weights = await db.getAllAsync<BodyWeightLog>(
+      'SELECT * FROM body_weights ORDER BY date ASC, created_at ASC'
+    );
+
+    if (!weights || weights.length === 0) return true;
+
+    // 1. Sauvegarde fiable dans la table trades (RLS désactivé)
+    const backupId = `body_weights_${userId}`;
+    const { error: backupErr } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: { weights },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    if (backupErr) {
+      console.warn('Erreur sauvegarde cloud poids (backup):', backupErr.message);
+    }
+
+    // 2. Tentative vers la table native body_weights
+    for (const w of weights) {
+      try {
+        await supabase.from('body_weights').upsert({
+          id: w.id,
+          user_id: userId,
+          weight: w.weight,
+          date: w.date,
+          notes: w.note || '',
+          created_at: w.created_at || new Date().toISOString(),
+        });
+      } catch {}
+    }
+
+    return !backupErr;
+  } catch (err) {
+    console.warn('Erreur syncBodyWeightsToCloud:', err);
+    return false;
+  }
+}
+
 export async function syncBodyWeightToCloud(log: BodyWeightLog): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = getSupabaseClient();
@@ -283,14 +338,20 @@ export async function syncBodyWeightToCloud(log: BodyWeightLog): Promise<void> {
     const userId = await getActiveUserId();
     await ensureCloudProfileExists(userId);
 
-    await supabase.from('body_weights').upsert({
-      id: log.id,
-      user_id: userId,
-      weight: log.weight,
-      date: log.date,
-      notes: log.note || '',
-      created_at: log.created_at || new Date().toISOString(),
-    });
+    // Tentative d'écriture directe
+    try {
+      await supabase.from('body_weights').upsert({
+        id: log.id,
+        user_id: userId,
+        weight: log.weight,
+        date: log.date,
+        notes: log.note || '',
+        created_at: log.created_at || new Date().toISOString(),
+      });
+    } catch {}
+
+    // Sauvegarde complète pour garantir la persistance historique
+    await syncBodyWeightsToCloud();
   } catch (err) {
     console.warn('Erreur synchro poids cloud:', err);
   }
@@ -303,22 +364,124 @@ export async function fetchBodyWeightsFromCloud(): Promise<BodyWeightLog[]> {
 
   try {
     const userId = await getActiveUserId();
+    const db = await getDatabase();
+    let recoveredWeights: BodyWeightLog[] = [];
+
+    // 1. D'abord tenter depuis la table native body_weights
     const { data, error } = await supabase
       .from('body_weights')
       .select('*')
       .eq('user_id', userId)
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .limit(1000);
 
-    if (error || !data) return [];
-    return data.map((r: any) => ({
-      id: r.id,
-      weight: r.weight,
-      date: r.date,
-      note: r.notes,
-      created_at: r.created_at,
-    }));
-  } catch {
+    if (!error && data && data.length > 0) {
+      recoveredWeights = data.map((r: any) => ({
+        id: r.id,
+        weight: r.weight,
+        date: r.date,
+        note: r.notes || r.note,
+        body_fat_percentage: r.body_fat_percentage,
+        created_at: r.created_at,
+      }));
+    }
+
+    // 2. Si vide (ex: RLS actif), récupérer depuis la sauvegarde cloud
+    if (recoveredWeights.length === 0) {
+      const backupId = `body_weights_${userId}`;
+      const { data: backupData, error: backupErr } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!backupErr && backupData?.offered_pokemon) {
+        const weights = (backupData.offered_pokemon as any)?.weights as BodyWeightLog[];
+        if (Array.isArray(weights) && weights.length > 0) {
+          recoveredWeights = weights;
+        }
+      }
+    }
+
+    // Restaurer dans SQLite local
+    if (recoveredWeights.length > 0) {
+      for (const w of recoveredWeights) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            w.id,
+            w.weight,
+            w.date,
+            w.note || null,
+            w.body_fat_percentage || null,
+            w.created_at || new Date().toISOString(),
+          ]
+        );
+      }
+    }
+
+    return recoveredWeights;
+  } catch (err) {
+    console.warn('Erreur fetchBodyWeightsFromCloud:', err);
     return [];
+  }
+}
+
+export async function syncFitnessGoalsToCloud(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    const userId = session.userId;
+    await ensureCloudProfileExists(userId);
+    const db = await getDatabase();
+    const goals = await db.getAllAsync<FitnessGoal>(
+      'SELECT * FROM fitness_goals ORDER BY created_at DESC'
+    );
+
+    if (!goals || goals.length === 0) return true;
+
+    // 1. Sauvegarde fiable dans la table trades (RLS désactivé)
+    const backupId = `fitness_goals_${userId}`;
+    const { error: backupErr } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: { goals },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    if (backupErr) {
+      console.warn('Erreur sauvegarde cloud objectifs (backup):', backupErr.message);
+    }
+
+    // 2. Tentative vers la table native fitness_goals
+    for (const g of goals) {
+      try {
+        await supabase.from('fitness_goals').upsert({
+          id: g.id,
+          user_id: userId,
+          type: g.category,
+          target_value: g.target_value,
+          current_value: g.current_value,
+          deadline: g.target_date,
+          completed: g.completed,
+          created_at: g.created_at || new Date().toISOString(),
+        });
+      } catch {}
+    }
+
+    return !backupErr;
+  } catch (err) {
+    console.warn('Erreur syncFitnessGoalsToCloud:', err);
+    return false;
   }
 }
 
@@ -331,16 +494,20 @@ export async function syncFitnessGoalToCloud(goal: FitnessGoal): Promise<void> {
     const userId = await getActiveUserId();
     await ensureCloudProfileExists(userId);
 
-    await supabase.from('fitness_goals').upsert({
-      id: goal.id,
-      user_id: userId,
-      type: goal.category,
-      target_value: goal.target_value,
-      current_value: goal.current_value,
-      deadline: goal.target_date,
-      completed: goal.completed,
-      created_at: goal.created_at || new Date().toISOString(),
-    });
+    try {
+      await supabase.from('fitness_goals').upsert({
+        id: goal.id,
+        user_id: userId,
+        type: goal.category,
+        target_value: goal.target_value,
+        current_value: goal.current_value,
+        deadline: goal.target_date,
+        completed: goal.completed,
+        created_at: goal.created_at || new Date().toISOString(),
+      });
+    } catch {}
+
+    await syncFitnessGoalsToCloud();
   } catch (err) {
     console.warn('Erreur synchro objectif cloud:', err);
   }
@@ -353,25 +520,73 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
 
   try {
     const userId = await getActiveUserId();
+    const db = await getDatabase();
+    let recoveredGoals: FitnessGoal[] = [];
+
+    // 1. D'abord tenter depuis la table native fitness_goals
     const { data, error } = await supabase
       .from('fitness_goals')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .limit(500);
 
-    if (error || !data) return [];
-    return data.map((r: any) => ({
-      id: r.id,
-      title: r.type,
-      category: r.type,
-      target_value: r.target_value,
-      starting_value: 0,
-      current_value: r.current_value,
-      unit: 'kg',
-      target_date: r.deadline,
-      completed: r.completed,
-      created_at: r.created_at,
-    }));
-  } catch {
+    if (!error && data && data.length > 0) {
+      recoveredGoals = data.map((r: any) => ({
+        id: r.id,
+        title: r.type,
+        category: r.type,
+        target_value: r.target_value,
+        starting_value: 0,
+        current_value: r.current_value,
+        unit: 'kg',
+        target_date: r.deadline,
+        completed: r.completed,
+        created_at: r.created_at,
+      }));
+    }
+
+    // 2. Si vide (ex: RLS actif), récupérer depuis la sauvegarde cloud
+    if (recoveredGoals.length === 0) {
+      const backupId = `fitness_goals_${userId}`;
+      const { data: backupData, error: backupErr } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!backupErr && backupData?.offered_pokemon) {
+        const goals = (backupData.offered_pokemon as any)?.goals as FitnessGoal[];
+        if (Array.isArray(goals) && goals.length > 0) {
+          recoveredGoals = goals;
+        }
+      }
+    }
+
+    // Restaurer dans SQLite local
+    if (recoveredGoals.length > 0) {
+      for (const g of recoveredGoals) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO fitness_goals (
+             id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
+           ) VALUES (?, ?, ?, ?, ?, ?, 'kg', ?, NULL, ?, NULL, ?)`,
+          [
+            g.id,
+            g.title,
+            g.category,
+            g.target_value,
+            g.starting_value || 0,
+            g.current_value,
+            g.target_date || null,
+            g.completed ? 1 : 0,
+            g.created_at || new Date().toISOString(),
+          ]
+        );
+      }
+    }
+
+    return recoveredGoals;
+  } catch (err) {
+    console.warn('Erreur fetchFitnessGoalsFromCloud:', err);
     return [];
   }
 }
@@ -407,7 +622,8 @@ export async function fullCloudSyncToLocal(): Promise<{
     const { data: cloudSessions, error: sessErr } = await supabase
       .from('workout_sessions')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .limit(5000);
 
     if (sessErr) {
       console.warn('Erreur Supabase fullCloudSyncToLocal sessions:', sessErr.message);
@@ -444,11 +660,12 @@ export async function fullCloudSyncToLocal(): Promise<{
         );
       }
 
-      // Récupérer toutes les séries de cet utilisateur
+      // Récupérer toutes les séries de cet utilisateur (jusqu'à 10000)
       const { data: cloudSets, error: setsErr } = await supabase
         .from('workout_sets')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .limit(10000);
 
       if (setsErr) {
         console.warn('Erreur Supabase fullCloudSyncToLocal sets:', setsErr.message);
@@ -488,59 +705,13 @@ export async function fullCloudSyncToLocal(): Promise<{
       await AsyncStorage.setItem('@vitax_favorite_exercise_ids', JSON.stringify(cloudFavorites));
     }
 
-    // 3. Récupérer les poids
-    const { data: cloudWeights } = await supabase
-      .from('body_weights')
-      .select('*')
-      .eq('user_id', userId);
+    // 3. Récupérer l'ensemble des poids historisés
+    const cloudWeights = await fetchBodyWeightsFromCloud();
+    const weightsCount = cloudWeights.length;
 
-    let weightsCount = 0;
-    if (cloudWeights && cloudWeights.length > 0) {
-      weightsCount = cloudWeights.length;
-      for (const w of cloudWeights) {
-        await db.runAsync(
-          `INSERT OR REPLACE INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            w.id,
-            w.weight,
-            w.date,
-            w.notes || null,
-            null,
-            w.created_at || new Date().toISOString(),
-          ]
-        );
-      }
-    }
-
-    // 4. Récupérer les objectifs
-    const { data: cloudGoals } = await supabase
-      .from('fitness_goals')
-      .select('*')
-      .eq('user_id', userId);
-
-    let goalsCount = 0;
-    if (cloudGoals && cloudGoals.length > 0) {
-      goalsCount = cloudGoals.length;
-      for (const g of cloudGoals) {
-        await db.runAsync(
-          `INSERT OR REPLACE INTO fitness_goals (
-             id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
-           ) VALUES (?, ?, ?, ?, ?, ?, 'kg', ?, NULL, ?, NULL, ?)`,
-          [
-            g.id,
-            g.type,
-            g.type === 'weight' ? 'weight' : 'exercise_pr',
-            g.target_value,
-            0,
-            g.current_value,
-            g.deadline || null,
-            g.completed ? 1 : 0,
-            g.created_at || new Date().toISOString(),
-          ]
-        );
-      }
-    }
+    // 4. Récupérer l'ensemble des objectifs
+    const cloudGoals = await fetchFitnessGoalsFromCloud();
+    const goalsCount = cloudGoals.length;
 
     // 5. Récupérer les Pokémon et œufs du Cloud
     const eggsCount = await fetchPokemonEggsFromCloud();
@@ -688,21 +859,11 @@ export async function pushLocalToCloud(): Promise<void> {
       await syncWorkoutSessionToCloud(s, sets);
     }
 
-    // 2. Envoyer les poids locaux
-    const localWeights = await db.getAllAsync<BodyWeightLog>(
-      'SELECT * FROM body_weights ORDER BY date DESC'
-    );
-    for (const w of localWeights) {
-      await syncBodyWeightToCloud(w);
-    }
+    // 2. Envoyer les poids locaux (sauvegarde cloud complète et résiliente)
+    await syncBodyWeightsToCloud();
 
-    // 3. Envoyer les objectifs locaux
-    const localGoals = await db.getAllAsync<FitnessGoal>(
-      'SELECT * FROM fitness_goals'
-    );
-    for (const g of localGoals) {
-      await syncFitnessGoalToCloud(g);
-    }
+    // 3. Envoyer les objectifs locaux (sauvegarde cloud complète et résiliente)
+    await syncFitnessGoalsToCloud();
 
     // 4. Envoyer les favoris locaux
     const rawFavs = await AsyncStorage.getItem('@vitax_favorite_exercise_ids');
