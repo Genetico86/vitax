@@ -48,6 +48,7 @@ import {
   getPersistedSession,
   logoutTrainer,
 } from '../../../services/authService';
+import { isDurationExercise, getExerciseUnitInfo } from '../../../utils/exerciseUnits';
 
 export const WEB_APP_URL = 'https://vitaxsport.vercel.app';
 
@@ -425,8 +426,22 @@ export function useArenaData() {
         Alert.alert('Exercice requis', 'Veuillez sélectionner un exercice pour ce défi.');
         return false;
       }
-      const targetReps = params.targetReps || 10;
+      const isDuration = isDurationExercise(exercise);
+      const unitInfo = getExerciseUnitInfo(exercise);
+      const targetReps = params.targetReps || (isDuration ? 15 : 10);
       const targetWeight = params.targetWeight || 0;
+
+      let title = '';
+      let defaultInstructions = '';
+      if (isDuration) {
+        const speedText = targetWeight > 0 ? ` @ ${targetWeight} ${unitInfo.loadUnit}` : '';
+        title = `Défi : ${exercise.name} (${targetReps} min${speedText})`;
+        defaultInstructions = `Tiens au moins ${targetReps} minutes${targetWeight > 0 ? ' à ' + targetWeight + ' ' + unitInfo.loadUnit : ''} sur ${exercise.name} !`;
+      } else {
+        const weightText = targetWeight > 0 ? `${targetWeight} kg × ` : '';
+        title = `Défi : ${exercise.name} (${weightText}${targetReps} reps)`;
+        defaultInstructions = `Bats mes ${targetReps} répétitions ${targetWeight > 0 ? 'à ' + targetWeight + ' kg' : ''} !`;
+      }
 
       try {
         await createFriendChallenge({
@@ -436,14 +451,13 @@ export function useArenaData() {
           targetFriendCode: params.targetFriendCodeInput,
           targetFriendName: targetFriend?.username,
           type: 'exercise',
-          title: `Défi : ${exercise.name} (${targetWeight > 0 ? targetWeight + ' kg × ' : ''}${targetReps} reps)`,
+          title,
           exerciseId: exercise.id,
           exerciseName: exercise.name,
           targetWeightKg: targetWeight,
           targetReps: targetReps,
-          instructions:
-            params.instructions ||
-            `Bats mes ${targetReps} répétitions ${targetWeight > 0 ? 'à ' + targetWeight + ' kg' : ''} !`,
+          targetDurationSeconds: isDuration ? targetReps * 60 : undefined,
+          instructions: params.instructions || defaultInstructions,
           rewardXp: 150,
         });
 

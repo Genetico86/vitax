@@ -4,6 +4,7 @@ import { Colors } from '../../../constants/colors';
 import { Card } from '../../common/Card';
 import { Button } from '../../common/Button';
 import { FriendChallenge, CoOpRaidBoss } from '../../../types/social';
+import { isDurationExercise, getExerciseUnitInfo } from '../../../utils/exerciseUnits';
 import { arenaStyles as styles } from '../styles/arenaStyles';
 
 interface RaidsTabProps {
@@ -105,6 +106,8 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
           ) : (
             friendChallenges.map((chlg) => {
               const isBeaten = chlg.status === 'beaten';
+              const isDuration = isDurationExercise({ id: chlg.exerciseId, name: chlg.exerciseName });
+              const unitInfo = getExerciseUnitInfo({ id: chlg.exerciseId, name: chlg.exerciseName });
               return (
                 <Card key={chlg.id} style={styles.challengeCard}>
                   {/* En-tête Défi */}
@@ -123,7 +126,11 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
                           )}
                         </Text>
                         <Text style={styles.challengeTypeBadge}>
-                          {chlg.type === 'program' ? '📋 DÉFI PROGRAMME' : '🏋️ DÉFI EXERCICE'}
+                          {chlg.type === 'program'
+                            ? '📋 DÉFI PROGRAMME'
+                            : isDuration
+                            ? '🏃 DÉFI CARDIO'
+                            : '🏋️ DÉFI EXERCICE'}
                         </Text>
                       </View>
                     </View>
@@ -151,16 +158,42 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
                   <View style={styles.challengeStatsRow}>
                     {chlg.type === 'exercise' ? (
                       <>
-                        {chlg.targetWeightKg !== undefined && chlg.targetWeightKg > 0 && (
-                          <View style={styles.challengeStatItem}>
-                            <Text style={styles.challengeStatLabel}>Charge cible</Text>
-                            <Text style={styles.challengeStatValue}>{chlg.targetWeightKg} kg</Text>
-                          </View>
+                        {isDuration ? (
+                          <>
+                            {chlg.targetWeightKg !== undefined && chlg.targetWeightKg > 0 && (
+                              <View style={styles.challengeStatItem}>
+                                <Text style={styles.challengeStatLabel}>
+                                  {unitInfo.loadLabel === 'VITESSE' ? 'Vitesse cible' : 'Intensité'}
+                                </Text>
+                                <Text style={styles.challengeStatValue}>
+                                  {chlg.targetWeightKg} {unitInfo.loadUnit}
+                                </Text>
+                              </View>
+                            )}
+                            <View style={styles.challengeStatItem}>
+                              <Text style={styles.challengeStatLabel}>Durée cible</Text>
+                              <Text style={styles.challengeStatValue}>
+                                {chlg.targetDurationSeconds
+                                  ? Math.round(chlg.targetDurationSeconds / 60)
+                                  : chlg.targetReps || 15}{' '}
+                                min
+                              </Text>
+                            </View>
+                          </>
+                        ) : (
+                          <>
+                            {chlg.targetWeightKg !== undefined && chlg.targetWeightKg > 0 && (
+                              <View style={styles.challengeStatItem}>
+                                <Text style={styles.challengeStatLabel}>Charge cible</Text>
+                                <Text style={styles.challengeStatValue}>{chlg.targetWeightKg} kg</Text>
+                              </View>
+                            )}
+                            <View style={styles.challengeStatItem}>
+                              <Text style={styles.challengeStatLabel}>Reps cibles</Text>
+                              <Text style={styles.challengeStatValue}>{chlg.targetReps || 10} reps</Text>
+                            </View>
+                          </>
                         )}
-                        <View style={styles.challengeStatItem}>
-                          <Text style={styles.challengeStatLabel}>Reps cibles</Text>
-                          <Text style={styles.challengeStatValue}>{chlg.targetReps || 10} reps</Text>
-                        </View>
                       </>
                     ) : (
                       <View style={styles.challengeStatItem}>
