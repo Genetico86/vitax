@@ -90,6 +90,34 @@ export default function ActiveWorkoutScreen() {
     setFavoriteIds(updated);
   };
 
+  const handleChallengeFromExercise = (exItem: { exercise: Exercise; sets: any[] }) => {
+    const completedSets = exItem.sets.filter((s) => s.completed);
+    let bestWeight = 0;
+    let bestReps = 10;
+
+    if (completedSets.length > 0) {
+      const topSet = completedSets.reduce((prev, curr) =>
+        (curr.weight || 0) > (prev.weight || 0) ? curr : prev
+      );
+      bestWeight = topSet.weight || 0;
+      bestReps = topSet.reps || 10;
+    } else if (exItem.sets.length > 0) {
+      bestWeight = exItem.sets[0].weight || 0;
+      bestReps = exItem.sets[0].reps || 10;
+    }
+
+    router.push({
+      pathname: '/arena',
+      params: {
+        openChallenge: '1',
+        challengeType: 'exercise',
+        exerciseId: exItem.exercise.id,
+        targetWeight: bestWeight > 0 ? String(bestWeight) : undefined,
+        targetReps: String(bestReps),
+      },
+    });
+  };
+
   const liveXp = useMemo(() => {
     let completedSets = 0;
     let volume = 0;
@@ -341,6 +369,16 @@ export default function ActiveWorkoutScreen() {
                     <Text style={styles.favHeaderIcon}>
                       {favoriteIds.includes(exItem.exercise.id) ? '⭐' : '☆'}
                     </Text>
+                  </TouchableOpacity>
+
+                  {/* Bouton Défier en 1 clic */}
+                  <TouchableOpacity
+                    onPress={() => handleChallengeFromExercise(exItem)}
+                    style={styles.challengeHeaderBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.challengeHeaderIcon}>⚔️</Text>
                   </TouchableOpacity>
 
                   {/* Bouton supprimer de la séance */}
@@ -794,6 +832,19 @@ const styles = StyleSheet.create({
   },
   favHeaderIcon: {
     fontSize: 18,
+  },
+  challengeHeaderBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 90, 31, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  challengeHeaderIcon: {
+    fontSize: 16,
   },
   removeExBtn: {
     padding: 4,

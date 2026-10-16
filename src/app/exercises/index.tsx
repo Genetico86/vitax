@@ -74,6 +74,17 @@ export default function ExercisesCatalogScreen() {
     router.push('/workout/active');
   };
 
+  const handleChallengeExercise = (exercise: Exercise) => {
+    router.push({
+      pathname: '/arena',
+      params: {
+        openChallenge: '1',
+        challengeType: 'exercise',
+        exerciseId: exercise.id,
+      },
+    });
+  };
+
   const handleStartAllFavorites = async () => {
     const favoriteExercises = exercises.filter((ex) => favoriteIds.includes(ex.id));
     if (favoriteExercises.length === 0) {
@@ -508,34 +519,46 @@ export default function ExercisesCatalogScreen() {
                 <Text style={styles.exerciseDesc}>{item.description}</Text>
               ) : null}
 
-              {/* Bouton pour lancer l'entraînement sur cet exercice */}
-              <TouchableOpacity
-                style={[
-                  styles.startExerciseCardBtn,
-                  favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtn,
-                ]}
-                onPress={() => handleStartSingleExercise(item)}
-                activeOpacity={0.8}
-              >
-                <Text
+              {/* Boutons d'action : Lancer l'entraînement ET Défier en 1 clic */}
+              <View style={styles.cardActionRow}>
+                <TouchableOpacity
                   style={[
-                    styles.startExerciseCardBtnIcon,
-                    favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtnIcon,
+                    styles.startExerciseCardBtn,
+                    favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtn,
+                    { flex: 1.25, marginTop: 0 },
                   ]}
+                  onPress={() => handleStartSingleExercise(item)}
+                  activeOpacity={0.8}
                 >
-                  ▶
-                </Text>
-                <Text
-                  style={[
-                    styles.startExerciseCardBtnText,
-                    favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtnText,
-                  ]}
+                  <Text
+                    style={[
+                      styles.startExerciseCardBtnIcon,
+                      favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtnIcon,
+                    ]}
+                  >
+                    ▶
+                  </Text>
+                  <Text
+                    style={[
+                      styles.startExerciseCardBtnText,
+                      favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtnText,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {favoriteIds.includes(item.id)
+                      ? 'Lancer l’exercice'
+                      : 'S’entraîner'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.challengeExerciseCardBtn}
+                  onPress={() => handleChallengeExercise(item)}
+                  activeOpacity={0.8}
                 >
-                  {favoriteIds.includes(item.id)
-                    ? 'Lancer cet exercice favori'
-                    : 'S’entraîner sur cet exercice'}
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.challengeExerciseCardBtnText}>⚔️ Défier</Text>
+                </TouchableOpacity>
+              </View>
             </Card>
           ))
         )}
@@ -907,6 +930,28 @@ const styles = StyleSheet.create({
   },
   startFavoriteExerciseCardBtnText: {
     color: Colors.primary,
+    fontWeight: '900',
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  challengeExerciseCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 90, 31, 0.15)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.4)',
+  },
+  challengeExerciseCardBtnText: {
+    color: '#FF7A45',
+    fontSize: 13,
     fontWeight: '900',
   },
 });

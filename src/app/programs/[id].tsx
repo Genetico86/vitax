@@ -129,14 +129,32 @@ export default function ProgramDetailScreen() {
           <Text style={styles.description}>{program.description}</Text>
         </View>
 
-        {/* Bouton Démarrer géant */}
-        <Button
-          title="Démarrer la séance ▶"
-          size="lg"
-          variant="primary"
-          onPress={handleStartWorkout}
-          style={styles.startBtn}
-        />
+        {/* Boutons Démarrer et Défier le programme en 1 clic */}
+        <View style={styles.programActionRow}>
+          <Button
+            title="Démarrer la séance ▶"
+            size="lg"
+            variant="primary"
+            onPress={handleStartWorkout}
+            style={{ flex: 1.35 }}
+          />
+          <TouchableOpacity
+            style={styles.challengeProgramLargeBtn}
+            onPress={() => {
+              router.push({
+                pathname: '/arena',
+                params: {
+                  openChallenge: '1',
+                  challengeType: 'program',
+                  programId: program.id,
+                },
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.challengeProgramLargeBtnText}>⚔️ Défier</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Liste des exercices prévus */}
         <Text style={styles.sectionTitle}>
@@ -213,6 +231,24 @@ export default function ProgramDetailScreen() {
                 <Text style={styles.favoriteCardBtnIcon}>
                   {favoriteIds.includes(item.exercise_id) ? '⭐' : '☆'}
                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  router.push({
+                    pathname: '/arena',
+                    params: {
+                      openChallenge: '1',
+                      challengeType: 'exercise',
+                      exerciseId: item.exercise_id,
+                    },
+                  });
+                }}
+                style={styles.challengeCardMiniBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.challengeCardMiniBtnText}>⚔️</Text>
               </TouchableOpacity>
             </View>
 
@@ -410,5 +446,40 @@ const styles = StyleSheet.create({
   },
   favoriteCardBtnIcon: {
     fontSize: 16,
+  },
+  programActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 24,
+  },
+  challengeProgramLargeBtn: {
+    backgroundColor: 'rgba(255, 90, 31, 0.15)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 90, 31, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  challengeProgramLargeBtnText: {
+    color: '#FF7A45',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  challengeCardMiniBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 90, 31, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  challengeCardMiniBtnText: {
+    fontSize: 15,
   },
 });

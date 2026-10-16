@@ -364,16 +364,35 @@ export default function ProgramsListScreen() {
                     onPress={() => router.push(`/programs/${item.id}`)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.detailsLinkText}>Voir les exercices ❯</Text>
+                    <Text style={styles.detailsLinkText}>Détails ❯</Text>
                   </TouchableOpacity>
 
-                  <Button
-                    title="Démarrer ▶"
-                    size="md"
-                    variant="primary"
-                    onPress={() => handleStartProgram(item.id)}
-                    style={styles.startProgramBtn}
-                  />
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <TouchableOpacity
+                      style={styles.challengeProgramBtn}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/arena',
+                          params: {
+                            openChallenge: '1',
+                            challengeType: 'program',
+                            programId: item.id,
+                          },
+                        });
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.challengeProgramBtnText}>⚔️ Défier</Text>
+                    </TouchableOpacity>
+
+                    <Button
+                      title="Démarrer ▶"
+                      size="sm"
+                      variant="primary"
+                      onPress={() => handleStartProgram(item.id)}
+                      style={styles.startProgramBtn}
+                    />
+                  </View>
                 </View>
               </Card>
             );
@@ -560,7 +579,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   startProgramBtn: {
-    minWidth: 120,
+    minWidth: 100,
+  },
+  challengeProgramBtn: {
+    backgroundColor: 'rgba(255, 90, 31, 0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  challengeProgramBtnText: {
+    color: '#FF7A45',
+    fontSize: 12,
+    fontWeight: '800',
   },
   emptyCard: {
     backgroundColor: '#111827',

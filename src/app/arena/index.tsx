@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, ScrollView, RefreshControl } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { PokemonTradeOffer, FriendGift } from '../../types/social';
 import { useArenaData } from '../../components/arena/hooks/useArenaData';
@@ -18,6 +19,18 @@ import { CreateGiftModal } from '../../components/arena/modals/CreateGiftModal';
 import { CelebrateGiftModal } from '../../components/arena/modals/CelebrateGiftModal';
 
 export default function ArenaScreen() {
+  const params = useLocalSearchParams<{
+    openChallenge?: string;
+    challengeType?: 'exercise' | 'program';
+    exerciseId?: string;
+    programId?: string;
+    targetWeight?: string;
+    targetReps?: string;
+    targetVolume?: string;
+  }>();
+
+  const isDirectChallenge = params.openChallenge === '1' || params.openChallenge === 'true';
+
   const {
     activeTab,
     setActiveTab,
@@ -59,7 +72,7 @@ export default function ArenaScreen() {
     handleCreateChallenge,
     handleTakeOnChallenge,
     handleStartRaidWorkout,
-  } = useArenaData();
+  } = useArenaData(isDirectChallenge ? 'raids' : undefined);
 
   // Modales d'interaction
   const [addFriendModalVisible, setAddFriendModalVisible] = useState(false);
@@ -72,7 +85,19 @@ export default function ArenaScreen() {
   const [acceptTradeModalVisible, setAcceptTradeModalVisible] = useState(false);
   const [selectedOfferToAccept, setSelectedOfferToAccept] = useState<PokemonTradeOffer | null>(null);
 
-  const [createChallengeModalVisible, setCreateChallengeModalVisible] = useState(false);
+  const [manualChallengeModalOpen, setManualChallengeModalOpen] = useState(false);
+  const [challengeDismissed, setChallengeDismissed] = useState(false);
+
+  const createChallengeModalVisible = manualChallengeModalOpen || (isDirectChallenge && !challengeDismissed);
+
+  const initialChallengeType: 'exercise' | 'program' =
+    params.challengeType || (params.programId ? 'program' : 'exercise');
+  const initialExerciseId = params.exerciseId;
+  const initialProgramId = params.programId;
+  const initialWeight = params.targetWeight ? parseFloat(params.targetWeight) : undefined;
+  const initialReps = params.targetReps ? parseInt(params.targetReps, 10) : undefined;
+  const initialVolume = params.targetVolume ? parseInt(params.targetVolume, 10) : undefined;
+
   const [createGiftModalVisible, setCreateGiftModalVisible] = useState(false);
   const [giftTargetFriendCode, setGiftTargetFriendCode] = useState('');
 
@@ -163,7 +188,10 @@ export default function ArenaScreen() {
             onSubTabChange={setRaidsSubTab}
             friendChallenges={friendChallenges}
             raidBoss={raidBoss}
-            onOpenCreateChallenge={() => setCreateChallengeModalVisible(true)}
+            onOpenCreateChallenge={() => {
+              setManualChallengeModalOpen(true);
+              setChallengeDismissed(false);
+            }}
             onTakeOnChallenge={handleTakeOnChallenge}
             onClaimReward={handleClaimReward}
             onStartRaidWorkout={handleStartRaidWorkout}
@@ -220,7 +248,16 @@ export default function ArenaScreen() {
         allExercises={allExercises}
         allPrograms={allPrograms}
         friendsList={friendsList}
-        onClose={() => setCreateChallengeModalVisible(false)}
+        initialType={initialChallengeType}
+        initialExerciseId={initialExerciseId}
+        initialProgramId={initialProgramId}
+        initialWeight={initialWeight}
+        initialReps={initialReps}
+        initialVolume={initialVolume}
+        onClose={() => {
+          setManualChallengeModalOpen(false);
+          setChallengeDismissed(true);
+        }}
         onSubmit={handleCreateChallenge}
       />
 
