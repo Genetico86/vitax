@@ -500,12 +500,30 @@ export async function getUserGamificationStats(): Promise<{
     console.warn('Erreur chargement ou synchro oeufs Pokémon:', eggErr);
   }
 
+  // Lire le palier d'incubateurs débloqué de manière persistante
+  let maxUnlockedIncubator = 1;
+  try {
+    const rawIncubator = await AsyncStorage.getItem('@vitax_max_unlocked_incubator');
+    if (rawIncubator) {
+      maxUnlockedIncubator = parseInt(rawIncubator, 10) || 1;
+    }
+  } catch {}
+
   const incubatorSlots = computeIncubatorSlots(
     totalXp,
     totalSessions,
     totalVolumeKg,
-    allEggs
+    allEggs,
+    maxUnlockedIncubator
   );
+
+  const highestUnlocked = incubatorSlots.reduce(
+    (max, s) => (s.is_unlocked ? Math.max(max, s.slot_number) : max),
+    1
+  );
+  if (highestUnlocked > maxUnlockedIncubator) {
+    void AsyncStorage.setItem('@vitax_max_unlocked_incubator', String(highestUnlocked));
+  }
 
   const hatchedPokemon = allEggs.filter((e) => e.status === 'hatched');
   const incubatingEggs = allEggs.filter((e) => e.status === 'incubating');

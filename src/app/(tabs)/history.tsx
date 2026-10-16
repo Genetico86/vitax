@@ -111,7 +111,7 @@ export default function HistoryScreen() {
           try {
             const { fullCloudSyncToLocal } = await import('../../services/cloudSyncService');
             const syncRes = await fullCloudSyncToLocal();
-            if (syncRes.sessionsCount > 0) {
+            if (syncRes.sessionsCount > 0 || syncRes.eggsCount > 0) {
               const updatedSess = await getAllWorkoutSessions();
               setSessions(updatedSess);
               const updatedGStats = await getUserGamificationStats();
