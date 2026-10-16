@@ -407,8 +407,11 @@ export async function fetchBodyWeightsFromCloud(): Promise<BodyWeightLog[]> {
     if (recoveredWeights.length > 0) {
       for (const w of recoveredWeights) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             note = COALESCE(body_weights.note, excluded.note),
+             body_fat_percentage = COALESCE(body_weights.body_fat_percentage, excluded.body_fat_percentage)`,
           [
             w.id,
             w.weight,
@@ -566,9 +569,13 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
     if (recoveredGoals.length > 0) {
       for (const g of recoveredGoals) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO fitness_goals (
+          `INSERT INTO fitness_goals (
              id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
-           ) VALUES (?, ?, ?, ?, ?, ?, 'kg', ?, NULL, ?, NULL, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?, 'kg', ?, NULL, ?, NULL, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             completed = MAX(fitness_goals.completed, excluded.completed),
+             completed_at = COALESCE(fitness_goals.completed_at, excluded.completed_at),
+             current_value = MAX(fitness_goals.current_value, excluded.current_value)`,
           [
             g.id,
             g.title,
@@ -643,9 +650,15 @@ export async function fullCloudSyncToLocal(): Promise<{
       sessionsCount = filteredSessions.length;
       for (const s of filteredSessions) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO workout_sessions (
+          `INSERT INTO workout_sessions (
              id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+           ON CONFLICT(id) DO UPDATE SET
+             duration_seconds = MAX(workout_sessions.duration_seconds, excluded.duration_seconds),
+             total_volume = MAX(workout_sessions.total_volume, excluded.total_volume),
+             total_sets = MAX(workout_sessions.total_sets, excluded.total_sets),
+             notes = COALESCE(workout_sessions.notes, excluded.notes),
+             completed = 1`,
           [
             s.id,
             s.program_id,
@@ -655,7 +668,6 @@ export async function fullCloudSyncToLocal(): Promise<{
             s.notes || null,
             s.total_volume || 0,
             s.total_sets || 0,
-            1,
           ]
         );
       }
@@ -681,9 +693,13 @@ export async function fullCloudSyncToLocal(): Promise<{
             set.completed === null;
 
           await db.runAsync(
-            `INSERT OR REPLACE INTO workout_sets (
+            `INSERT INTO workout_sets (
                id, workout_session_id, exercise_id, set_order, weight, reps, completed, created_at
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               weight = MAX(workout_sets.weight, excluded.weight),
+               reps = MAX(workout_sets.reps, excluded.reps),
+               completed = MAX(workout_sets.completed, excluded.completed)`,
             [
               set.id,
               set.workout_session_id,

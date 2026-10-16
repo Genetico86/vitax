@@ -196,10 +196,12 @@ export default function SettingsScreen() {
     try {
       const { syncCloudAndLocal } = await import('../../services/cloudSyncService');
       await syncCloudAndLocal();
+      const { getUserGamificationStats } = await import('../../services/gamificationService');
+      await getUserGamificationStats();
       await loadTrainerData();
       Alert.alert(
-        'Synchronisation terminée ✅',
-        'Toutes vos données (séances, séries, poids, favoris et progression) ont été synchronisées avec la base centrale cloud.'
+        'Synchronisation réussie ✅',
+        'Toutes vos données (séances, séries, pesées, objectifs, favoris et Pokémon) ont été synchronisées sans aucune régression.'
       );
     } catch (err: any) {
       Alert.alert('Erreur de synchronisation', err?.message || 'Impossible de synchroniser avec le cloud.');
@@ -334,9 +336,9 @@ export default function SettingsScreen() {
         <View style={styles.offlineHeader}>
           <Text style={styles.offlineIcon}>🌐</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.offlineTitle}>Base Partagée & Réseau Vitax</Text>
+            <Text style={styles.offlineTitle}>Synchronisation & Réseau Vitax</Text>
             <Text style={styles.offlineSub}>
-              Vos données restent enregistrées localement et synchronisent vos classements, vos Pokémon et votre cercle d’amis sur la ligue générale.
+              Vos données restent enregistrées localement sur votre appareil et se synchronisent en continu avec la base centrale cloud pour vos classements, vos Pokémon et vos amis.
             </Text>
           </View>
         </View>
@@ -775,7 +777,7 @@ export default function SettingsScreen() {
 
       <Card style={styles.card}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Text style={styles.label}>Base partagée Mobile & Web</Text>
+          <Text style={styles.label}>Synchronisation des Données</Text>
           <Badge
             label={isSupabaseConfigured() ? 'Connecté' : 'Non configuré'}
             color={isSupabaseConfigured() ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)'}
@@ -783,10 +785,10 @@ export default function SettingsScreen() {
           />
         </View>
         <Text style={styles.sublabel}>
-          Synchronise instantanément vos séances, séries, poids, objectifs et XP entre votre smartphone et l’application web vitaxsport.vercel.app.
+          Synchronise instantanément vos séances, séries, pesées, objectifs et progression Pokémon entre votre smartphone et le cloud, avec fusion intelligente anti-régression garantie.
         </Text>
         <Button
-          title={syncingCloud ? 'Synchronisation en cours...' : '🔄 Synchroniser avec le Cloud maintenant'}
+          title={syncingCloud ? 'Synchronisation en cours...' : "🔄 Synchroniser l'application"}
           variant="primary"
           onPress={handleManualCloudSync}
           loading={syncingCloud}
