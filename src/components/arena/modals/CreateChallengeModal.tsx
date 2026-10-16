@@ -20,6 +20,12 @@ interface CreateChallengeModalProps {
   allExercises: Exercise[];
   allPrograms: Program[];
   friendsList: FriendEntry[];
+  initialType?: 'exercise' | 'program';
+  initialExerciseId?: string;
+  initialProgramId?: string;
+  initialWeight?: number;
+  initialReps?: number;
+  initialVolume?: number;
   onClose: () => void;
   onSubmit: (params: {
     type: 'exercise' | 'program';
@@ -50,6 +56,12 @@ const CreateChallengeModalContent: React.FC<{
   allExercises: Exercise[];
   allPrograms: Program[];
   friendsList: FriendEntry[];
+  initialType?: 'exercise' | 'program';
+  initialExerciseId?: string;
+  initialProgramId?: string;
+  initialWeight?: number;
+  initialReps?: number;
+  initialVolume?: number;
   onClose: () => void;
   onSubmit: (params: {
     type: 'exercise' | 'program';
@@ -61,15 +73,33 @@ const CreateChallengeModalContent: React.FC<{
     targetFriendCodeInput: string;
     instructions?: string;
   }) => Promise<boolean>;
-}> = ({ allExercises, allPrograms, friendsList, onClose, onSubmit }) => {
-  const [challengeType, setChallengeType] = useState<'exercise' | 'program'>('exercise');
-  const [selectedExerciseId, setSelectedExerciseId] = useState(allExercises[0]?.id || '');
-  const [selectedProgramId, setSelectedProgramId] = useState(allPrograms[0]?.id || '');
+}> = ({
+  allExercises,
+  allPrograms,
+  friendsList,
+  initialType,
+  initialExerciseId,
+  initialProgramId,
+  initialWeight,
+  initialReps,
+  initialVolume,
+  onClose,
+  onSubmit,
+}) => {
+  const [challengeType, setChallengeType] = useState<'exercise' | 'program'>(initialType || 'exercise');
+  const [selectedExerciseId, setSelectedExerciseId] = useState(initialExerciseId || allExercises[0]?.id || '');
+  const [selectedProgramId, setSelectedProgramId] = useState(initialProgramId || allPrograms[0]?.id || '');
   const [exerciseSearch, setExerciseSearch] = useState('');
   const [selectedMuscleCategory, setSelectedMuscleCategory] = useState<string>('Tous');
-  const [targetWeightInput, setTargetWeightInput] = useState('');
-  const [targetRepsInput, setTargetRepsInput] = useState('10');
-  const [targetVolumeInput, setTargetVolumeInput] = useState('3000');
+  const [targetWeightInput, setTargetWeightInput] = useState(
+    initialWeight !== undefined && initialWeight > 0 ? String(initialWeight) : ''
+  );
+  const [targetRepsInput, setTargetRepsInput] = useState(
+    initialReps !== undefined && initialReps > 0 ? String(initialReps) : '10'
+  );
+  const [targetVolumeInput, setTargetVolumeInput] = useState(
+    initialVolume !== undefined && initialVolume > 0 ? String(initialVolume) : '3000'
+  );
   const [challengeInstructionsInput, setChallengeInstructionsInput] = useState('');
   const [targetFriendCodeInput, setTargetFriendCodeInput] = useState('all');
   const [createChallengeLoading, setCreateChallengeLoading] = useState(false);
@@ -693,6 +723,12 @@ export const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({
   allExercises,
   allPrograms,
   friendsList,
+  initialType,
+  initialExerciseId,
+  initialProgramId,
+  initialWeight,
+  initialReps,
+  initialVolume,
   onClose,
   onSubmit,
 }) => {
@@ -705,9 +741,16 @@ export const CreateChallengeModal: React.FC<CreateChallengeModalProps> = ({
     >
       {visible ? (
         <CreateChallengeModalContent
+          key={`${initialType || 'exercise'}_${initialExerciseId || ''}_${initialProgramId || ''}_${initialWeight || ''}_${initialReps || ''}`}
           allExercises={allExercises}
           allPrograms={allPrograms}
           friendsList={friendsList}
+          initialType={initialType}
+          initialExerciseId={initialExerciseId}
+          initialProgramId={initialProgramId}
+          initialWeight={initialWeight}
+          initialReps={initialReps}
+          initialVolume={initialVolume}
           onClose={onClose}
           onSubmit={onSubmit}
         />

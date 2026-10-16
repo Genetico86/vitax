@@ -101,6 +101,44 @@ export default function WorkoutSummaryScreen() {
     );
   };
 
+  const handleChallengeFromSummary = () => {
+    if (sessionDetails?.program_id) {
+      router.push({
+        pathname: '/arena',
+        params: {
+          openChallenge: '1',
+          challengeType: 'program',
+          programId: sessionDetails.program_id,
+          targetVolume: String(Math.round(sessionDetails.total_volume || 3000)),
+        },
+      });
+      return;
+    }
+
+    const sets = sessionDetails?.sets || [];
+    if (sets.length > 0) {
+      const topSet = sets.reduce((prev, curr) => ((curr.weight || 0) > (prev.weight || 0) ? curr : prev));
+      router.push({
+        pathname: '/arena',
+        params: {
+          openChallenge: '1',
+          challengeType: 'exercise',
+          exerciseId: topSet.exercise_id,
+          targetWeight: topSet.weight > 0 ? String(topSet.weight) : undefined,
+          targetReps: topSet.reps > 0 ? String(topSet.reps) : '10',
+        },
+      });
+      return;
+    }
+
+    router.push({
+      pathname: '/arena',
+      params: {
+        openChallenge: '1',
+      },
+    });
+  };
+
   // Regrouper les séries par exercice pour l'affichage propre de la séance
   const groupedSessionExercises = React.useMemo(() => {
     if (!sessionDetails?.sets) return [];
@@ -288,6 +326,14 @@ export default function WorkoutSummaryScreen() {
               style={{ marginBottom: 10 }}
             />
           )}
+
+          <Button
+            title="⚔️ Lancer un Défi depuis cette séance"
+            variant="primary"
+            size="md"
+            onPress={handleChallengeFromSummary}
+            style={{ marginBottom: 10 }}
+          />
 
           <Button
             title="Consulter l’Arène & Défis Amis 🏟️"

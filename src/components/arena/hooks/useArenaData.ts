@@ -56,8 +56,8 @@ export type ArenaTab = 'leaderboard' | 'trades' | 'raids';
 export type LeaderboardFilter = 'global' | 'friends';
 export type TradeFilter = 'all' | 'friends';
 
-export function useArenaData() {
-  const [activeTab, setActiveTab] = useState<ArenaTab>('leaderboard');
+export function useArenaData(initialTab?: ArenaTab) {
+  const [activeTab, setActiveTab] = useState<ArenaTab>(initialTab || 'leaderboard');
   const [leaderboardFilter, setLeaderboardFilter] = useState<LeaderboardFilter>('global');
   const [tradeFilter, setTradeFilter] = useState<TradeFilter>('all');
 
