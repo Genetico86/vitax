@@ -5,6 +5,9 @@ import { getPersistedSession } from './authService';
 import { getOrCreateTrainerProfile, syncTrainerProfileToSupabase } from './multiplayerService';
 import { getDatabase } from '../database/db';
 import seedData from '../database/seedData.json';
+import { getUserGamificationStats } from './gamificationService';
+import { STORAGE_KEY_DAILY_BONUS } from './exerciseWeightingService';
+import { STORAGE_KEY_PROFILE } from './multiplayer/profileService';
 
 /**
  * Récupère l'identifiant unique de l'athlète actuel pour la synchronisation
@@ -732,6 +735,66 @@ export async function fullCloudSyncToLocal(): Promise<{
     // 5. Récupérer les Pokémon et œufs du Cloud
     const eggsCount = await fetchPokemonEggsFromCloud();
 
+    // 6. Récupérer la série journalière (streak) et les bonus depuis le Cloud
+    try {
+      const backupId = `daily_bonus_${userId}`;
+      const { data: bonusData } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (bonusData?.offered_pokemon) {
+        const cloudBonus = (bonusData.offered_pokemon as any)?.daily_bonus;
+        if (cloudBonus) {
+          const rawLocalBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
+          let finalBonus = cloudBonus;
+          if (rawLocalBonus) {
+            const localBonus = JSON.parse(rawLocalBonus);
+            finalBonus = {
+              lastClaimDate: cloudBonus.lastClaimDate || localBonus.lastClaimDate,
+              currentStreak: Math.max(cloudBonus.currentStreak || 0, localBonus.currentStreak || 0),
+              totalBonusesEarned: Math.max(cloudBonus.totalBonusesEarned || 0, localBonus.totalBonusesEarned || 0),
+            };
+          }
+          await AsyncStorage.setItem(STORAGE_KEY_DAILY_BONUS, JSON.stringify(finalBonus));
+        }
+      }
+    } catch (bErr) {
+      console.warn('Erreur sync daily bonus dans fullCloudSyncToLocal:', bErr);
+    }
+
+    // 7. Rapatrier le profil athlète Supabase (XP totale, séances et ligue)
+    try {
+      const profile = await getOrCreateTrainerProfile();
+      const { data: cloudProfile } = await supabase
+        .from('profiles')
+        .select('total_xp, total_workouts, current_league')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (cloudProfile) {
+        let changed = false;
+        if ((cloudProfile.total_xp || 0) > (profile.totalXp || 0)) {
+          profile.totalXp = cloudProfile.total_xp;
+          changed = true;
+        }
+        if ((cloudProfile.total_workouts || 0) > (profile.totalWorkouts || 0)) {
+          profile.totalWorkouts = cloudProfile.total_workouts;
+          changed = true;
+        }
+        if (cloudProfile.current_league && cloudProfile.current_league !== profile.currentLeague) {
+          profile.currentLeague = cloudProfile.current_league;
+          changed = true;
+        }
+        if (changed) {
+          await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+        }
+      }
+    } catch (pErr) {
+      console.warn('Erreur sync profil dans fullCloudSyncToLocal:', pErr);
+    }
+
     return {
       sessionsCount,
       weightsCount,
@@ -942,6 +1005,40 @@ export async function pushLocalToCloud(): Promise<void> {
 
     // 5. Envoyer les Pokémon et œufs locaux
     await syncPokemonEggsToCloud();
+
+    // 6. Sauvegarder la série journalière (streak) et les bonus dans le Cloud
+    try {
+      const rawBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
+      if (rawBonus) {
+        const bonusState = JSON.parse(rawBonus);
+        const backupId = `daily_bonus_${session.userId}`;
+        await supabase.from('trades').upsert({
+          id: backupId,
+          offered_by: session.userId,
+          offered_pokemon: { daily_bonus: bonusState } as any,
+          wanted_species: ['daily_bonus'],
+          status: 'completed',
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (bErr) {
+      console.warn('Erreur sync daily bonus dans pushLocalToCloud:', bErr);
+    }
+
+    // 7. Synchroniser et consolider le profil athlète (XP totale, séances et ligue)
+    try {
+      const gStats = await getUserGamificationStats();
+      const profile = await getOrCreateTrainerProfile();
+      if (gStats && gStats.totalXp > (profile.totalXp || 0)) {
+        profile.totalXp = gStats.totalXp;
+      }
+      if (gStats && gStats.totalSessions > (profile.totalWorkouts || 0)) {
+        profile.totalWorkouts = gStats.totalSessions;
+      }
+      await syncTrainerProfileToSupabase(profile);
+    } catch (pErr) {
+      console.warn('Erreur sync profil athlète dans pushLocalToCloud:', pErr);
+    }
   } catch (err) {
     console.warn('Erreur pushLocalToCloud:', err);
   }
