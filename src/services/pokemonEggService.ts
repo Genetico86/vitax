@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase } from '../database/db';
 import {
   EggRarity,
@@ -298,7 +299,8 @@ export function computeIncubatorSlots(
   totalXp: number,
   totalSessions: number,
   totalVolumeKg: number,
-  eggs: PokemonEgg[]
+  eggs: PokemonEgg[],
+  maxUnlockedSlot: number = 1
 ): IncubatorSlot[] {
   // Slot 1 : Incubateur Basique (Infini)
   const slot1Egg = eggs.find((e) => e.status === 'incubating' && e.incubator_slot === 1) || null;
@@ -312,39 +314,40 @@ export function computeIncubatorSlots(
   };
 
   // Slot 2 : Super-Incubateur (Badge Cascade 500 XP ou 5 séances)
-  const slot2Unlocked = totalXp >= 500 || totalSessions >= 5;
+  // Débloqué si 500 XP, 5 séances, déjà débloqué précédemment ou si un œuf y est présent
   const slot2Egg = eggs.find((e) => e.status === 'incubating' && e.incubator_slot === 2) || null;
+  const slot2Unlocked = totalXp >= 500 || totalSessions >= 5 || maxUnlockedSlot >= 2 || Boolean(slot2Egg);
   const slot2: IncubatorSlot = {
     slot_number: 2,
     name: 'Super-Incubateur',
     emoji: '💧',
     is_unlocked: slot2Unlocked,
     unlock_condition: 'Badge Cascade (500 XP) ou 5 séances terminées',
-    egg: slot2Unlocked ? slot2Egg : null,
+    egg: slot2Egg,
   };
 
   // Slot 3 : Hyper-Incubateur (Badge Prisme 2200 XP ou 15 séances)
-  const slot3Unlocked = totalXp >= 2200 || totalSessions >= 15;
   const slot3Egg = eggs.find((e) => e.status === 'incubating' && e.incubator_slot === 3) || null;
+  const slot3Unlocked = totalXp >= 2200 || totalSessions >= 15 || maxUnlockedSlot >= 3 || Boolean(slot3Egg);
   const slot3: IncubatorSlot = {
     slot_number: 3,
     name: 'Hyper-Incubateur',
     emoji: '🌈',
     is_unlocked: slot3Unlocked,
     unlock_condition: 'Badge Prisme (2 200 XP) ou 15 séances terminées',
-    egg: slot3Unlocked ? slot3Egg : null,
+    egg: slot3Egg,
   };
 
   // Slot 4 : Incubateur Maître (Badge Terre 10500 XP ou 10 Tonnes)
-  const slot4Unlocked = totalXp >= 10500 || totalVolumeKg >= 10000;
   const slot4Egg = eggs.find((e) => e.status === 'incubating' && e.incubator_slot === 4) || null;
+  const slot4Unlocked = totalXp >= 10500 || totalVolumeKg >= 10000 || maxUnlockedSlot >= 4 || Boolean(slot4Egg);
   const slot4: IncubatorSlot = {
     slot_number: 4,
     name: 'Incubateur Maître',
     emoji: '🌍',
     is_unlocked: slot4Unlocked,
     unlock_condition: 'Badge Terre (10 500 XP) ou 10 000 kg soulevés',
-    egg: slot4Unlocked ? slot4Egg : null,
+    egg: slot4Egg,
   };
 
   return [slot1, slot2, slot3, slot4];
@@ -418,10 +421,10 @@ export async function getAllPokemonEggs(): Promise<PokemonEgg[]> {
 export async function placeEggInSlot(eggId: string, slotNumber: number): Promise<boolean> {
   const db = await getDatabase();
 
-  // Vérifier qu'aucun œuf n'est déjà dans ce slot
+  // Vérifier qu'aucun œuf différent n'est déjà dans ce slot
   const existingInSlot = await db.getFirstAsync<PokemonEgg>(
-    "SELECT * FROM pokemon_eggs WHERE incubator_slot = ? AND status = 'incubating'",
-    [slotNumber]
+    "SELECT * FROM pokemon_eggs WHERE incubator_slot = ? AND status = 'incubating' AND id != ?",
+    [slotNumber, eggId]
   );
   if (existingInSlot) {
     return false;
@@ -431,6 +434,24 @@ export async function placeEggInSlot(eggId: string, slotNumber: number): Promise
     "UPDATE pokemon_eggs SET status = 'incubating', incubator_slot = ? WHERE id = ?",
     [slotNumber, eggId]
   );
+
+  // Mémoriser que cet incubateur est débloqué pour ne jamais le reverrouiller
+  try {
+    const rawMax = await AsyncStorage.getItem('@vitax_max_unlocked_incubator');
+    const currMax = rawMax ? parseInt(rawMax, 10) : 1;
+    if (slotNumber > currMax) {
+      await AsyncStorage.setItem('@vitax_max_unlocked_incubator', String(slotNumber));
+    }
+  } catch {}
+
+  // Synchronisation Cloud immédiate pour ne jamais perdre l'incubation à la reconnexion
+  try {
+    const { syncPokemonEggsToCloud } = await import('./cloudSyncService');
+    await syncPokemonEggsToCloud();
+  } catch (syncErr) {
+    console.warn('Erreur synchro cloud après placement d’œuf:', syncErr);
+  }
+
   return true;
 }
 
@@ -443,6 +464,14 @@ export async function removeEggFromSlot(eggId: string): Promise<void> {
     "UPDATE pokemon_eggs SET status = 'inventory', incubator_slot = NULL WHERE id = ?",
     [eggId]
   );
+
+  // Synchronisation Cloud immédiate
+  try {
+    const { syncPokemonEggsToCloud } = await import('./cloudSyncService');
+    await syncPokemonEggsToCloud();
+  } catch (syncErr) {
+    console.warn('Erreur synchro cloud après retrait d’œuf:', syncErr);
+  }
 }
 
 /**
@@ -485,6 +514,14 @@ export async function addPokemonEgg(
       isLegendary,
     ]
   );
+
+  // Synchronisation Cloud du nouvel œuf
+  try {
+    const { syncPokemonEggsToCloud } = await import('./cloudSyncService');
+    await syncPokemonEggsToCloud();
+  } catch (syncErr) {
+    console.warn('Erreur synchro cloud après ajout œuf:', syncErr);
+  }
 
   return {
     id: eggId,
@@ -611,6 +648,14 @@ export async function distributeWorkoutXpToIncubators(
         current_xp: newXp,
       });
     }
+  }
+
+  // Synchronisation Cloud immédiate de l'évolution des œufs et éclosions
+  try {
+    const { syncPokemonEggsToCloud } = await import('./cloudSyncService');
+    await syncPokemonEggsToCloud();
+  } catch (syncErr) {
+    console.warn('Erreur synchro cloud après gain XP œufs:', syncErr);
   }
 
   return { updatedEggs, newlyHatched };

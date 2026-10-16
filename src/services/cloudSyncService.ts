@@ -795,7 +795,40 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
     if (!Array.isArray(eggs) || eggs.length === 0) return 0;
 
     const db = await getDatabase();
+    const localEggs = await db.getAllAsync<PokemonEgg>('SELECT * FROM pokemon_eggs');
+    const localMap = new Map(localEggs.map((e) => [e.id, e]));
+
+    let maxSlotFound = 1;
+
     for (const egg of eggs) {
+      const local = localMap.get(egg.id);
+
+      // Priorité à l'état actif le plus avancé :
+      // 1. Si déjà éclos localement ou dans le cloud, il est 'hatched'
+      let finalStatus = egg.status;
+      let finalSlot = egg.incubator_slot;
+      let finalHatchedAt = egg.hatched_at || local?.hatched_at || null;
+
+      if (local?.status === 'hatched' || egg.status === 'hatched') {
+        finalStatus = 'hatched';
+        finalSlot = null;
+        if (!finalHatchedAt) finalHatchedAt = new Date().toISOString();
+      } else if (local?.status === 'incubating') {
+        // Si l'œuf est en cours d'incubation localement, NE JAMAIS l'éjecter vers l'inventaire
+        finalStatus = 'incubating';
+        finalSlot = local.incubator_slot ?? egg.incubator_slot ?? 1;
+      } else if (egg.status === 'incubating') {
+        finalStatus = 'incubating';
+        finalSlot = egg.incubator_slot ?? local?.incubator_slot ?? 1;
+      }
+
+      if (finalSlot && finalSlot > maxSlotFound) {
+        maxSlotFound = finalSlot;
+      }
+
+      // Ne jamais régresser l'XP
+      const finalXp = Math.max(local?.current_xp || 0, egg.current_xp || 0);
+
       await db.runAsync(
         `INSERT OR REPLACE INTO pokemon_eggs (
           id, name, rarity, required_xp, current_xp, status, incubator_slot,
@@ -807,21 +840,35 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
           egg.name,
           egg.rarity,
           egg.required_xp,
-          egg.current_xp,
-          egg.status,
-          egg.incubator_slot,
+          finalXp,
+          finalStatus,
+          finalSlot,
           egg.obtained_from,
           egg.obtained_at,
-          egg.hatched_at || null,
-          egg.pokemon_id || null,
-          egg.pokemon_name || null,
-          egg.pokemon_emoji || null,
-          egg.pokemon_type || null,
-          egg.pokemon_cp || null,
+          finalHatchedAt,
+          egg.pokemon_id || local?.pokemon_id || null,
+          egg.pokemon_name || local?.pokemon_name || null,
+          egg.pokemon_emoji || local?.pokemon_emoji || null,
+          egg.pokemon_type || local?.pokemon_type || null,
+          egg.pokemon_cp || local?.pokemon_cp || null,
           egg.is_legendary ? 1 : 0,
         ]
       );
     }
+
+    if (maxSlotFound > 1) {
+      try {
+        const rawMax = await AsyncStorage.getItem('@vitax_max_unlocked_incubator');
+        const currMax = rawMax ? parseInt(rawMax, 10) : 1;
+        if (maxSlotFound > currMax) {
+          await AsyncStorage.setItem('@vitax_max_unlocked_incubator', String(maxSlotFound));
+        }
+      } catch {}
+    }
+
+    // Après fusion locale, synchroniser l'état unifié vers Supabase
+    void syncPokemonEggsToCloud();
+
     return eggs.length;
   } catch (e) {
     console.warn('Exception restauration cloud Pokémon:', e);

@@ -702,7 +702,7 @@ export default function HomeScreen() {
           try {
             const { fullCloudSyncToLocal } = await import('../../services/cloudSyncService');
             const syncRes = await fullCloudSyncToLocal();
-            if (syncRes.sessionsCount > 0) {
+            if (syncRes.sessionsCount > 0 || syncRes.eggsCount > 0) {
               const [updatedFitness, updatedGStats] = await Promise.all([
                 getWeeklyFitnessStats(),
                 getUserGamificationStats(),
