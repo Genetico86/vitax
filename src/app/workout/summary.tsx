@@ -215,6 +215,50 @@ export default function WorkoutSummaryScreen() {
         </Card>
 
         {/* ======================================================== */}
+        {/* NOUVEL ŒUF DÉCOUVERT (OPTION A)                          */}
+        {/* ======================================================== */}
+        {lastSession?.droppedEgg && (
+          <Card style={styles.droppedEggCard}>
+            <View style={styles.droppedEggRow}>
+              <View style={styles.droppedEggIconCircle}>
+                <Text style={styles.droppedEggEmoji}>
+                  {lastSession.droppedEgg.rarity === 'champion'
+                    ? '🟣'
+                    : lastSession.droppedEgg.rarity === 'starter'
+                    ? '🟢'
+                    : '🟠'}
+                </Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={styles.droppedEggBadgeRow}>
+                  <Text style={styles.droppedEggBadgeText}>NOUVEL ŒUF OBTENU !</Text>
+                </View>
+                <Text style={styles.droppedEggName}>{lastSession.droppedEgg.name}</Text>
+                <Text style={styles.droppedEggMeta}>
+                  {lastSession.droppedEgg.required_xp} XP requis pour éclore
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.droppedEggActionBtn}
+                onPress={() => router.push({ pathname: '/(tabs)/history', params: { tab: 'pokemon' } })}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.droppedEggActionText}>Incuber ❯</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
+        )}
+
+        {lastSession?.inventoryFullNotice && (
+          <View style={styles.fullInventoryNoticeBox}>
+            <Text style={styles.fullInventoryNoticeEmoji}>🧺</Text>
+            <Text style={styles.fullInventoryNoticeText}>
+              Réserve d’œufs pleine (9/9). Rendez-vous dans les Incubateurs pour faire éclore vos œufs et libérer des places !
+            </Text>
+          </View>
+        )}
+
+        {/* ======================================================== */}
         {/* DÉTAIL DES EXERCICES RÉALISÉS DANS CETTE SÉANCE           */}
         {/* ======================================================== */}
         <Card style={styles.exercisesCard}>
@@ -630,5 +674,84 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     marginTop: 1,
+  },
+  droppedEggCard: {
+    backgroundColor: '#1E1B2E',
+    borderColor: '#8B5CF6',
+    borderWidth: 1.5,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+  },
+  droppedEggRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  droppedEggIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2D224D',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  droppedEggEmoji: {
+    fontSize: 26,
+  },
+  droppedEggBadgeRow: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#8B5CF625',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  droppedEggBadgeText: {
+    color: '#C4B5FD',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  droppedEggName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  droppedEggMeta: {
+    color: '#A78BFA',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  droppedEggActionBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  droppedEggActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  fullInventoryNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#251A13',
+    borderColor: '#F9731640',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  fullInventoryNoticeEmoji: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  fullInventoryNoticeText: {
+    color: '#FDBA74',
+    fontSize: 11,
+    flex: 1,
+    lineHeight: 16,
   },
 });
