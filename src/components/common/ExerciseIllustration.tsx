@@ -107,8 +107,42 @@ export const ExerciseIllustration: React.FC<ExerciseIllustrationProps> = ({
   const renderMovementGraphic = (currentP: number) => {
     const id = exerciseId.toLowerCase();
 
-    // 0A. TAPIS DE COURSE & MARCHE (COURSE / MARCHE ACTIVE / MARCHE DU FERMIER)
-    if (id.includes('treadmill') || id.includes('tapis') || id.includes('course') || id.includes('walking') || id.includes('marche')) {
+    // 0A. COURSE À PIED EXTÉRIEURE
+    if (id.includes('running_outdoor')) {
+      const legSpread = (currentP - 0.5) * 36;
+      const armSpread = -legSpread * 0.8;
+      const bobY = Math.abs(Math.sin(currentP * Math.PI)) * 5;
+
+      return (
+        <G>
+          {/* Sol extérieur / Piste de running */}
+          <Line x1="8" y1="78" x2="92" y2="78" stroke="#334155" strokeWidth="3" strokeLinecap="round" />
+          <Line x1="16" y1="84" x2="84" y2="84" stroke="#0EA5E9" strokeWidth="2" strokeDasharray="8 6" />
+
+          {/* Lignes de vitesse / vent */}
+          <Line x1="10" y1="34" x2="22" y2="34" stroke="#38BDF8" strokeWidth="2" strokeLinecap="round" opacity={0.6} />
+          <Line x1="6" y1="44" x2="18" y2="44" stroke="#38BDF8" strokeWidth="2" strokeLinecap="round" opacity={0.4} />
+
+          {/* Tête et buste de l'athlète */}
+          <Circle cx="50" cy={20 - bobY} r="6.5" fill="#94A3B8" />
+          <Line x1="50" y1={26 - bobY} x2="45" y2={52 - bobY} stroke={`url(#${gradId})`} strokeWidth="7" strokeLinecap="round" />
+
+          {/* Bras en balancier */}
+          <Line x1="49" y1={33 - bobY} x2={49 + armSpread} y2={45 - bobY} stroke="#CBD5E1" strokeWidth="4" strokeLinecap="round" />
+          <Line x1="49" y1={33 - bobY} x2={49 - armSpread} y2={45 - bobY} stroke="#64748B" strokeWidth="3.5" strokeLinecap="round" />
+
+          {/* Jambes en foulée dynamique */}
+          <Line x1="45" y1={52 - bobY} x2={36 - legSpread * 0.75} y2={64 - bobY * 0.5} stroke="#64748B" strokeWidth="5" strokeLinecap="round" />
+          <Line x1={36 - legSpread * 0.75} y1={64 - bobY * 0.5} x2={26 - legSpread} y2={76} stroke="#64748B" strokeWidth="4.5" strokeLinecap="round" />
+
+          <Line x1="45" y1={52 - bobY} x2={52 + legSpread * 0.75} y2={64 - bobY * 0.5} stroke={`url(#${gradId})`} strokeWidth="5.5" strokeLinecap="round" />
+          <Line x1={52 + legSpread * 0.75} y1={64 - bobY * 0.5} x2={60 + legSpread} y2={74} stroke="#CBD5E1" strokeWidth="4.5" strokeLinecap="round" />
+        </G>
+      );
+    }
+
+    // 0A-bis. TAPIS DE COURSE & MARCHE (COURSE / MARCHE ACTIVE / MARCHE DU FERMIER)
+    if (id.includes('treadmill') || id.includes('tapis') || id.includes('course') || id.includes('running') || id.includes('walking') || id.includes('marche')) {
       const legSpread = (currentP - 0.5) * 32;
       const armSpread = -legSpread * 0.75;
       const bobY = Math.abs(Math.sin(currentP * Math.PI)) * 4;
@@ -738,9 +772,17 @@ export const ExerciseIllustration: React.FC<ExerciseIllustrationProps> = ({
         breathing: 'Expirez en contractant • Inspirez en revenant',
       };
     }
-    if (id.includes('treadmill') || id.includes('tapis') || id.includes('course')) {
+    if (id.includes('running_outdoor')) {
       return {
-        title: 'Tapis de Course',
+        title: 'Course à Pied Extérieure',
+        phase1: 'Foulée dynamique : Pose médio-pied sous le centre de gravité, cadence idéale ~170-180 ppm.',
+        phase2: 'Consigne Posture : Buste droit légèrement incliné vers l’avant depuis les chevilles, regard à 15-20m.',
+        breathing: 'Rythme respiratoire calé sur la foulée (ex: 3 foulées inspiration, 3 foulées expiration)',
+      };
+    }
+    if (id.includes('treadmill') || id.includes('tapis') || id.includes('course') || id.includes('running')) {
+      return {
+        title: 'Tapis de Course / Running',
         phase1: 'Phase Aérobie : Regard droit devant, posez le médio-pied et maintenez un tempo régulier.',
         phase2: 'Consigne Posture : Buste gainé, épaules relâchées et bras oscillant le long du corps.',
         breathing: 'Inspirez sur 3 foulées • Expirez sur 3 foulées',

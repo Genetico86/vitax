@@ -257,6 +257,14 @@
       "is_custom": 0
     },
     {
+      "id": "ex_running_outdoor",
+      "name": "Course à pied extérieure",
+      "description": "Course à pied en plein air sur route, piste ou sentier. Développe l'endurance aérobie, la capacité cardiovasculaire, la puissance des mollets et des cuisses tout en renforçant la densité osseuse.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0
+    },
+    {
       "id": "ex_walking_active",
       "name": "Marche active (Marche rapide)",
       "description": "Marche soutenue et dynamique (5 à 7 km/h) avec posture droite, gainage abdominal et balancement actif des bras. Stimule le système cardiovasculaire sans aucun choc articulaire.",

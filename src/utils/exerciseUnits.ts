@@ -38,6 +38,7 @@ export function isDurationExercise(exercise?: {
   // Identifiants connus d'exercices d'endurance / cardio continu
   if (
     id === 'ex_treadmill' ||
+    id === 'ex_running_outdoor' ||
     id === 'ex_walking_active' ||
     id === 'ex_walking_incline' ||
     id === 'ex_elliptical' ||
@@ -84,6 +85,7 @@ export function getExerciseUnitInfo(exercise?: {
 
     if (
       id.includes('treadmill') ||
+      id === 'ex_running_outdoor' ||
       name.includes('tapis') ||
       id === 'ex_walking_active' ||
       id === 'ex_walking_incline' ||

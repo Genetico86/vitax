@@ -574,6 +574,26 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
       'Respirez avec régularité (cycle 2-2 ou 3-3).',
     ],
   },
+  ex_running_outdoor: {
+    objectif:
+      'Développement de l’endurance aérobie fondamentale, de la VO2max, de la santé cardiovasculaire et du renforcement des membres inférieurs en extérieur.',
+    chargeAdaptee:
+      'Allure d’endurance fondamentale (Zone 2, allure permettant de converser sans essoufflement) ou séances au train / fartlek selon votre niveau.',
+    position:
+      'En plein air sur terrain régulier (piste d’athlétisme, parc ou route souple). Chaussures de running adaptées à votre foulée et amorti.',
+    posture:
+      'Buste très légèrement incliné vers l’avant depuis les chevilles (pas depuis la taille), regard à 15-20 mètres devant, épaules relâchées et bras fléchis à 90° avec balancement fluide.',
+    completude:
+      'Attaque médio-pied sous le centre de gravité pour réduire les impacts articulaires. Cadence régulière idéale autour de 170 à 180 pas par minute.',
+    niveauRisque: 'Faible',
+    mentionRisque:
+      'Risque d’entorse de la cheville sur terrain accidenté, périostite tibiale ou syndrome de l’essuie-glace (TFL) en cas d’augmentation trop brutale du volume kilométrique hebdomadaire.',
+    pointsAttention: [
+      'Ne posez pas le talon loin devant le corps (freinage et impact excessif sur les genoux).',
+      'Augmentez votre volume kilométrique de manière progressive (+10% max par semaine).',
+      'Gardez les mains et les mâchoires détendues pendant la course.',
+    ],
+  },
   ex_elliptical: {
     objectif:
       'Travail cardiorespiratoire global et tonification des membres inférieurs et supérieurs sans aucun choc articulaire.',
