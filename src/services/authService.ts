@@ -156,6 +156,22 @@ export async function registerTrainer(
     }
   }
 
+  // Si un autre compte était précédemment connecté sur cet appareil, purger les données locales avant d'initialiser le nouveau compte
+  try {
+    const prevSession = await getPersistedSession();
+    if (prevSession?.userId && prevSession.userId !== initialProfile.id) {
+      const { clearUserLocalData } = await import('../database/db');
+      await clearUserLocalData();
+      await AsyncStorage.multiRemove([
+        '@vitax_deleted_ids',
+        '@vitax_active_workout_draft',
+        '@vitax_favorite_exercise_ids',
+        '@vitax_daily_bonus_state',
+        '@vitax_max_unlocked_incubator',
+      ]);
+    }
+  } catch {}
+
   // 2. Persistance locale
   const session: AuthSession = {
     userId: initialProfile.id,
@@ -178,8 +194,8 @@ export async function registerTrainer(
 
   // Rapatrier / synchroniser avec le cloud
   try {
-    const { fullCloudSyncToLocal } = await import('./cloudSyncService');
-    void fullCloudSyncToLocal();
+    const { syncCloudAndLocal } = await import('./cloudSyncService');
+    void syncCloudAndLocal();
   } catch {}
 
   return { success: true, profile: initialProfile };
@@ -255,6 +271,23 @@ export async function loginTrainer(
             createdAt: userRecord.created_at || new Date().toISOString(),
           };
 
+          // Si un autre compte était connecté sur cet appareil, purger ses données locales avant de rapatrier le compte actuel
+          try {
+            const rawPrevProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+            const prevProf = rawPrevProf ? JSON.parse(rawPrevProf) : null;
+            if (prevProf?.id && prevProf.id !== loadedProfile.id) {
+              const { clearUserLocalData } = await import('../database/db');
+              await clearUserLocalData();
+              await AsyncStorage.multiRemove([
+                '@vitax_deleted_ids',
+                '@vitax_active_workout_draft',
+                '@vitax_favorite_exercise_ids',
+                '@vitax_daily_bonus_state',
+                '@vitax_max_unlocked_incubator',
+              ]);
+            }
+          } catch {}
+
           const session: AuthSession = {
             userId: loadedProfile.id,
             username: loadedProfile.username,
@@ -271,7 +304,7 @@ export async function loginTrainer(
           );
           await useSettingsStore.getState().setUserName(trimmedName);
 
-          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris, Pokémon)
+          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris, Pokémon, courses, réglages)
           try {
             const { fullCloudSyncToLocal } = await import('./cloudSyncService');
             await fullCloudSyncToLocal();
@@ -453,14 +486,34 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
  */
 export async function logoutTrainer(): Promise<void> {
   try {
+    // 1. Sauvegarder toutes les données locales en temps réel vers Supabase avant la déconnexion
+    try {
+      const { flushAllRealtimeToSupabase } = await import('./cloudSyncService');
+      await flushAllRealtimeToSupabase();
+    } catch {}
+
     if (isSupabaseConfigured()) {
       const supabase = getSupabaseClient();
       if (supabase) {
         await supabase.auth.signOut().catch(() => {});
       }
     }
-    await AsyncStorage.removeItem(STORAGE_KEY_AUTH_SESSION);
-    // On conserve le profil en cache pour réutilisation rapide si besoin
+
+    // 2. Nettoyer les données utilisateur locales pour garantir l'isolation entre comptes
+    try {
+      const { clearUserLocalData } = await import('../database/db');
+      await clearUserLocalData();
+    } catch {}
+
+    await AsyncStorage.multiRemove([
+      STORAGE_KEY_AUTH_SESSION,
+      STORAGE_KEY_PROFILE,
+      '@vitax_deleted_ids',
+      '@vitax_active_workout_draft',
+      '@vitax_favorite_exercise_ids',
+      '@vitax_daily_bonus_state',
+      '@vitax_max_unlocked_incubator',
+    ]);
   } catch (e) {
     console.error('Erreur logout:', e);
   }

@@ -142,6 +142,7 @@ export async function seedDatabase(db?: SQLite.SQLiteDatabase): Promise<void> {
 export async function resetDatabase(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(`
+    DROP TABLE IF EXISTS running_sessions;
     DROP TABLE IF EXISTS fitness_goals;
     DROP TABLE IF EXISTS body_weights;
     DROP TABLE IF EXISTS pokemon_eggs;
@@ -154,3 +155,23 @@ export async function resetDatabase(): Promise<void> {
   `);
   await initDatabase();
 }
+
+/**
+ * Purge uniquement les données propres à l'utilisateur (lors d'une déconnexion ou d'un changement de compte)
+ * tout en conservant le catalogue des 107 exercices et des 15 programmes de base.
+ */
+export async function clearUserLocalData(): Promise<void> {
+  const db = await getDatabase();
+  await db.execAsync(`
+    DELETE FROM workout_sets;
+    DELETE FROM workout_sessions;
+    DELETE FROM body_weights;
+    DELETE FROM fitness_goals;
+    DELETE FROM pokemon_eggs;
+    DELETE FROM running_sessions;
+    DELETE FROM program_exercises WHERE program_id IN (SELECT id FROM programs WHERE is_custom = 1);
+    DELETE FROM programs WHERE is_custom = 1;
+    DELETE FROM exercises WHERE is_custom = 1;
+  `);
+}
+

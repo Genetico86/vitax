@@ -6,10 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { showAlert } from '../../utils/alert';
 import {
   getAllWorkoutSessions,
   getOverallStats,
@@ -140,7 +140,7 @@ export default function HistoryScreen() {
     if (!gamificationStats) return;
     const { levelInfo, totalXp } = gamificationStats;
     const remaining = Math.max(0, levelInfo.nextLevelXp - totalXp);
-    Alert.alert(
+    showAlert(
       `${levelInfo.badgeEmoji} ${levelInfo.title} (Niv. ${levelInfo.level})`,
       `🏛️ Arène : ${levelInfo.city} (${levelInfo.champion}) • ${levelInfo.type}\n\n` +
       `⚡ XP Total accumulé : ${totalXp} XP\n` +
@@ -155,7 +155,7 @@ export default function HistoryScreen() {
   const handleBadgePress = (tier: PokemonBadgeTier, isUnlocked: boolean) => {
     const totalXp = gamificationStats?.totalXp || 0;
     const remaining = Math.max(0, tier.minXp - totalXp);
-    Alert.alert(
+    showAlert(
       `${tier.emoji} ${tier.badgeName}`,
       `${tier.description}\n\n` +
       `🏛️ Arène : ${tier.city} (${tier.champion}) • ${tier.type}\n` +
@@ -168,7 +168,7 @@ export default function HistoryScreen() {
   };
 
   const handleAchievementPress = (ach: Achievement) => {
-    Alert.alert(
+    showAlert(
       `${ach.icon} ${ach.title}`,
       `${ach.description}\n\n` +
       `⚡ Récompense : +${ach.rewardXp} XP\n` +
@@ -225,7 +225,7 @@ export default function HistoryScreen() {
   };
 
   const handleDeleteSession = (sessionId: string) => {
-    Alert.alert(
+    showAlert(
       'Supprimer la séance',
       'Voulez-vous vraiment effacer cette séance de votre historique ?',
       [
@@ -245,7 +245,7 @@ export default function HistoryScreen() {
   const handleShareSingleSession = async (sessionId: string) => {
     const details = await getWorkoutSessionDetails(sessionId);
     if (!details) {
-      Alert.alert('Erreur', 'Impossible de charger les détails de cette séance.');
+      showAlert('Erreur', 'Impossible de charger les détails de cette séance.');
       return;
     }
     const text = formatWorkoutShareText(details, userName);
@@ -255,7 +255,7 @@ export default function HistoryScreen() {
   const handleShareDay = async (targetDateStr?: string) => {
     const summary = await getDailyWorkoutSummary(targetDateStr);
     if (!summary || summary.exercises.length === 0) {
-      Alert.alert('Aucun entraînement', 'Aucun exercice n’a été enregistré pour cette date.');
+      showAlert('Aucun entraînement', 'Aucun exercice n’a été enregistré pour cette date.');
       return;
     }
     const text = formatDailyWorkoutShareText(summary, userName);

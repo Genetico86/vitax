@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { Alert, Share, Platform } from 'react-native';
+import { Share, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { showAlert } from '../../../utils/alert';
 import {
   TrainerProfile,
   LeaderboardEntry,
@@ -154,7 +155,7 @@ export function useArenaData(initialTab?: ArenaTab) {
   };
 
   const handleRemoveFriend = (friendId: string, friendName: string) => {
-    Alert.alert(
+    showAlert(
       'Retirer un ami',
       `Voulez-vous retirer ${friendName} de votre cercle d’amis ?`,
       [
@@ -165,7 +166,7 @@ export function useArenaData(initialTab?: ArenaTab) {
           onPress: async () => {
             await removeFriend(friendId);
             await loadData();
-            Alert.alert('Ami retiré', `${friendName} a été retiré de votre liste.`);
+            showAlert('Ami retiré', `${friendName} a été retiré de votre liste.`);
           },
         },
       ]
@@ -177,7 +178,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(profile.friendCode);
-        Alert.alert('Code copié ! 📋', `Votre Code Ami (${profile.friendCode}) a été copié dans le presse-papier.`);
+        showAlert('Code copié ! 📋', `Votre Code Ami (${profile.friendCode}) a été copié dans le presse-papier.`);
         return;
       }
       await Share.share({
@@ -188,7 +189,7 @@ export function useArenaData(initialTab?: ArenaTab) {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(profile.friendCode);
-          Alert.alert('Code copié ! 📋', `Votre Code Ami (${profile.friendCode}) a été copié dans le presse-papier.`);
+          showAlert('Code copié ! 📋', `Votre Code Ami (${profile.friendCode}) a été copié dans le presse-papier.`);
         } catch {}
       }
     }
@@ -200,7 +201,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(inviteMessage);
-        Alert.alert('Invitation copiée ! 📋', 'Le message d’invitation avec votre Code Ami et le lien web a été copié.');
+        showAlert('Invitation copiée ! 📋', 'Le message d’invitation avec votre Code Ami et le lien web a été copié.');
         return;
       }
       await Share.share({
@@ -211,7 +212,7 @@ export function useArenaData(initialTab?: ArenaTab) {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(inviteMessage);
-          Alert.alert('Invitation copiée ! 📋', 'Le message d’invitation avec votre Code Ami et le lien web a été copié.');
+          showAlert('Invitation copiée ! 📋', 'Le message d’invitation avec votre Code Ami et le lien web a été copié.');
         } catch {}
       }
     }
@@ -221,13 +222,13 @@ export function useArenaData(initialTab?: ArenaTab) {
     const res = await addFriendByCode(friendCode);
     if (res.success && res.friend) {
       await loadData();
-      Alert.alert(
+      showAlert(
         'Nouvel ami ajouté ! 🎉',
         `${res.friend.username} (${res.friend.friendCode}) a été ajouté à votre cercle d’amis !`
       );
       return true;
     } else {
-      Alert.alert('Erreur', res.error || 'Impossible d’ajouter cet ami.');
+      showAlert('Erreur', res.error || 'Impossible d’ajouter cet ami.');
       return false;
     }
   };
@@ -236,22 +237,22 @@ export function useArenaData(initialTab?: ArenaTab) {
     const res = await acceptFriendRequest(requestId);
     if (res.success && res.friend) {
       await loadData();
-      Alert.alert('Ami accepté ! 🎉', `${res.friend.username} a été ajouté à votre cercle d’amis !`);
+      showAlert('Ami accepté ! 🎉', `${res.friend.username} a été ajouté à votre cercle d’amis !`);
     } else {
-      Alert.alert('Erreur', res.error || 'Impossible d’accepter cette demande.');
+      showAlert('Erreur', res.error || 'Impossible d’accepter cette demande.');
     }
   };
 
   const handleDeclineRequest = async (requestId: string) => {
     await declineFriendRequest(requestId);
     await loadData();
-    Alert.alert('Demande refusée', 'La demande d’ami a été retirée.');
+    showAlert('Demande refusée', 'La demande d’ami a été retirée.');
   };
 
   const handleSimulateInvite = async () => {
     await simulateFriendRequest('Alexandre (Coach)', 'VTX-5491');
     await loadData();
-    Alert.alert('Notification simulée ! 🔔', 'Une invitation d’ami vient d’être générée. La notification apparaît en haut de l’écran !');
+    showAlert('Notification simulée ! 🔔', 'Une invitation d’ami vient d’être générée. La notification apparaît en haut de l’écran !');
   };
 
   const handleCreateGift = async (
@@ -262,7 +263,7 @@ export function useArenaData(initialTab?: ArenaTab) {
   ) => {
     const targetFriend = friendsList.find((f) => f.friendCode === targetFriendCode);
     if (!targetFriend) {
-      Alert.alert('Ami introuvable', 'Veuillez sélectionner un ami dans votre cercle.');
+      showAlert('Ami introuvable', 'Veuillez sélectionner un ami dans votre cercle.');
       return false;
     }
 
@@ -277,13 +278,13 @@ export function useArenaData(initialTab?: ArenaTab) {
       });
 
       await loadData();
-      Alert.alert(
+      showAlert(
         'Cadeau de motivation envoyé ! 🎁⚡',
         `Votre cadeau "${giftName}" a été envoyé à ${targetFriend.username} ! Il se débloquera dès qu'il/elle aura accumulé +${targetXp} XP.`
       );
       return true;
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible d’envoyer le cadeau.');
+      showAlert('Erreur', err?.message || 'Impossible d’envoyer le cadeau.');
       return false;
     }
   };
@@ -297,12 +298,12 @@ export function useArenaData(initialTab?: ArenaTab) {
     try {
       await simulateFriendGift('Shaker de Whey Isolate & Cookie Fit', 250);
       await loadData();
-      Alert.alert(
+      showAlert(
         'Cadeau de test reçu ! 🎁',
         'Sarah vous a offert un "Shaker de Whey Isolate & Cookie Fit" avec un objectif de +250 XP (50 XP déjà cumulés pour le test). Faites une séance pour le déverrouiller !'
       );
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Impossible de simuler le cadeau.');
+      showAlert('Erreur', err?.message || 'Impossible de simuler le cadeau.');
     }
   };
 
@@ -311,33 +312,33 @@ export function useArenaData(initialTab?: ArenaTab) {
       const res = await registerTrainer(u, p);
       if (res.success) {
         await loadData();
-        Alert.alert(
+        showAlert(
           'Compte Athlète créé ! 🏆',
           `Bienvenue ${u} ! Vos séances, statistiques et Pokémon sont désormais sauvegardés en permanence sur le cloud.`
         );
         return true;
       } else {
-        Alert.alert('Erreur', res.error || 'Impossible de créer le compte.');
+        showAlert('Erreur', res.error || 'Impossible de créer le compte.');
         return false;
       }
     } else {
       const res = await loginTrainer(u, p);
       if (res.success) {
         await loadData();
-        Alert.alert(
+        showAlert(
           'Rebonjour ! ⚡',
           `Ravi de vous revoir ${u}. Vos statistiques d’entraînement, séances et Pokémon ont été synchronisés avec succès.`
         );
         return true;
       } else {
-        Alert.alert('Erreur de connexion', res.error || 'Identifiants incorrects.');
+        showAlert('Erreur de connexion', res.error || 'Identifiants incorrects.');
         return false;
       }
     }
   };
 
   const handleLogout = async () => {
-    Alert.alert(
+    showAlert(
       'Déconnexion',
       'Voulez-vous vraiment vous déconnecter de votre compte Athlète ?',
       [
@@ -348,7 +349,7 @@ export function useArenaData(initialTab?: ArenaTab) {
           onPress: async () => {
             await logoutTrainer();
             await loadData();
-            Alert.alert('Déconnecté', 'Vous êtes repassé en mode local.');
+            showAlert('Déconnecté', 'Vous êtes repassé en mode local.');
           },
         },
       ]
@@ -367,7 +368,7 @@ export function useArenaData(initialTab?: ArenaTab) {
         friendsOnly,
       });
       await loadData();
-      Alert.alert(
+      showAlert(
         'Offre publiée ! 📢',
         friendsOnly
           ? 'Votre offre est désormais visible exclusivement par votre cercle d’amis ! 👥'
@@ -375,7 +376,7 @@ export function useArenaData(initialTab?: ArenaTab) {
       );
       return true;
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de créer l’offre.');
+      showAlert('Erreur', e.message || 'Impossible de créer l’offre.');
       return false;
     }
   };
@@ -384,13 +385,13 @@ export function useArenaData(initialTab?: ArenaTab) {
     try {
       const result = await executePokemonTrade(offerId, myPokemonId);
       await loadData();
-      Alert.alert(
+      showAlert(
         'Félicitations ! 🎉',
         `L’échange a été validé ! Vous avez obtenu : ${result.receivedPokemonName} ! Il a été ajouté à votre Pokédex.`
       );
       return true;
     } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Échec de l’échange.');
+      showAlert('Erreur', e.message || 'Échec de l’échange.');
       return false;
     }
   };
@@ -399,12 +400,12 @@ export function useArenaData(initialTab?: ArenaTab) {
     try {
       const egg = await claimRaidVictoryReward();
       await loadData();
-      Alert.alert(
+      showAlert(
         'Victoire de Raid ! 🏆',
         `Vous avez récupéré votre récompense de Raid : ${egg.pokemon_name || 'Œuf Légendaire'} ! Placez-le en incubation.`
       );
     } catch (e: any) {
-      Alert.alert('Info', e.message || 'Récompense non disponible.');
+      showAlert('Info', e.message || 'Récompense non disponible.');
     }
   };
 
@@ -423,7 +424,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     if (params.type === 'exercise') {
       const exercise = allExercises.find((e) => e.id === params.selectedExerciseId);
       if (!exercise) {
-        Alert.alert('Exercice requis', 'Veuillez sélectionner un exercice pour ce défi.');
+        showAlert('Exercice requis', 'Veuillez sélectionner un exercice pour ce défi.');
         return false;
       }
       const isDuration = isDurationExercise(exercise);
@@ -462,16 +463,16 @@ export function useArenaData(initialTab?: ArenaTab) {
         });
 
         await loadData();
-        Alert.alert('Défi lancé ! 🥊', 'Votre défi a été envoyé avec succès à vos partenaires.');
+        showAlert('Défi lancé ! 🥊', 'Votre défi a été envoyé avec succès à vos partenaires.');
         return true;
       } catch (err: any) {
-        Alert.alert('Erreur', err?.message || 'Impossible de créer le défi.');
+        showAlert('Erreur', err?.message || 'Impossible de créer le défi.');
         return false;
       }
     } else {
       const program = allPrograms.find((p) => p.id === params.selectedProgramId);
       if (!program) {
-        Alert.alert('Programme requis', 'Veuillez sélectionner un programme.');
+        showAlert('Programme requis', 'Veuillez sélectionner un programme.');
         return false;
       }
       const targetVolume = params.targetVolume || 3000;
@@ -495,10 +496,10 @@ export function useArenaData(initialTab?: ArenaTab) {
         });
 
         await loadData();
-        Alert.alert('Défi Programme lancé ! 📋', 'Votre défi avec objectif de tonnage est en ligne.');
+        showAlert('Défi Programme lancé ! 📋', 'Votre défi avec objectif de tonnage est en ligne.');
         return true;
       } catch (err: any) {
-        Alert.alert('Erreur', err?.message || 'Impossible de créer le défi.');
+        showAlert('Erreur', err?.message || 'Impossible de créer le défi.');
         return false;
       }
     }

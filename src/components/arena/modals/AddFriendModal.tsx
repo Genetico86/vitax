@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { Button } from '../../common/Button';
 import { arenaStyles as styles } from '../styles/arenaStyles';
+import { showAlert } from '../../../utils/alert';
 
 interface AddFriendModalProps {
   visible: boolean;
@@ -22,7 +23,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
 
   const handleAdd = async () => {
     if (!friendCodeInput.trim()) {
-      Alert.alert('Code requis', 'Veuillez saisir le Code Ami à 5 chiffres (ex: 48219) ou le pseudo.');
+      showAlert('Code requis', 'Veuillez saisir le Code Ami à 5 chiffres (ex: 48219) ou le pseudo.');
       return;
     }
     setLoading(true);
@@ -76,18 +77,20 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
             />
           </View>
 
-          <TouchableOpacity
-            style={styles.simulateInviteBtn}
-            onPress={() => {
-              onClose();
-              onSimulateInvite();
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.simulateInviteBtnText}>
-              🔔 Simuler une invitation reçue (Test notification)
-            </Text>
-          </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.simulateInviteBtn}
+              onPress={() => {
+                onClose();
+                onSimulateInvite();
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.simulateInviteBtnText}>
+                🔔 Simuler une invitation reçue (Test notification)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>

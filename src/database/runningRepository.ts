@@ -1,5 +1,10 @@
 import { getDatabase } from './db';
 import { RunningSession, RunningStats } from '../types';
+import {
+  syncRunningSessionsToCloud,
+  fetchRunningSessionsFromCloud,
+  deleteRunningSessionFromCloud,
+} from '../services/cloudSyncService';
 
 export function formatPace(secondsPerKm: number): string {
   if (!secondsPerKm || !isFinite(secondsPerKm) || secondsPerKm <= 0) return "--'--\" / km";
@@ -57,6 +62,9 @@ export async function createRunningSession(params: {
     ]
   );
 
+  // Synchronisation Cloud Supabase en temps réel
+  void syncRunningSessionsToCloud();
+
   return {
     id,
     date,
@@ -71,15 +79,30 @@ export async function createRunningSession(params: {
 
 export async function getAllRunningSessions(): Promise<RunningSession[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<RunningSession>(
+  let rows = await db.getAllAsync<RunningSession>(
     'SELECT * FROM running_sessions ORDER BY date DESC, created_at DESC'
   );
+
+  if (!rows || rows.length === 0) {
+    try {
+      const cloudRuns = await fetchRunningSessionsFromCloud();
+      if (cloudRuns.length > 0) {
+        rows = await db.getAllAsync<RunningSession>(
+          'SELECT * FROM running_sessions ORDER BY date DESC, created_at DESC'
+        );
+      }
+    } catch {}
+  }
+
   return rows || [];
 }
 
 export async function deleteRunningSession(id: string): Promise<boolean> {
   const db = await getDatabase();
   const res = await db.runAsync('DELETE FROM running_sessions WHERE id = ?', [id]);
+  if ((res?.changes || 0) > 0) {
+    void deleteRunningSessionFromCloud(id);
+  }
   return (res?.changes || 0) > 0;
 }
 

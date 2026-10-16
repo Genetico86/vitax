@@ -855,6 +855,30 @@
       "target_muscle": "Pectoraux",
       "equipment_needed": "Haltères",
       "is_custom": 0
+    },
+    {
+      "id": "ex_band_pull_apart",
+      "name": "Band Pull-Apart (Écartés à l'élastique)",
+      "description": "Debout, bras tendus devant soi tenant une bande élastique. Écartez les mains latéralement jusqu'à toucher la poitrine avec l'élastique en resserrant fortement les omoplates et l'arrière des épaules.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Élastique",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_band_row",
+      "name": "Tirage horizontal à l'élastique",
+      "description": "Assis jambes tendues ou debout avec l'élastique fixé devant vous. Tirez les extrémités vers les côtes en gardant la poitrine haute et en contractant les dorsaux.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Élastique",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_band_bicep_curl",
+      "name": "Curl biceps à la bande élastique",
+      "description": "Debout, pieds posés sur le milieu de la bande élastique. Fléchissez les avant-bras contre la tension progressive de l'élastique en gardant les coudes fixes.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Élastique",
+      "is_custom": 0
     }
   ],
   "programs": [

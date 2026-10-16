@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
@@ -31,6 +30,7 @@ import {
   toggleFavoriteExercise,
 } from '../../services/favoritesService';
 import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
+import { showAlert } from '../../utils/alert';
 
 export default function ActiveWorkoutScreen() {
   const {
@@ -39,6 +39,7 @@ export default function ActiveWorkoutScreen() {
     elapsedSeconds,
     notes,
     exercises,
+    restoreActiveWorkoutIfAny,
     tickWorkoutTimer,
     addExerciseToWorkout,
     removeExerciseFromWorkout,
@@ -58,7 +59,14 @@ export default function ActiveWorkoutScreen() {
   const [modalFavoritesOnly, setModalFavoritesOnly] = useState(false);
   const [guideModalVisible, setGuideModalVisible] = useState(false);
   const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
+  const [isFinishing, setIsFinishing] = useState(false);
   const { available_equipments, filter_by_available_equipment } = useSettingsStore();
+
+  useEffect(() => {
+    if (!isActive) {
+      void restoreActiveWorkoutIfAny();
+    }
+  }, [isActive, restoreActiveWorkoutIfAny]);
 
   // Chronomètre global de la séance
   useEffect(() => {
@@ -145,7 +153,7 @@ export default function ActiveWorkoutScreen() {
       <SafeAreaView style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>Aucune séance active</Text>
         <Button
-          title="Retour aux programmes"
+          title="Retour à l'accueil"
           onPress={() => router.replace('/(tabs)')}
           variant="primary"
           style={{ marginTop: 16 }}
@@ -165,22 +173,28 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleFinish = async () => {
+    if (isFinishing) return;
     const totalCompleted = exercises.reduce(
       (acc, ex) => acc + ex.sets.filter((s) => s.completed).length,
       0
     );
 
     if (totalCompleted === 0) {
-      Alert.alert(
+      showAlert(
         'Aucune série validée',
-        'Vous n’avez validé aucune série dans cette séance. Voulez-vous tout de même l’enregistrer ?',
+        'Vous n’avez coché aucune série (✓) dans cette séance. Voulez-vous tout de même l’enregistrer ?',
         [
           { text: 'Continuer l’entraînement', style: 'cancel' },
           {
             text: 'Enregistrer quand même',
             onPress: async () => {
-              const res = await finishWorkout();
-              if (res) router.replace('/workout/summary');
+              setIsFinishing(true);
+              try {
+                const res = await finishWorkout();
+                if (res) router.replace('/workout/summary');
+              } finally {
+                setIsFinishing(false);
+              }
             },
           },
         ]
@@ -188,14 +202,27 @@ export default function ActiveWorkoutScreen() {
       return;
     }
 
-    const res = await finishWorkout();
-    if (res) {
-      router.replace('/workout/summary');
+    setIsFinishing(true);
+    try {
+      const res = await finishWorkout();
+      if (res) {
+        router.replace('/workout/summary');
+      }
+    } finally {
+      setIsFinishing(false);
+    }
+  };
+
+  const handleMinimize = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
     }
   };
 
   const handleCancel = () => {
-    Alert.alert(
+    showAlert(
       'Abandonner la séance',
       'Voulez-vous vraiment annuler cette séance ? Vos séries non enregistrées seront perdues.',
       [
@@ -238,9 +265,24 @@ export default function ActiveWorkoutScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Barre supérieure fixe de l'entraînement */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.headerActionBtn}>
-          <Text style={styles.cancelText}>Annuler</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity
+            onPress={handleMinimize}
+            style={styles.minimizeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Réduire la séance en cours pour naviguer dans l'application"
+          >
+            <Text style={styles.minimizeText}>▼</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleCancel}
+            style={styles.headerActionBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Abandonner la séance"
+          >
+            <Text style={styles.cancelText}>Annuler</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.headerCenter}>
           <Text style={styles.programTitle} numberOfLines={1}>
@@ -256,8 +298,14 @@ export default function ActiveWorkoutScreen() {
           </View>
         </View>
 
-        <TouchableOpacity onPress={handleFinish} style={styles.finishBtn}>
-          <Text style={styles.finishBtnText}>Terminer ✓</Text>
+        <TouchableOpacity
+          onPress={handleFinish}
+          disabled={isFinishing}
+          style={[styles.finishBtn, isFinishing && { opacity: 0.6 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Terminer et enregistrer la séance"
+        >
+          <Text style={styles.finishBtnText}>{isFinishing ? '...' : 'Terminer ✓'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -668,6 +716,21 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.surfaceBorder,
     backgroundColor: '#0D1321',
   },
+  minimizeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  minimizeText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   headerActionBtn: {
     padding: 6,
   },
@@ -724,9 +787,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   finishBtnText: {
-    color: '#FFFFFF',
+    color: '#080C14',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   scrollContent: {
     padding: 16,

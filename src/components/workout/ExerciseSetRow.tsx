@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -34,14 +34,44 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
   const unitInfo = getExerciseUnitInfo(exercise);
   const isDuration = unitInfo.isDuration;
 
+  const [weightDraft, setWeightDraft] = useState<string | null>(null);
+  const [repsDraft, setRepsDraft] = useState<string | null>(null);
+
+  const displayedWeight =
+    weightDraft !== null ? weightDraft : set.weight === 0 ? '' : String(set.weight);
+  const displayedReps =
+    repsDraft !== null ? repsDraft : set.reps === 0 ? '' : String(set.reps);
+
   const handleWeightChange = (text: string) => {
-    const val = parseFloat(text.replace(',', '.'));
+    const cleaned = text.replace(/[^0-9.,]/g, '');
+    setWeightDraft(cleaned);
+    const val = parseFloat(cleaned.replace(',', '.'));
     onUpdate(isNaN(val) ? 0 : val, set.reps);
   };
 
+  const handleWeightBlur = () => {
+    if (weightDraft !== null) {
+      const val = parseFloat(weightDraft.replace(',', '.'));
+      const safeVal = isNaN(val) || val < 0 ? 0 : Math.round(val * 100) / 100;
+      onUpdate(safeVal, set.reps);
+      setWeightDraft(null);
+    }
+  };
+
   const handleRepsChange = (text: string) => {
-    const val = parseInt(text, 10);
+    const cleaned = text.replace(/[^0-9]/g, '');
+    setRepsDraft(cleaned);
+    const val = parseInt(cleaned, 10);
     onUpdate(set.weight, isNaN(val) ? 0 : val);
+  };
+
+  const handleRepsBlur = () => {
+    if (repsDraft !== null) {
+      const val = parseInt(repsDraft, 10);
+      const safeVal = isNaN(val) || val < 0 ? 0 : val;
+      onUpdate(set.weight, safeVal);
+      setRepsDraft(null);
+    }
   };
 
   const weightStep = isDuration
@@ -53,11 +83,13 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
   const adjustWeight = (multiplier: number) => {
     const delta = multiplier * weightStep;
     const nextWeight = Math.max(0, Math.round((set.weight + delta) * 10) / 10);
+    setWeightDraft(null);
     onUpdate(nextWeight, set.reps);
   };
 
   const adjustReps = (delta: number) => {
     const nextReps = Math.max(0, set.reps + delta);
+    setRepsDraft(null);
     onUpdate(set.weight, nextReps);
   };
 
@@ -70,8 +102,10 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
         ? `${set.previous_reps}min@${set.previous_weight}`
         : `${set.previous_reps}min`;
     }
-    return `${set.previous_weight}kg×${set.previous_reps}`;
+    return `${set.previous_weight}${unitInfo.loadUnit}×${set.previous_reps}`;
   })();
+
+  const exName = exercise?.name || 'Exercice';
 
   return (
     <View
@@ -99,6 +133,9 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
             style={styles.stepBtn}
             onPress={() => adjustWeight(-1)}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Diminuer ${unitInfo.loadLabel.toLowerCase()} série ${set.set_order} pour ${exName}`}
           >
             <Text style={styles.stepBtnText}>-</Text>
           </TouchableOpacity>
@@ -106,17 +143,22 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
           <TextInput
             style={[styles.input, set.completed && styles.inputCompleted]}
             keyboardType="decimal-pad"
-            value={set.weight === 0 ? '' : set.weight.toString()}
+            value={displayedWeight}
             placeholder="0"
             placeholderTextColor={Colors.textMuted}
             onChangeText={handleWeightChange}
+            onBlur={handleWeightBlur}
             selectTextOnFocus
+            accessibilityLabel={`${unitInfo.loadLabel} série ${set.set_order} en ${unitInfo.loadUnit}`}
           />
 
           <TouchableOpacity
             style={styles.stepBtn}
             onPress={() => adjustWeight(1)}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Augmenter ${unitInfo.loadLabel.toLowerCase()} série ${set.set_order} pour ${exName}`}
           >
             <Text style={styles.stepBtnText}>+</Text>
           </TouchableOpacity>
@@ -131,6 +173,9 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
             style={styles.stepBtn}
             onPress={() => adjustReps(-1)}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Diminuer ${unitInfo.valueLabel.toLowerCase()} série ${set.set_order} pour ${exName}`}
           >
             <Text style={styles.stepBtnText}>-</Text>
           </TouchableOpacity>
@@ -138,17 +183,22 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
           <TextInput
             style={[styles.input, set.completed && styles.inputCompleted]}
             keyboardType="number-pad"
-            value={set.reps === 0 ? '' : set.reps.toString()}
+            value={displayedReps}
             placeholder="0"
             placeholderTextColor={Colors.textMuted}
             onChangeText={handleRepsChange}
+            onBlur={handleRepsBlur}
             selectTextOnFocus
+            accessibilityLabel={`${unitInfo.valueLabel} série ${set.set_order}`}
           />
 
           <TouchableOpacity
             style={styles.stepBtn}
             onPress={() => adjustReps(1)}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Augmenter ${unitInfo.valueLabel.toLowerCase()} série ${set.set_order} pour ${exName}`}
           >
             <Text style={styles.stepBtnText}>+</Text>
           </TouchableOpacity>
@@ -161,6 +211,9 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
         style={[styles.validateBtn, set.completed && styles.validateBtnCompleted]}
         onPress={onToggleComplete}
         activeOpacity={0.8}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: set.completed }}
+        accessibilityLabel={`${set.completed ? 'Série validée' : 'Valider la série'} ${set.set_order} de ${exName}`}
       >
         <Text style={styles.validateIcon}>{set.completed ? '✓' : '○'}</Text>
       </TouchableOpacity>
@@ -170,6 +223,9 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
         style={styles.deleteBtn}
         onPress={onRemove}
         activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Supprimer la série ${set.set_order} de ${exName}`}
       >
         <Text style={styles.deleteIcon}>×</Text>
       </TouchableOpacity>
@@ -184,7 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#121A28',
     borderRadius: 14,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#1E2B3E',
@@ -194,7 +250,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.35)',
   },
   colSet: {
-    width: 48,
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -214,7 +270,7 @@ const styles = StyleSheet.create({
   colInput: {
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 3,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -226,20 +282,20 @@ const styles = StyleSheet.create({
     borderColor: '#24354D',
   },
   stepBtn: {
-    width: 26,
-    height: 38,
+    width: 30,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#202E42',
   },
   stepBtnText: {
     color: Colors.textSecondary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   input: {
-    width: 44,
-    height: 38,
+    width: 48,
+    height: 40,
     textAlign: 'center',
     color: Colors.text,
     fontSize: 16,
@@ -274,14 +330,14 @@ const styles = StyleSheet.create({
   validateIcon: {
     fontSize: 22,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#080C14',
   },
   deleteBtn: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 4,
+    marginLeft: 2,
   },
   deleteIcon: {
     fontSize: 20,
@@ -289,3 +345,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Alert,
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
@@ -27,6 +26,7 @@ import {
   formatDuration,
 } from '../../database/runningRepository';
 import { RunningSession, RunningStats } from '../../types';
+import { showAlert } from '../../utils/alert';
 
 export default function RunningScreen() {
   const insets = useSafeAreaInsets();
@@ -51,11 +51,13 @@ export default function RunningScreen() {
 
   const [activityType, setActivityType] = useState<'running' | 'walking'>('running');
 
-  // Chronomètre en direct
+  // Chronomètre en direct basé sur un timestamp réel (survit au verrouillage d'écran)
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [finishModalVisible, setFinishModalVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runStartTimestampRef = useRef<number | null>(null);
+  const accumulatedSecondsRef = useRef<number>(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -80,11 +82,17 @@ export default function RunningScreen() {
     setRefreshing(false);
   };
 
-  // Gestion du chronomètre en direct
+  // Gestion du chronomètre en direct via timestamps réels
   useEffect(() => {
     if (isTimerRunning) {
+      if (!runStartTimestampRef.current) {
+        runStartTimestampRef.current = Date.now();
+      }
       timerRef.current = setInterval(() => {
-        setTimerSeconds((prev) => prev + 1);
+        if (runStartTimestampRef.current) {
+          const delta = Math.max(0, Math.floor((Date.now() - runStartTimestampRef.current) / 1000));
+          setTimerSeconds(accumulatedSecondsRef.current + delta);
+        }
       }, 1000);
     } else if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -96,21 +104,35 @@ export default function RunningScreen() {
   }, [isTimerRunning]);
 
   const handleStartTimer = () => {
+    runStartTimestampRef.current = Date.now();
     setIsTimerRunning(true);
   };
 
   const handlePauseTimer = () => {
+    if (runStartTimestampRef.current) {
+      const delta = Math.max(0, Math.floor((Date.now() - runStartTimestampRef.current) / 1000));
+      accumulatedSecondsRef.current += delta;
+      runStartTimestampRef.current = null;
+      setTimerSeconds(accumulatedSecondsRef.current);
+    }
     setIsTimerRunning(false);
   };
 
   const handleResetTimer = () => {
     setIsTimerRunning(false);
+    runStartTimestampRef.current = null;
+    accumulatedSecondsRef.current = 0;
     setTimerSeconds(0);
   };
 
   const handleStopAndSave = () => {
-    if (timerSeconds < 10) {
-      Alert.alert(
+    let finalSeconds = timerSeconds;
+    if (runStartTimestampRef.current) {
+      const delta = Math.max(0, Math.floor((Date.now() - runStartTimestampRef.current) / 1000));
+      finalSeconds = accumulatedSecondsRef.current + delta;
+    }
+    if (finalSeconds < 10) {
+      showAlert(
         'Chronomètre trop court',
         activityType === 'walking'
           ? 'Marchez au moins quelques secondes avant de valider.'
@@ -118,6 +140,9 @@ export default function RunningScreen() {
       );
       return;
     }
+    accumulatedSecondsRef.current = finalSeconds;
+    runStartTimestampRef.current = null;
+    setTimerSeconds(finalSeconds);
     setIsTimerRunning(false);
     setFinishModalVisible(true);
   };
@@ -125,7 +150,7 @@ export default function RunningScreen() {
   const handleSaveTimerSession = async () => {
     const dist = parseFloat(distanceInput.replace(',', '.'));
     if (!dist || dist <= 0) {
-      Alert.alert('Distance requise', 'Veuillez saisir les kilomètres parcourus (ex: 5.2).');
+      showAlert('Distance requise', 'Veuillez saisir les kilomètres parcourus (ex: 5.2).');
       return;
     }
 
@@ -142,17 +167,19 @@ export default function RunningScreen() {
       });
 
       setFinishModalVisible(false);
+      runStartTimestampRef.current = null;
+      accumulatedSecondsRef.current = 0;
       setTimerSeconds(0);
       setDistanceInput('');
       setNotesInput('');
       await loadData();
 
-      Alert.alert(
+      showAlert(
         isWalk ? 'Marche enregistrée ! 🚶‍♂️🔥' : 'Course enregistrée ! 🏃‍♂️🔥',
         `Superbe séance de ${dist} km en ${formatDuration(timerSeconds)} ! Vos points XP ont été attribués.`
       );
     } catch {
-      Alert.alert('Erreur', 'Impossible d’enregistrer la session.');
+      showAlert('Erreur', 'Impossible d’enregistrer la session.');
     } finally {
       setSavingLoading(false);
     }
@@ -165,11 +192,11 @@ export default function RunningScreen() {
     const totalSecs = mins * 60 + secs;
 
     if (!dist || dist <= 0) {
-      Alert.alert('Distance invalide', 'Veuillez entrer une distance en kilomètres (ex: 7.5).');
+      showAlert('Distance invalide', 'Veuillez entrer une distance en kilomètres (ex: 7.5).');
       return;
     }
     if (totalSecs <= 0) {
-      Alert.alert('Durée invalide', 'Veuillez renseigner le temps de votre sortie.');
+      showAlert('Durée invalide', 'Veuillez renseigner le temps de votre sortie.');
       return;
     }
 
@@ -192,19 +219,19 @@ export default function RunningScreen() {
       setNotesInput('');
       await loadData();
 
-      Alert.alert(
+      showAlert(
         isWalk ? 'Marche enregistrée ! 🚶‍♂️🏅' : 'Course enregistrée ! 🏃‍♂️🏅',
         `${dist} km validés avec une allure moyenne de ${formatPace(totalSecs / dist)}.`
       );
     } catch {
-      Alert.alert('Erreur', 'Impossible d’enregistrer la sortie.');
+      showAlert('Erreur', 'Impossible d’enregistrer la sortie.');
     } finally {
       setSavingLoading(false);
     }
   };
 
   const handleDeleteSession = (id: string, dist: number) => {
-    Alert.alert(
+    showAlert(
       'Supprimer cette course',
       `Voulez-vous supprimer cette sortie de ${dist} km de votre historique ?`,
       [

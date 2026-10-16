@@ -169,10 +169,10 @@ export default function TargetMuscleScreen() {
     return precise ? precise.name : selectedMuscleGroup;
   }, [selectedMuscleGroup, selectedPreciseMuscleId, currentGroupInfo]);
 
-  // Lancement express de la séance avec tous les exercices filtrés
+  // Lancement express de la séance avec jusqu'à 4 exercices complémentaires (Séance Express ~30-40 min)
   const handleStartTargetedWorkout = async () => {
     if (targetedExercises.length === 0) return;
-    await startTargetedWorkout(currentSelectionLabel, targetedExercises);
+    await startTargetedWorkout(currentSelectionLabel, targetedExercises.slice(0, 4));
     router.push('/workout/active');
   };
 
@@ -408,7 +408,7 @@ export default function TargetMuscleScreen() {
                   Séance Express : {currentSelectionLabel}
                 </Text>
                 <Text style={styles.expressSubtitle}>
-                  Démarrer avec les {targetedExercises.length} exercices ciblés
+                  Démarrer avec {Math.min(4, targetedExercises.length)} exercice{Math.min(4, targetedExercises.length) > 1 ? 's' : ''} clé{Math.min(4, targetedExercises.length) > 1 ? 's' : ''} (~30 min)
                 </Text>
               </View>
               <Text style={styles.expressArrow}>▶</Text>

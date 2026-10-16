@@ -240,8 +240,8 @@ export async function deleteGoal(id: string): Promise<boolean> {
   const db = await getDatabase();
   const res = await db.runAsync('DELETE FROM fitness_goals WHERE id = ?', [id]);
   if (res.changes > 0) {
-    const { syncFitnessGoalsToCloud } = await import('../services/cloudSyncService');
-    void syncFitnessGoalsToCloud();
+    const { deleteFitnessGoalFromCloud } = await import('../services/cloudSyncService');
+    void deleteFitnessGoalFromCloud(id);
   }
   return res.changes > 0;
 }
