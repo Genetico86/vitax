@@ -1,0 +1,560 @@
+import { useState, useCallback } from 'react';
+import { Alert, Share, Platform } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import {
+  TrainerProfile,
+  LeaderboardEntry,
+  LeagueConfig,
+  PokemonTradeOffer,
+  CoOpRaidBoss,
+  FriendEntry,
+  FriendChallenge,
+  FriendRequest,
+  FriendGift,
+} from '../../../types/social';
+import {
+  createFriendGift,
+  getFriendGifts,
+  claimFriendGift,
+  simulateFriendGift,
+} from '../../../services/friendGiftService';
+import { PokemonEgg, Exercise, Program } from '../../../types';
+import {
+  getOrCreateTrainerProfile,
+  getLeagueLeaderboard,
+  getTradablePokemon,
+  getCommunityTradeOffers,
+  createTradeOffer,
+  executePokemonTrade,
+  getActiveCoOpRaidBoss,
+  claimRaidVictoryReward,
+  addFriendByCode,
+  removeFriend,
+  getFriendsList,
+  syncTrainerProfileToSupabase,
+  getFriendChallenges,
+  createFriendChallenge,
+  getPendingFriendRequests,
+  acceptFriendRequest,
+  declineFriendRequest,
+  simulateFriendRequest,
+} from '../../../services/multiplayerService';
+import { getAllExercises } from '../../../database/exerciseRepository';
+import { getAllPrograms } from '../../../database/programRepository';
+import { useWorkoutSessionStore } from '../../../stores/workoutSessionStore';
+import {
+  registerTrainer,
+  loginTrainer,
+  getPersistedSession,
+  logoutTrainer,
+} from '../../../services/authService';
+
+export const WEB_APP_URL = 'https://vitaxsport.vercel.app';
+
+export type ArenaTab = 'leaderboard' | 'trades' | 'raids';
+export type LeaderboardFilter = 'global' | 'friends';
+export type TradeFilter = 'all' | 'friends';
+
+export function useArenaData() {
+  const [activeTab, setActiveTab] = useState<ArenaTab>('leaderboard');
+  const [leaderboardFilter, setLeaderboardFilter] = useState<LeaderboardFilter>('global');
+  const [tradeFilter, setTradeFilter] = useState<TradeFilter>('all');
+
+  const [profile, setProfile] = useState<TrainerProfile | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [friendsList, setFriendsList] = useState<FriendEntry[]>([]);
+  const [leaderboardData, setLeaderboardData] = useState<{
+    league: LeagueConfig;
+    entries: LeaderboardEntry[];
+    currentUserRank: number;
+    timeRemainingText: string;
+    totalParticipants: number;
+  } | null>(null);
+  const [tradablePokemon, setTradablePokemon] = useState<PokemonEgg[]>([]);
+  const [tradeOffers, setTradeOffers] = useState<PokemonTradeOffer[]>([]);
+  const [raidBoss, setRaidBoss] = useState<CoOpRaidBoss | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Cadeaux de Motivation
+  const [friendGifts, setFriendGifts] = useState<{
+    sent: FriendGift[];
+    received: FriendGift[];
+    unlockedUnclaimedCount: number;
+  }>({ sent: [], received: [], unlockedUnclaimedCount: 0 });
+
+  // Défis & Raids
+  const [raidsSubTab, setRaidsSubTab] = useState<'challenges' | 'boss'>('challenges');
+  const [friendChallenges, setFriendChallenges] = useState<FriendChallenge[]>([]);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [allPrograms, setAllPrograms] = useState<Program[]>([]);
+
+  const { startTargetedWorkout, startWorkoutFromProgram, startFreeWorkout } =
+    useWorkoutSessionStore();
+
+  const loadData = useCallback(async () => {
+    try {
+      const session = await getPersistedSession();
+      setIsLoggedIn(Boolean(session?.isLoggedIn));
+
+      const prof = await getOrCreateTrainerProfile();
+      setProfile(prof);
+      await syncTrainerProfileToSupabase(prof);
+
+      const [
+        lb,
+        tradables,
+        friends,
+        offers,
+        raid,
+        chlgList,
+        exList,
+        progList,
+        reqList,
+        giftsData,
+      ] = await Promise.all([
+        getLeagueLeaderboard(leaderboardFilter),
+        getTradablePokemon(),
+        getFriendsList(),
+        getCommunityTradeOffers(tradeFilter),
+        getActiveCoOpRaidBoss(),
+        getFriendChallenges(),
+        getAllExercises(),
+        getAllPrograms(),
+        getPendingFriendRequests(),
+        getFriendGifts(),
+      ]);
+
+      setLeaderboardData(lb);
+      setTradablePokemon(tradables);
+      setFriendsList(friends);
+      setTradeOffers(offers);
+      setRaidBoss(raid);
+      setFriendChallenges(chlgList);
+      setAllExercises(exList);
+      setAllPrograms(progList);
+      setPendingRequests(reqList);
+      setFriendGifts(giftsData);
+    } catch (err) {
+      console.error('Erreur chargement arène:', err);
+    }
+  }, [leaderboardFilter, tradeFilter]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
+  const handleRemoveFriend = (friendId: string, friendName: string) => {
+    Alert.alert(
+      'Retirer un ami',
+      `Voulez-vous retirer ${friendName} de votre cercle d’amis ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            await removeFriend(friendId);
+            await loadData();
+            Alert.alert('Ami retiré', `${friendName} a été retiré de votre liste.`);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleShareFriendCode = async () => {
+    if (!profile) return;
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(profile.friendCode);
+        Alert.alert('Code copié ! 📋', `Votre Code Ami (${profile.friendCode}) a été copié dans le presse-papier.`);
+        return;
+      }
+      await Share.share({
+        title: 'Rejoins mon arène sur Vitax !',
+        message: `🔥 Rejoins-moi sur l’application Vitax pour suivre nos entraînements et comparer nos classements !\n\n🌐 Accède directement à l'application web ici (mobile ou PC) :\n${WEB_APP_URL}\n\n🏆 Mon Code Athlète : ${profile.friendCode}\n\nÀ tout de suite dans l'arène ! ⚔️`,
+      });
+    } catch {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(profile.friendCode);
+          Alert.alert('Code copié ! 📋', `Votre Code Ami (${profile.friendCode}) a été copié dans le presse-papier.`);
+        } catch {}
+      }
+    }
+  };
+
+  const handleShareWebInvite = async () => {
+    if (!profile) return;
+    const inviteMessage = `🏋️‍♂️ Salut ! Je t'invite à rejoindre Vitax, notre application de musculation & défis sportifs.\n\n🌐 Ouvre l'application web directement ici (sans rien installer) :\n${WEB_APP_URL}\n\n🏆 Dès ton arrivée, ajoute mon Code Athlète pour qu'on partage nos classements et s'échange nos Pokémon : ${profile.friendCode}\n\nÀ très vite dans l'arène ! ⚔️`;
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(inviteMessage);
+        Alert.alert('Invitation copiée ! 📋', 'Le message d’invitation avec votre Code Ami et le lien web a été copié.');
+        return;
+      }
+      await Share.share({
+        title: 'Invitation à rejoindre Vitax (App Web)',
+        message: inviteMessage,
+      });
+    } catch {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(inviteMessage);
+          Alert.alert('Invitation copiée ! 📋', 'Le message d’invitation avec votre Code Ami et le lien web a été copié.');
+        } catch {}
+      }
+    }
+  };
+
+  const handleAddFriend = async (friendCode: string) => {
+    const res = await addFriendByCode(friendCode);
+    if (res.success && res.friend) {
+      await loadData();
+      Alert.alert(
+        'Nouvel ami ajouté ! 🎉',
+        `${res.friend.username} (${res.friend.friendCode}) a été ajouté à votre cercle d’amis !`
+      );
+      return true;
+    } else {
+      Alert.alert('Erreur', res.error || 'Impossible d’ajouter cet ami.');
+      return false;
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    const res = await acceptFriendRequest(requestId);
+    if (res.success && res.friend) {
+      await loadData();
+      Alert.alert('Ami accepté ! 🎉', `${res.friend.username} a été ajouté à votre cercle d’amis !`);
+    } else {
+      Alert.alert('Erreur', res.error || 'Impossible d’accepter cette demande.');
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    await declineFriendRequest(requestId);
+    await loadData();
+    Alert.alert('Demande refusée', 'La demande d’ami a été retirée.');
+  };
+
+  const handleSimulateInvite = async () => {
+    await simulateFriendRequest('Alexandre (Coach)', 'VTX-5491');
+    await loadData();
+    Alert.alert('Notification simulée ! 🔔', 'Une invitation d’ami vient d’être générée. La notification apparaît en haut de l’écran !');
+  };
+
+  const handleCreateGift = async (
+    targetFriendCode: string,
+    giftName: string,
+    targetXp: number,
+    personalMessage?: string
+  ) => {
+    const targetFriend = friendsList.find((f) => f.friendCode === targetFriendCode);
+    if (!targetFriend) {
+      Alert.alert('Ami introuvable', 'Veuillez sélectionner un ami dans votre cercle.');
+      return false;
+    }
+
+    try {
+      await createFriendGift({
+        receiverId: targetFriend.friendId,
+        receiverName: targetFriend.username,
+        receiverFriendCode: targetFriend.friendCode,
+        giftName,
+        targetXpGain: targetXp,
+        personalMessage,
+      });
+
+      await loadData();
+      Alert.alert(
+        'Cadeau de motivation envoyé ! 🎁⚡',
+        `Votre cadeau "${giftName}" a été envoyé à ${targetFriend.username} ! Il se débloquera dès qu'il/elle aura accumulé +${targetXp} XP.`
+      );
+      return true;
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible d’envoyer le cadeau.');
+      return false;
+    }
+  };
+
+  const handleClaimGift = async (gift: FriendGift) => {
+    await claimFriendGift(gift.id);
+    await loadData();
+  };
+
+  const handleSimulateGift = async () => {
+    try {
+      await simulateFriendGift('Shaker de Whey Isolate & Cookie Fit', 250);
+      await loadData();
+      Alert.alert(
+        'Cadeau de test reçu ! 🎁',
+        'Sarah vous a offert un "Shaker de Whey Isolate & Cookie Fit" avec un objectif de +250 XP (50 XP déjà cumulés pour le test). Faites une séance pour le déverrouiller !'
+      );
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de simuler le cadeau.');
+    }
+  };
+
+  const handleAuthSubmit = async (mode: 'register' | 'login', u: string, p: string) => {
+    if (mode === 'register') {
+      const res = await registerTrainer(u, p);
+      if (res.success) {
+        await loadData();
+        Alert.alert(
+          'Compte Athlète créé ! 🏆',
+          `Bienvenue ${u} ! Vos séances, statistiques et Pokémon sont désormais sauvegardés en permanence sur le cloud.`
+        );
+        return true;
+      } else {
+        Alert.alert('Erreur', res.error || 'Impossible de créer le compte.');
+        return false;
+      }
+    } else {
+      const res = await loginTrainer(u, p);
+      if (res.success) {
+        await loadData();
+        Alert.alert(
+          'Rebonjour ! ⚡',
+          `Ravi de vous revoir ${u}. Vos statistiques d’entraînement, séances et Pokémon ont été synchronisés avec succès.`
+        );
+        return true;
+      } else {
+        Alert.alert('Erreur de connexion', res.error || 'Identifiants incorrects.');
+        return false;
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter de votre compte Athlète ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnexion',
+          style: 'destructive',
+          onPress: async () => {
+            await logoutTrainer();
+            await loadData();
+            Alert.alert('Déconnecté', 'Vous êtes repassé en mode local.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCreateOffer = async (
+    pokemonEggId: string,
+    requestedCriteriaText: string,
+    friendsOnly: boolean
+  ) => {
+    try {
+      await createTradeOffer({
+        pokemonEggId,
+        requestedCriteriaText: requestedCriteriaText || 'Ouvert à toute proposition équivalente',
+        friendsOnly,
+      });
+      await loadData();
+      Alert.alert(
+        'Offre publiée ! 📢',
+        friendsOnly
+          ? 'Votre offre est désormais visible exclusivement par votre cercle d’amis ! 👥'
+          : 'Votre Pokémon est désormais disponible à l’échange dans l’Arène générale ! 🌍'
+      );
+      return true;
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible de créer l’offre.');
+      return false;
+    }
+  };
+
+  const handleConfirmTrade = async (offerId: string, myPokemonId: string) => {
+    try {
+      const result = await executePokemonTrade(offerId, myPokemonId);
+      await loadData();
+      Alert.alert(
+        'Félicitations ! 🎉',
+        `L’échange a été validé ! Vous avez obtenu : ${result.receivedPokemonName} ! Il a été ajouté à votre Pokédex.`
+      );
+      return true;
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Échec de l’échange.');
+      return false;
+    }
+  };
+
+  const handleClaimReward = async () => {
+    try {
+      const egg = await claimRaidVictoryReward();
+      await loadData();
+      Alert.alert(
+        'Victoire de Raid ! 🏆',
+        `Vous avez récupéré votre récompense de Raid : ${egg.pokemon_name || 'Œuf Légendaire'} ! Placez-le en incubation.`
+      );
+    } catch (e: any) {
+      Alert.alert('Info', e.message || 'Récompense non disponible.');
+    }
+  };
+
+  const handleCreateChallenge = async (params: {
+    type: 'exercise' | 'program';
+    selectedExerciseId?: string;
+    selectedProgramId?: string;
+    targetWeight?: number;
+    targetReps?: number;
+    targetVolume?: number;
+    targetFriendCodeInput: string;
+    instructions?: string;
+  }) => {
+    const targetFriend = friendsList.find((f) => f.friendCode === params.targetFriendCodeInput);
+
+    if (params.type === 'exercise') {
+      const exercise = allExercises.find((e) => e.id === params.selectedExerciseId);
+      if (!exercise) {
+        Alert.alert('Exercice requis', 'Veuillez sélectionner un exercice pour ce défi.');
+        return false;
+      }
+      const targetReps = params.targetReps || 10;
+      const targetWeight = params.targetWeight || 0;
+
+      try {
+        await createFriendChallenge({
+          creatorId: profile?.id || 'me',
+          creatorName: profile?.username || 'Vous',
+          creatorAvatarEmoji: profile?.avatarPokemonEmoji || '⚡',
+          targetFriendCode: params.targetFriendCodeInput,
+          targetFriendName: targetFriend?.username,
+          type: 'exercise',
+          title: `Défi : ${exercise.name} (${targetWeight > 0 ? targetWeight + ' kg × ' : ''}${targetReps} reps)`,
+          exerciseId: exercise.id,
+          exerciseName: exercise.name,
+          targetWeightKg: targetWeight,
+          targetReps: targetReps,
+          instructions:
+            params.instructions ||
+            `Bats mes ${targetReps} répétitions ${targetWeight > 0 ? 'à ' + targetWeight + ' kg' : ''} !`,
+          rewardXp: 150,
+        });
+
+        await loadData();
+        Alert.alert('Défi lancé ! 🥊', 'Votre défi a été envoyé avec succès à vos partenaires.');
+        return true;
+      } catch (err: any) {
+        Alert.alert('Erreur', err?.message || 'Impossible de créer le défi.');
+        return false;
+      }
+    } else {
+      const program = allPrograms.find((p) => p.id === params.selectedProgramId);
+      if (!program) {
+        Alert.alert('Programme requis', 'Veuillez sélectionner un programme.');
+        return false;
+      }
+      const targetVolume = params.targetVolume || 3000;
+
+      try {
+        await createFriendChallenge({
+          creatorId: profile?.id || 'me',
+          creatorName: profile?.username || 'Vous',
+          creatorAvatarEmoji: profile?.avatarPokemonEmoji || '⚡',
+          targetFriendCode: params.targetFriendCodeInput,
+          targetFriendName: targetFriend?.username,
+          type: 'program',
+          title: `Défi Programme : ${program.name} (Objectif: ${targetVolume.toLocaleString()} kg)`,
+          programId: program.id,
+          programName: program.name,
+          targetVolumeKg: targetVolume,
+          instructions:
+            params.instructions ||
+            `Complète le programme ${program.name} et dépasse les ${targetVolume.toLocaleString()} kg de tonnage total !`,
+          rewardXp: 300,
+        });
+
+        await loadData();
+        Alert.alert('Défi Programme lancé ! 📋', 'Votre défi avec objectif de tonnage est en ligne.');
+        return true;
+      } catch (err: any) {
+        Alert.alert('Erreur', err?.message || 'Impossible de créer le défi.');
+        return false;
+      }
+    }
+  };
+
+  const handleTakeOnChallenge = async (chlg: FriendChallenge) => {
+    if (chlg.type === 'program' && chlg.programId) {
+      await startWorkoutFromProgram(chlg.programId);
+      router.push('/workout/active');
+    } else if (chlg.exerciseId) {
+      const foundEx = allExercises.find((e) => e.id === chlg.exerciseId);
+      if (foundEx) {
+        await startTargetedWorkout(foundEx.name, [foundEx]);
+        router.push('/workout/active');
+      } else {
+        startFreeWorkout();
+        router.push('/workout/active');
+      }
+    } else {
+      startFreeWorkout();
+      router.push('/workout/active');
+    }
+  };
+
+  const handleStartRaidWorkout = () => {
+    startFreeWorkout();
+    router.push('/workout/active');
+  };
+
+  return {
+    activeTab,
+    setActiveTab,
+    leaderboardFilter,
+    setLeaderboardFilter,
+    tradeFilter,
+    setTradeFilter,
+    raidsSubTab,
+    setRaidsSubTab,
+    profile,
+    isLoggedIn,
+    friendsList,
+    leaderboardData,
+    tradablePokemon,
+    tradeOffers,
+    raidBoss,
+    pendingRequests,
+    friendGifts,
+    friendChallenges,
+    allExercises,
+    allPrograms,
+    refreshing,
+    onRefresh,
+    handleRemoveFriend,
+    handleShareFriendCode,
+    handleShareWebInvite,
+    handleAddFriend,
+    handleAcceptRequest,
+    handleDeclineRequest,
+    handleSimulateInvite,
+    handleCreateGift,
+    handleClaimGift,
+    handleSimulateGift,
+    handleAuthSubmit,
+    handleLogout,
+    handleCreateOffer,
+    handleConfirmTrade,
+    handleClaimReward,
+    handleCreateChallenge,
+    handleTakeOnChallenge,
+    handleStartRaidWorkout,
+    reload: loadData,
+  };
+}
