@@ -395,12 +395,49 @@ export default function SettingsScreen() {
                 👥 {friendsCount} ami(s) dans votre cercle • Gérer ❯
               </Text>
             </TouchableOpacity>
-            {isTrainerLoggedIn && (
+            {isTrainerLoggedIn ? (
               <TouchableOpacity onPress={handleTrainerLogout} activeOpacity={0.7}>
                 <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Déconnexion</Text>
               </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => router.push('/arena')} activeOpacity={0.7}>
+                <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>⚡ Se connecter ❯</Text>
+              </TouchableOpacity>
             )}
           </View>
+        </Card>
+      )}
+
+      {!isTrainerLoggedIn && (
+        <Card style={[styles.card, { borderColor: '#38BDF8', borderWidth: 1.5, backgroundColor: '#0F172A' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 20 }}>☁️</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800' }}>
+                Compte & Synchronisation Cloud
+              </Text>
+              <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
+                Connectez-vous pour restaurer vos séances, vos statistiques et vos Pokémon sur cet appareil.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={{
+              marginTop: 12,
+              backgroundColor: '#0284C7',
+              paddingVertical: 10,
+              borderRadius: 10,
+              alignItems: 'center',
+            }}
+            onPress={() => router.push('/arena')}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 13.5, fontWeight: '800' }}>
+              ⚡ Se connecter à mon compte
+            </Text>
+          </TouchableOpacity>
         </Card>
       )}
 

@@ -315,15 +315,15 @@ export async function getUserGamificationStats(): Promise<{
     totalVolumeKg += s.total_volume || 0;
   });
 
-  if (setsBiomechanicalXp > 0) {
-    totalXp = setsBiomechanicalXp;
-  } else {
-    // Repli si les séries individuelles ne sont pas encore liées
-    sessions.forEach((s) => {
-      const summary = calculateSessionXp(s);
-      totalXp += summary.totalXp;
-    });
-  }
+  // Calcul basé sur les séries biomécaniques ou le volume global des séances
+  let sessionsFallbackXp = 0;
+  sessions.forEach((s) => {
+    const summary = calculateSessionXp(s);
+    sessionsFallbackXp += summary.totalXp;
+  });
+
+  // Utiliser la valeur la plus précise sans jamais perdre d'expérience
+  totalXp = Math.max(setsBiomechanicalXp, sessionsFallbackXp);
 
   // Prise en compte des bonus journaliers d'entraînement validés
   try {

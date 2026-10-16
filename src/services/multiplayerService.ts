@@ -145,7 +145,7 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       return false;
     }
     return true;
-  } catch (e: any) {
+  } catch {
     return false;
   }
 }
