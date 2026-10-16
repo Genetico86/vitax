@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,11 @@ import {
   saveGeneratedPlanAsProgram,
 } from '../../services/aiWorkoutService';
 import { EQUIPMENT_CATALOG_METADATA } from '../../utils/exerciseUnits';
+import {
+  getFavoriteExerciseIds,
+  toggleFavoriteExercise,
+} from '../../services/favoritesService';
+import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
 
 const DURATION_OPTIONS = [30, 45, 60, 75];
 const DIFFICULTY_OPTIONS: DifficultyLevel[] = ['Débutant', 'Intermédiaire', 'Avancé'];
@@ -43,6 +48,24 @@ export default function AIWorkoutGeneratorScreen() {
   const [selectedDuration, setSelectedDuration] = useState<number>(45);
   const [selectedDifficulty, setSelectedDifficulty] =
     useState<DifficultyLevel>('Intermédiaire');
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [guideModalVisible, setGuideModalVisible] = useState(false);
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<{
+    id: string;
+    name: string;
+    target_muscle?: string;
+    equipment_needed?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    getFavoriteExerciseIds().then(setFavoriteIds);
+  }, []);
+
+  const handleToggleFavorite = async (exerciseId: string) => {
+    await toggleFavoriteExercise(exerciseId);
+    const updated = await getFavoriteExerciseIds();
+    setFavoriteIds(updated);
+  };
 
   // Matériel sélectionné (par défaut ceux des préférences de l'utilisateur)
   const [equipments, setEquipments] = useState<Equipment[]>(
@@ -414,10 +437,57 @@ export default function AIWorkoutGeneratorScreen() {
                         {phaseBadge.label}
                       </Text>
                     </View>
-                    <Text style={styles.exerciseOrderText}>#{idx + 1}</Text>
+                    <View style={styles.exerciseHeaderRight}>
+                      {/* Bouton guide technique / posture */}
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedGuideExercise({
+                            id: ex.exercise_id || `gen-${idx}`,
+                            name: ex.name,
+                            target_muscle: ex.target_muscle,
+                            equipment_needed: ex.equipment_needed,
+                          });
+                          setGuideModalVisible(true);
+                        }}
+                        style={styles.infoGuideBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.infoGuideIcon}>ℹ️</Text>
+                      </TouchableOpacity>
+
+                      {Boolean(ex.exercise_id) && (
+                        <TouchableOpacity
+                          onPress={() => handleToggleFavorite(ex.exercise_id!)}
+                          style={[
+                            styles.favoriteCardBtn,
+                            favoriteIds.includes(ex.exercise_id!) && styles.favoriteCardBtnActive,
+                          ]}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.favoriteCardBtnIcon}>
+                            {favoriteIds.includes(ex.exercise_id!) ? '⭐' : '☆'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <Text style={styles.exerciseOrderText}>#{idx + 1}</Text>
+                    </View>
                   </View>
 
-                  <View style={styles.exerciseMainRow}>
+                  <TouchableOpacity
+                    style={styles.exerciseMainRow}
+                    onPress={() => {
+                      setSelectedGuideExercise({
+                        id: ex.exercise_id || `gen-${idx}`,
+                        name: ex.name,
+                        target_muscle: ex.target_muscle,
+                        equipment_needed: ex.equipment_needed,
+                      });
+                      setGuideModalVisible(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
                     <ExerciseIllustration
                       exerciseId={ex.exercise_id}
                       targetMuscle={ex.target_muscle}
@@ -440,7 +510,7 @@ export default function AIWorkoutGeneratorScreen() {
                         />
                       </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
 
                   {/* Grille des paramètres d'effort */}
                   <View style={styles.metricsGrid}>
@@ -515,6 +585,13 @@ export default function AIWorkoutGeneratorScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Guide d'exécution technique */}
+      <ExerciseGuideModal
+        visible={guideModalVisible}
+        exercise={selectedGuideExercise}
+        onClose={() => setGuideModalVisible(false)}
+      />
     </View>
   );
 }
@@ -654,7 +731,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   trainingBadgeTextActive: {
-    color: '#FFFFFF',
+    color: Colors.primaryText,
+    fontWeight: '800',
   },
   rowTwoCols: {
     flexDirection: 'row',
@@ -686,8 +764,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   durationTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
+    color: Colors.primaryText,
+    fontWeight: '900',
   },
   equipHeaderRow: {
     flexDirection: 'row',
@@ -836,6 +914,41 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 13,
     fontWeight: '800',
+  },
+  exerciseHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoGuideBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoGuideIcon: {
+    fontSize: 14,
+  },
+  favoriteCardBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favoriteCardBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: 'rgba(245, 158, 11, 0.6)',
+  },
+  favoriteCardBtnIcon: {
+    fontSize: 15,
   },
   exerciseMainRow: {
     flexDirection: 'row',

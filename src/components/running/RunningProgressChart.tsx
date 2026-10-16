@@ -286,8 +286,8 @@ export const RunningProgressChart: React.FC<RunningProgressChartProps> = ({ sess
                   cx={p.x}
                   cy={p.y}
                   r={isLatest ? 6 : 4}
-                  fill={isLatest ? '#FF5A1F' : '#00E5FF'}
-                  stroke="#0D1117"
+                  fill={isLatest ? Colors.primary : Colors.accent}
+                  stroke={Colors.background}
                   strokeWidth="2"
                 />
 

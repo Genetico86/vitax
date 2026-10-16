@@ -1,6 +1,7 @@
 import { Equipment, DifficultyLevel } from './index';
 
 export type TargetFocus =
+  | 'performance_goals'
   | 'full_body'
   | 'upper_body'
   | 'lower_body'
@@ -27,6 +28,8 @@ export interface AIWorkoutGeneratorParams {
   durationMinutes: number; // e.g. 30, 45, 60, 75
   availableEquipments: Equipment[] | string[];
   userNotes?: string;
+  targetGoalId?: string;
+  targetGoalExerciseName?: string;
 }
 
 export type ExercisePhase = 'warmup' | 'compound' | 'isolation' | 'cooldown';
@@ -68,6 +71,12 @@ export const TARGET_FOCUS_OPTIONS: {
   emoji: string;
   description: string;
 }[] = [
+  {
+    id: 'performance_goals',
+    label: 'Boost Objectifs',
+    emoji: '🎯',
+    description: 'Programme d’assistance pour vos objectifs fixés',
+  },
   {
     id: 'full_body',
     label: 'Full Body',
@@ -165,10 +174,10 @@ export const TRAINING_TYPE_OPTIONS: {
   },
   {
     id: 'hiit',
-    label: 'HIIT / Circuit training',
+    label: 'Brûlage de graisse / HIIT / Circuit training',
     emoji: '🔥',
-    badge: 'BRÛLE-GRAISSES',
-    description: 'Rythme cardiaque élevé et dépense métabolique (intervalles courts)',
+    badge: 'BRÛLAGE DE GRAISSE',
+    description: 'Dépense calorique maximale, haute intensité métabolique et effet EPOC (intervalles courts 30-45s)',
     repRange: '15-20 reps / 45s',
     restRange: '30-45s',
   },

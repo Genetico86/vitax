@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,11 @@ import {
   getExerciseUnitInfo,
   isExerciseCompatibleWithEquipment,
 } from '../../utils/exerciseUnits';
+import {
+  getFavoriteExerciseIds,
+  toggleFavoriteExercise,
+} from '../../services/favoritesService';
+import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
 
 export default function ActiveWorkoutScreen() {
   const {
@@ -49,6 +54,10 @@ export default function ActiveWorkoutScreen() {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [catalogExercises, setCatalogExercises] = useState<Exercise[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [modalFavoritesOnly, setModalFavoritesOnly] = useState(false);
+  const [guideModalVisible, setGuideModalVisible] = useState(false);
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
   const { available_equipments, filter_by_available_equipment } = useSettingsStore();
 
   // Chronomètre global de la séance
@@ -67,8 +76,41 @@ export default function ActiveWorkoutScreen() {
       const list = await getAllExercises();
       setCatalogExercises(list);
     }
+    async function loadFavorites() {
+      const favs = await getFavoriteExerciseIds();
+      setFavoriteIds(favs);
+    }
     loadCatalog();
+    loadFavorites();
   }, []);
+
+  const handleToggleFavorite = async (exerciseId: string) => {
+    await toggleFavoriteExercise(exerciseId);
+    const updated = await getFavoriteExerciseIds();
+    setFavoriteIds(updated);
+  };
+
+  const liveXp = useMemo(() => {
+    let completedSets = 0;
+    let volume = 0;
+    exercises.forEach((ex) => {
+      ex.sets.forEach((s) => {
+        if (s.completed) {
+          completedSets += 1;
+          volume += (s.weight || 0) * (s.reps || 0);
+        }
+      });
+    });
+    const setsXp = completedSets * 15;
+    const volumeXp = Math.floor(volume / 40);
+    const completionBonus = completedSets > 0 ? 100 : 0;
+    return {
+      completedSets,
+      volume,
+      inProgressXp: setsXp + volumeXp,
+      totalXp: setsXp + volumeXp + completionBonus,
+    };
+  }, [exercises]);
 
   if (!isActive) {
     return (
@@ -149,6 +191,9 @@ export default function ActiveWorkoutScreen() {
   };
 
   const filteredCatalog = catalogExercises.filter((e) => {
+    if (modalFavoritesOnly && !favoriteIds.includes(e.id)) {
+      return false;
+    }
     const matchesQuery =
       e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       e.target_muscle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -173,8 +218,13 @@ export default function ActiveWorkoutScreen() {
           <Text style={styles.programTitle} numberOfLines={1}>
             {programName || 'Séance libre'}
           </Text>
-          <View style={styles.timerBadge}>
-            <Text style={styles.timerText}>⏱ {formatElapsed(elapsedSeconds)}</Text>
+          <View style={styles.timerBadgeRow}>
+            <View style={styles.timerBadge}>
+              <Text style={styles.timerText}>⏱ {formatElapsed(elapsedSeconds)}</Text>
+            </View>
+            <View style={styles.xpLiveBadge}>
+              <Text style={styles.xpLiveText}>⚡ +{liveXp.inProgressXp} XP</Text>
+            </View>
           </View>
         </View>
 
@@ -218,31 +268,90 @@ export default function ActiveWorkoutScreen() {
           exercises.map((exItem, exIdx) => (
             <Card key={`${exItem.exercise.id}_${exIdx}`} style={styles.exerciseCard}>
               <View style={styles.exerciseCardHeader}>
-                <ExerciseIllustration
-                  exerciseId={exItem.exercise.id}
-                  targetMuscle={exItem.exercise.target_muscle}
-                  size={46}
-                />
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedGuideExercise(exItem.exercise);
+                    setGuideModalVisible(true);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <ExerciseIllustration
+                    exerciseId={exItem.exercise.id}
+                    targetMuscle={exItem.exercise.target_muscle}
+                    size={46}
+                  />
+                </TouchableOpacity>
                 <View style={{ flex: 1, marginHorizontal: 10 }}>
-                  <Text style={styles.exerciseName}>{exItem.exercise.name}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedGuideExercise(exItem.exercise);
+                      setGuideModalVisible(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.exerciseName}>{exItem.exercise.name}</Text>
+                  </TouchableOpacity>
                   <View style={styles.metaRow}>
                     <Badge
                       label={exItem.exercise.target_muscle}
                       color="#202F44"
                       textColor={Colors.textSecondary}
                     />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectedGuideExercise(exItem.exercise);
+                        setGuideModalVisible(true);
+                      }}
+                      style={styles.guideBadge}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Text style={styles.guideBadgeText}>ℹ️ Guide posture</Text>
+                    </TouchableOpacity>
                     <Text style={styles.restInfoText}>
                       Repos : {exItem.rest_time_seconds}s
                     </Text>
                   </View>
                 </View>
 
-                <TouchableOpacity
-                  onPress={() => removeExerciseFromWorkout(exIdx)}
-                  style={styles.removeExBtn}
-                >
-                  <Text style={styles.removeExText}>×</Text>
-                </TouchableOpacity>
+                <View style={styles.headerRightActions}>
+                  {/* Bulle d'info / Guide technique */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedGuideExercise(exItem.exercise);
+                      setGuideModalVisible(true);
+                    }}
+                    style={styles.infoGuideBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.infoGuideIcon}>ℹ️</Text>
+                  </TouchableOpacity>
+
+                  {/* Bouton favori */}
+                  <TouchableOpacity
+                    onPress={() => handleToggleFavorite(exItem.exercise.id)}
+                    style={[
+                      styles.favHeaderBtn,
+                      favoriteIds.includes(exItem.exercise.id) && styles.favHeaderBtnActive,
+                    ]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.favHeaderIcon}>
+                      {favoriteIds.includes(exItem.exercise.id) ? '⭐' : '☆'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Bouton supprimer de la séance */}
+                  <TouchableOpacity
+                    onPress={() => removeExerciseFromWorkout(exIdx)}
+                    style={styles.removeExBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.removeExText}>×</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Titres de colonnes adaptés à l'exercice (minutes en vélo, tapis, rameur) */}
@@ -289,6 +398,35 @@ export default function ActiveWorkoutScreen() {
               >
                 <Text style={styles.addSetBtnText}>+ Ajouter une série</Text>
               </TouchableOpacity>
+
+              {/* Bannière de validation quand toutes les séries de l'exercice sont faites */}
+              {(() => {
+                const isCompleted = exItem.sets.length > 0 && exItem.sets.every((s) => s.completed);
+                const exCompletedSets = exItem.sets.filter((s) => s.completed).length;
+                const exVol = exItem.sets.filter((s) => s.completed).reduce((acc, s) => acc + s.weight * s.reps, 0);
+                const exXp = exCompletedSets * 15 + Math.floor(exVol / 40);
+
+                if (!isCompleted) return null;
+
+                return (
+                  <View style={styles.exerciseCompletedBanner}>
+                    <Text style={styles.exerciseCompletedEmoji}>🎉</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.exerciseCompletedTitle}>Exercice validé !</Text>
+                      <Text style={styles.exerciseCompletedSub}>
+                        {exCompletedSets} séries terminées • +{exXp} XP gagnés
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.finishExerciseQuickBtn}
+                      onPress={handleFinish}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.finishExerciseQuickText}>Terminer ✓</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })()}
             </Card>
           ))
         )}
@@ -302,6 +440,24 @@ export default function ActiveWorkoutScreen() {
             onPress={() => setAddModalVisible(true)}
             style={styles.addAnotherExerciseBtn}
           />
+        )}
+
+        {/* Bouton direct pour valider et terminer la séance avec ses gains XP */}
+        {exercises.length > 0 && (
+          <TouchableOpacity
+            style={styles.bottomFinishBigBtn}
+            onPress={handleFinish}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.bottomFinishBigEmoji}>🏆</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bottomFinishBigTitle}>Valider et terminer la séance</Text>
+              <Text style={styles.bottomFinishBigSub}>
+                {liveXp.completedSets} séries validées • +{liveXp.totalXp} XP à cumuler
+              </Text>
+            </View>
+            <Text style={styles.bottomFinishBigArrow}>▶</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
@@ -334,31 +490,115 @@ export default function ActiveWorkoutScreen() {
             />
           </View>
 
-          <ScrollView contentContainerStyle={styles.catalogList}>
-            {filteredCatalog.map((ex) => (
-              <TouchableOpacity
-                key={ex.id}
-                style={styles.catalogItem}
-                onPress={() => handleAddExerciseFromCatalog(ex)}
-                activeOpacity={0.75}
+          {/* Filtres Tous / Favoris dans la modal */}
+          <View style={styles.modalFilterRow}>
+            <TouchableOpacity
+              style={[
+                styles.modalFilterChip,
+                !modalFavoritesOnly && styles.modalFilterChipActive,
+              ]}
+              onPress={() => setModalFavoritesOnly(false)}
+            >
+              <Text
+                style={[
+                  styles.modalFilterChipText,
+                  !modalFavoritesOnly && styles.modalFilterChipTextActive,
+                ]}
               >
-                <ExerciseIllustration
-                  exerciseId={ex.id}
-                  targetMuscle={ex.target_muscle}
-                  size={42}
-                />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.catalogItemName}>{ex.name}</Text>
-                  <Text style={styles.catalogItemMeta}>
-                    {ex.target_muscle} • {ex.equipment_needed}
-                  </Text>
-                </View>
-                <Text style={styles.catalogAddIcon}>+</Text>
-              </TouchableOpacity>
-            ))}
+                Tous ({catalogExercises.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modalFilterChip,
+                modalFavoritesOnly && styles.modalFilterChipActive,
+              ]}
+              onPress={() => setModalFavoritesOnly(true)}
+            >
+              <Text
+                style={[
+                  styles.modalFilterChipText,
+                  modalFavoritesOnly && styles.modalFilterChipTextActive,
+                ]}
+              >
+                ⭐ Favoris ({favoriteIds.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.catalogList}>
+            {filteredCatalog.length === 0 ? (
+              <View style={styles.emptyFilterBox}>
+                <Text style={styles.emptyFilterEmoji}>⭐</Text>
+                <Text style={styles.emptyFilterText}>
+                  {modalFavoritesOnly
+                    ? 'Aucun exercice favori pour le moment. Cliquez sur l’étoile pour en ajouter !'
+                    : 'Aucun exercice trouvé.'}
+                </Text>
+              </View>
+            ) : (
+              filteredCatalog.map((ex) => (
+                <TouchableOpacity
+                  key={ex.id}
+                  style={styles.catalogItem}
+                  onPress={() => handleAddExerciseFromCatalog(ex)}
+                  activeOpacity={0.75}
+                >
+                  <ExerciseIllustration
+                    exerciseId={ex.id}
+                    targetMuscle={ex.target_muscle}
+                    size={42}
+                  />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.catalogItemName}>{ex.name}</Text>
+                    <Text style={styles.catalogItemMeta}>
+                      {ex.target_muscle} • {ex.equipment_needed}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setSelectedGuideExercise(ex);
+                      setGuideModalVisible(true);
+                    }}
+                    style={styles.catalogInfoBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.catalogInfoIcon}>ℹ️</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleToggleFavorite(ex.id);
+                    }}
+                    style={[
+                      styles.catalogFavBtn,
+                      favoriteIds.includes(ex.id) && styles.catalogFavBtnActive,
+                    ]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.catalogFavIcon}>
+                      {favoriteIds.includes(ex.id) ? '⭐' : '☆'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.catalogAddIcon}>+</Text>
+                </TouchableOpacity>
+              ))
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Modale d'aide et guide technique de l'exercice (Posture, Amplitude, Position, Objectif, Sécurité) */}
+      <ExerciseGuideModal
+        visible={guideModalVisible}
+        exercise={selectedGuideExercise}
+        onClose={() => setGuideModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -408,14 +648,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  timerBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 3,
+  },
   timerBadge: {
-    marginTop: 2,
+    backgroundColor: 'rgba(255, 85, 0, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   timerText: {
     color: Colors.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
+  },
+  xpLiveBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  xpLiveText: {
+    color: Colors.gold,
+    fontSize: 12,
+    fontWeight: '900',
   },
   finishBtn: {
     backgroundColor: Colors.success,
@@ -485,6 +747,54 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoGuideBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoGuideIcon: {
+    fontSize: 16,
+  },
+  guideBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+  },
+  guideBadgeText: {
+    color: '#93C5FD',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  favHeaderBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favHeaderBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: 'rgba(245, 158, 11, 0.6)',
+  },
+  favHeaderIcon: {
+    fontSize: 18,
+  },
   removeExBtn: {
     padding: 4,
   },
@@ -522,6 +832,77 @@ const styles = StyleSheet.create({
   },
   addAnotherExerciseBtn: {
     marginVertical: 12,
+  },
+  exerciseCompletedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+    gap: 8,
+  },
+  exerciseCompletedEmoji: {
+    fontSize: 20,
+  },
+  exerciseCompletedTitle: {
+    color: '#34D399',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  exerciseCompletedSub: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+    fontWeight: '600',
+  },
+  finishExerciseQuickBtn: {
+    backgroundColor: Colors.success,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  finishExerciseQuickText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  bottomFinishBigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    gap: 12,
+    elevation: 6,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  bottomFinishBigEmoji: {
+    fontSize: 28,
+  },
+  bottomFinishBigTitle: {
+    color: Colors.primaryText,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  bottomFinishBigSub: {
+    color: 'rgba(8, 12, 20, 0.85)',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  bottomFinishBigArrow: {
+    color: Colors.primaryText,
+    fontSize: 18,
+    fontWeight: '900',
   },
   modalContainer: {
     flex: 1,
@@ -588,5 +969,79 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '800',
     marginLeft: 12,
+  },
+  modalFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  modalFilterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+  },
+  modalFilterChipActive: {
+    backgroundColor: 'rgba(255, 85, 0, 0.15)',
+    borderColor: Colors.primary,
+  },
+  modalFilterChipText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalFilterChipTextActive: {
+    color: Colors.primary,
+    fontWeight: '800',
+  },
+  emptyFilterBox: {
+    alignItems: 'center',
+    padding: 30,
+    marginTop: 20,
+  },
+  emptyFilterEmoji: {
+    fontSize: 34,
+    marginBottom: 8,
+  },
+  emptyFilterText: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  catalogInfoBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  catalogInfoIcon: {
+    fontSize: 14,
+  },
+  catalogFavBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#182436',
+    borderWidth: 1,
+    borderColor: '#263750',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  catalogFavBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: 'rgba(245, 158, 11, 0.6)',
+  },
+  catalogFavIcon: {
+    fontSize: 15,
   },
 });

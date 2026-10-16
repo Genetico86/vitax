@@ -19,6 +19,17 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_dZztFWFSoawAVnJaRhdB7g_jk0-2bld"
       }
     },
+    "preview-simulator": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://ssotxhjqdoayzutvwbvy.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_dZztFWFSoawAVnJaRhdB7g_jk0-2bld"
+      }
+    },
     "production": {
       "channel": "production",
       "autoIncrement": true,

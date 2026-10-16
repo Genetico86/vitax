@@ -43,7 +43,7 @@ export const MUSCLE_COLORS: Record<string, string> = {
   Triceps: '#8B5CF6',
   Jambes: '#EC4899',
   Abdominaux: '#14B8A6',
-  'Corps Entier': '#FF5A1F',
+  'Corps Entier': '#FF5500',
   Cardio: '#06B6D4',
 };
 
@@ -114,7 +114,7 @@ export const BODY_ZONES: BodyZoneInfo[] = [
     name: 'Corps Entier (Full Body)',
     emoji: '⚡',
     subtitle: 'Mouvements polyarticulaires globaux',
-    color: '#FF5A1F',
+    color: '#FF5500',
     groups: ['Corps Entier'],
   },
 ];
@@ -162,6 +162,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
           'ex_cable_flat_bench_press',
           'ex_pin_press',
           'ex_dumbbell_pullover',
+          'ex_dumbbell_fly',
         ],
       },
       {
@@ -489,7 +490,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
     name: 'Corps Entier',
     zone: 'full',
     emoji: '🔥',
-    color: '#FF5A1F',
+    color: '#FF5500',
     description: 'Sollicitation complète et coordonnée de toutes les chaînes musculaires.',
     programIds: [
       'prog_rack900_fullbody',
@@ -549,6 +550,13 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
         anatomicalFocus: 'Explosivité métabolique, intervalles intenses et sudation',
         emoji: '🔥',
         exerciseIds: ['ex_treadmill', 'ex_jump_rope', 'ex_burpees', 'ex_rower'],
+      },
+      {
+        id: 'walking_cardio',
+        name: 'Marche active & Inclinée',
+        anatomicalFocus: 'Endurance à faible impact, activation fessiers et dépense calorique',
+        emoji: '🚶',
+        exerciseIds: ['ex_walking_active', 'ex_walking_incline', 'ex_farmers_walk'],
       },
     ],
   },

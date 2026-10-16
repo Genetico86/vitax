@@ -1,10 +1,13 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase } from '../database/db';
 import { WorkoutSession, IncubatorSlot, PokemonEgg } from '../types';
+import { STORAGE_KEY_PROFILE } from './authService';
 import {
   getAllPokemonEggs,
   computeIncubatorSlots,
   syncLegendaryChallengeEggs,
 } from './pokemonEggService';
+import { computeSetXp, STORAGE_KEY_DAILY_BONUS } from './exerciseWeightingService';
 
 export interface PokemonBadgeTier {
   level: number;
@@ -166,17 +169,75 @@ export const POKEMON_BADGE_TIERS: PokemonBadgeTier[] = [
 
 /**
  * Calcule l'XP gagné sur une séance spécifique
+ * NOTE : Suppression du bonus forfaitaire par séance pour éviter le farm abusif.
+ * L'XP provient du travail biomécanique réel des séries + du bonus journalier d'entraînement.
  */
-export function calculateSessionXp(session: WorkoutSession): SessionXpSummary {
-  const completionXp = 100; // Bonus séance finie
-  const setsXp = (session.total_sets || 0) * 15; // 15 XP par série
-  const volumeXp = Math.floor((session.total_volume || 0) / 40); // 1 XP tous les 40 kg
+export function calculateSessionXp(session: WorkoutSession, sets?: { weight: number; reps: number; completed?: number }[]): SessionXpSummary {
+  const completionXp = 0; // 0 XP forfaitaire par session
+  let setsXp = 0;
+  let volumeXp = 0;
+
+  if (sets && sets.length > 0) {
+    sets.forEach((s) => {
+      const isDone = s.completed === undefined ? true : Boolean(s.completed);
+      if (isDone && (s.weight > 0 || s.reps > 0)) {
+        const comp = computeSetXp({ weight: s.weight, reps: s.reps });
+        setsXp += comp.baseSetXp;
+        volumeXp += comp.volumeXp;
+      }
+    });
+  } else {
+    setsXp = (session.total_sets || 0) * 10;
+    volumeXp = Math.floor((session.total_volume || 0) / 40);
+  }
 
   return {
     completionXp,
     setsXp,
     volumeXp,
-    totalXp: completionXp + setsXp + volumeXp,
+    totalXp: setsXp + volumeXp,
+  };
+}
+
+/**
+ * Calcule dynamiquement le niveau, le badge et le pourcentage de progression pour un XP donné
+ */
+export function computeLevelInfoForXp(xp: number): LevelInfo {
+  let currentTierIndex = 0;
+  for (let i = POKEMON_BADGE_TIERS.length - 1; i >= 0; i--) {
+    if (xp >= POKEMON_BADGE_TIERS[i].minXp) {
+      currentTierIndex = i;
+      break;
+    }
+  }
+
+  const currentTier = POKEMON_BADGE_TIERS[currentTierIndex];
+  const nextTier =
+    currentTierIndex < POKEMON_BADGE_TIERS.length - 1
+      ? POKEMON_BADGE_TIERS[currentTierIndex + 1]
+      : null;
+
+  const range = currentTier.nextXp - currentTier.minXp;
+  const currentInRange = xp - currentTier.minXp;
+  const progressPercent = Math.min(
+    100,
+    Math.max(0, Math.round((currentInRange / range) * 100))
+  );
+
+  return {
+    level: currentTier.level,
+    title: currentTier.badgeName,
+    badgeName: currentTier.badgeName,
+    badgeEmoji: currentTier.emoji,
+    city: currentTier.city,
+    champion: currentTier.champion,
+    type: currentTier.type,
+    currentXp: xp,
+    minXp: currentTier.minXp,
+    nextLevelXp: currentTier.nextXp,
+    nextBadgeTitle: nextTier ? nextTier.badgeName : 'Maître Suprême',
+    nextBadgeEmoji: nextTier ? nextTier.emoji : '👑',
+    progressPercent,
   };
 }
 
@@ -199,13 +260,52 @@ export async function getUserGamificationStats(): Promise<{
   const db = await getDatabase();
 
   const sessions = await db.getAllAsync<WorkoutSession>(
-    'SELECT * FROM workout_sessions WHERE completed = 1'
+    'SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = "1" OR completed = true OR completed IS NULL)'
   );
 
   const totalSetsRow = await db.getFirstAsync<{ setsCount: number }>(
-    'SELECT COUNT(id) as setsCount FROM workout_sets WHERE completed = 1'
+    'SELECT COUNT(id) as setsCount FROM workout_sets WHERE (completed = 1 OR completed = "1" OR completed = true OR completed IS NULL)'
   );
   const totalSetsCount = totalSetsRow?.setsCount || 0;
+
+  let setsBiomechanicalXp = 0;
+  let allCompletedSetsCount = 0;
+
+  try {
+    const allCompletedSets = await db.getAllAsync<{
+      weight: number;
+      reps: number;
+      exercise_name?: string;
+      target_muscle?: string;
+      equipment_needed?: string;
+    }>(`
+      SELECT
+        ws.weight,
+        ws.reps,
+        e.name AS exercise_name,
+        e.target_muscle,
+        e.equipment_needed
+      FROM workout_sets ws
+      LEFT JOIN exercises e ON e.id = ws.exercise_id
+      WHERE (ws.completed = 1 OR ws.completed = '1' OR ws.completed = true OR ws.completed IS NULL)
+    `);
+
+    allCompletedSetsCount = allCompletedSets.length;
+    for (const s of allCompletedSets) {
+      if (s.weight > 0 || s.reps > 0) {
+        const comp = computeSetXp({
+          exerciseName: s.exercise_name,
+          targetMuscle: s.target_muscle,
+          equipmentNeeded: s.equipment_needed,
+          weight: s.weight,
+          reps: s.reps,
+        });
+        setsBiomechanicalXp += comp.totalSetXp;
+      }
+    }
+  } catch (setsErr) {
+    console.warn('Erreur calcul setsBiomechanicalXp:', setsErr);
+  }
 
   // Calcul du total d'XP accumulé
   let totalXp = 0;
@@ -213,9 +313,30 @@ export async function getUserGamificationStats(): Promise<{
 
   sessions.forEach((s) => {
     totalVolumeKg += s.total_volume || 0;
-    const summary = calculateSessionXp(s);
-    totalXp += summary.totalXp;
   });
+
+  if (setsBiomechanicalXp > 0) {
+    totalXp = setsBiomechanicalXp;
+  } else {
+    // Repli si les séries individuelles ne sont pas encore liées
+    sessions.forEach((s) => {
+      const summary = calculateSessionXp(s);
+      totalXp += summary.totalXp;
+    });
+  }
+
+  // Prise en compte des bonus journaliers d'entraînement validés
+  try {
+    const rawBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
+    if (rawBonus) {
+      const parsedBonus = JSON.parse(rawBonus);
+      if (parsedBonus.totalBonusesEarned && parsedBonus.totalBonusesEarned > 0) {
+        totalXp += parsedBonus.totalBonusesEarned;
+      }
+    }
+  } catch (err) {
+    console.warn('Erreur lecture daily bonus stats:', err);
+  }
 
   // Prise en compte de la course à pied dans l'XP
   try {
@@ -231,46 +352,32 @@ export async function getUserGamificationStats(): Promise<{
     // Table non encore migrée si ancien schéma
   }
 
-  // Détermination du palier / Badge Pokémon
-  let currentTierIndex = 0;
-  for (let i = POKEMON_BADGE_TIERS.length - 1; i >= 0; i--) {
-    if (totalXp >= POKEMON_BADGE_TIERS[i].minXp) {
-      currentTierIndex = i;
-      break;
+  // Prise en compte de l'XP et des séances synchronisés sur le profil Supabase (au cas où l'historique complet n'est pas encore téléchargé)
+  let cloudWorkoutsCount = 0;
+  try {
+    const rawProfile = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+    if (rawProfile) {
+      const parsed = JSON.parse(rawProfile);
+      if (parsed.totalXp && parsed.totalXp > totalXp) {
+        totalXp = parsed.totalXp;
+      } else if (totalXp > (parsed.totalXp || 0)) {
+        // Le stockage SQLite local a plus d'XP : mettre à jour le profil pour ne jamais perdre l'XP gagné
+        parsed.totalXp = totalXp;
+        await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
+      }
+      if (parsed.totalWorkouts && parsed.totalWorkouts > 0) {
+        cloudWorkoutsCount = parsed.totalWorkouts;
+      }
     }
+  } catch (err) {
+    console.warn('Erreur lecture XP profil:', err);
   }
 
-  const currentTier = POKEMON_BADGE_TIERS[currentTierIndex];
-  const nextTier =
-    currentTierIndex < POKEMON_BADGE_TIERS.length - 1
-      ? POKEMON_BADGE_TIERS[currentTierIndex + 1]
-      : null;
-
-  const range = currentTier.nextXp - currentTier.minXp;
-  const currentInRange = totalXp - currentTier.minXp;
-  const progressPercent = Math.min(
-    100,
-    Math.max(0, Math.round((currentInRange / range) * 100))
-  );
-
-  const levelInfo: LevelInfo = {
-    level: currentTier.level,
-    title: currentTier.badgeName,
-    badgeName: currentTier.badgeName,
-    badgeEmoji: currentTier.emoji,
-    city: currentTier.city,
-    champion: currentTier.champion,
-    type: currentTier.type,
-    currentXp: totalXp,
-    minXp: currentTier.minXp,
-    nextLevelXp: currentTier.nextXp,
-    nextBadgeTitle: nextTier ? nextTier.badgeName : 'Maître Suprême',
-    nextBadgeEmoji: nextTier ? nextTier.emoji : '👑',
-    progressPercent,
-  };
+  const levelInfo = computeLevelInfoForXp(totalXp);
 
   // Calcul des trophées de Dresseur
-  const totalSessions = sessions.length;
+  const totalSessions = Math.max(sessions.length, cloudWorkoutsCount);
+  const effectiveSetsCount = Math.max(totalSetsCount, allCompletedSetsCount);
   const hasRack900Session = sessions.some(
     (s) => s.program_name && s.program_name.includes('Rack 900')
   );
@@ -301,8 +408,8 @@ export async function getUserGamificationStats(): Promise<{
       title: 'Attaque Combo (50 Séries)',
       description: 'Enchaîner 50 séries d’efforts validées à pleine puissance',
       icon: '💥',
-      unlocked: totalSetsCount >= 50,
-      progress: Math.min(50, totalSetsCount),
+      unlocked: effectiveSetsCount >= 50,
+      progress: Math.min(50, effectiveSetsCount),
       maxProgress: 50,
       rewardXp: 200,
       legendaryReward: {
@@ -379,15 +486,20 @@ export async function getUserGamificationStats(): Promise<{
   ];
 
   // Synchronisation automatique des Oeufs de Pokémon (et défis légendaires)
-  await syncLegendaryChallengeEggs({
-    totalSessions,
-    totalSetsCount,
-    totalVolumeKg,
-    totalXp,
-    hasRack900Session,
-  });
+  let allEggs: PokemonEgg[] = [];
+  try {
+    await syncLegendaryChallengeEggs({
+      totalSessions,
+      totalSetsCount,
+      totalVolumeKg,
+      totalXp,
+      hasRack900Session,
+    });
+    allEggs = await getAllPokemonEggs();
+  } catch (eggErr) {
+    console.warn('Erreur chargement ou synchro oeufs Pokémon:', eggErr);
+  }
 
-  const allEggs = await getAllPokemonEggs();
   const incubatorSlots = computeIncubatorSlots(
     totalXp,
     totalSessions,

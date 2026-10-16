@@ -10,11 +10,13 @@ import {
   TextInput,
   Share,
   Linking,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { exportAllData, importDataFromFile } from '../../database/backupService';
+import { exportExercisesToJson, importExercisesFromJson } from '../../services/exerciseExportService';
 import { resetDatabase } from '../../database/db';
 import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
@@ -25,6 +27,7 @@ import { EQUIPMENTS } from '../../constants/muscles';
 import { getOrCreateTrainerProfile, getFriendsList } from '../../services/multiplayerService';
 import { getPersistedSession, logoutTrainer } from '../../services/authService';
 import { TrainerProfile } from '../../types/social';
+import { isSupabaseConfigured } from '../../services/supabaseClient';
 
 export default function SettingsScreen() {
   const {
@@ -71,17 +74,30 @@ export default function SettingsScreen() {
 
   const handleShareCode = async () => {
     if (!trainerProfile) return;
+    const msg = `Ajoute-moi sur Vitax pour comparer nos performances et progresser ensemble ! Mon Code Athlète : ${trainerProfile.friendCode}\nRejoins-moi sur l’application web : https://vitaxsport.vercel.app 🏆`;
     try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(trainerProfile.friendCode);
+        Alert.alert('Code copié ! 📋', `Votre Code Ami (${trainerProfile.friendCode}) a été copié dans le presse-papier.`);
+        return;
+      }
       await Share.share({
-        message: `Ajoute-moi sur Vitax pour comparer nos performances et échanger nos Pokémon ! Mon Code Dresseur : ${trainerProfile.friendCode} 🏆`,
+        message: msg,
       });
-    } catch {}
+    } catch {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(trainerProfile.friendCode);
+          Alert.alert('Code copié ! 📋', `Votre Code Ami (${trainerProfile.friendCode}) a été copié dans le presse-papier.`);
+        } catch {}
+      }
+    }
   };
 
   const handleTrainerLogout = () => {
     Alert.alert(
-      'Déconnexion Dresseur',
-      'Voulez-vous vous déconnecter de votre compte Dresseur partagé ?',
+      'Déconnexion',
+      'Voulez-vous vous déconnecter de votre compte partagé ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -171,6 +187,26 @@ export default function SettingsScreen() {
   const [savedHeightSuccess, setSavedHeightSuccess] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [exportingExercises, setExportingExercises] = useState(false);
+  const [importingExercises, setImportingExercises] = useState(false);
+  const [syncingCloud, setSyncingCloud] = useState(false);
+
+  const handleManualCloudSync = async () => {
+    setSyncingCloud(true);
+    try {
+      const { syncCloudAndLocal } = await import('../../services/cloudSyncService');
+      await syncCloudAndLocal();
+      await loadTrainerData();
+      Alert.alert(
+        'Synchronisation terminée ✅',
+        'Toutes vos données (séances, séries, poids, favoris et progression) ont été synchronisées avec la base centrale cloud.'
+      );
+    } catch (err: any) {
+      Alert.alert('Erreur de synchronisation', err?.message || 'Impossible de synchroniser avec le cloud.');
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
 
   const handleSaveName = async () => {
     await setUserName(currentName);
@@ -231,6 +267,48 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleExportExercises = async () => {
+    setExportingExercises(true);
+    const res = await exportExercisesToJson();
+    setExportingExercises(false);
+
+    if (res.success) {
+      Alert.alert(
+        'Exportation réussie ✅',
+        `Les ${res.total || 106} exercices du catalogue Vitax (avec fiches posturales, risques, charges adaptées et sous-muscles) ont été exportés dans le fichier :\n${res.fileName || 'vitax_exercices_qualifies.json'}`
+      );
+    } else {
+      Alert.alert('Erreur d’exportation', res.error || 'Impossible d’exporter les fiches d’exercices.');
+    }
+  };
+
+  const handleImportExercises = async () => {
+    Alert.alert(
+      'Mettre à jour les fiches d’exercices',
+      'L’importation va mettre à jour la qualification anatomique, les postures, objectifs et consignes de sécurité des exercices à partir de votre fichier JSON retravaillé. Continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Sélectionner le fichier JSON',
+          onPress: async () => {
+            setImportingExercises(true);
+            const res = await importExercisesFromJson();
+            setImportingExercises(false);
+
+            if (res.success) {
+              Alert.alert(
+                'Mise à jour réussie 🎉',
+                `${res.total || 0} fiches d’exercices ont été mises à jour avec succès dans votre application !`
+              );
+            } else if (res.error !== 'Opération annulée') {
+              Alert.alert('Erreur d’importation', res.error || 'Échec de la mise à jour des exercices.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleResetData = () => {
     Alert.alert(
       'Réinitialiser toutes les données',
@@ -251,7 +329,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Badge Réseau & Synchronisation Dresseurs */}
+      {/* Badge Réseau & Synchronisation Athlètes */}
       <Card style={styles.offlineCard}>
         <View style={styles.offlineHeader}>
           <Text style={styles.offlineIcon}>🌐</Text>
@@ -267,7 +345,7 @@ export default function SettingsScreen() {
       {/* Section Profil & Identité */}
       <Text style={styles.sectionHeader}>PROFIL & ATHLÈTE</Text>
 
-      {/* Carte Compte Dresseur & Code Ami */}
+      {/* Carte Compte Athlète & Code Ami */}
       {trainerProfile && (
         <Card style={styles.trainerCard}>
           <View style={styles.trainerHeaderRow}>
@@ -301,7 +379,7 @@ export default function SettingsScreen() {
 
           <View style={styles.trainerMetaRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.trainerMetaLabel}>Code Ami Dresseur :</Text>
+              <Text style={styles.trainerMetaLabel}>Code Ami Athlète :</Text>
               <Text style={styles.trainerMetaCode}>{trainerProfile.friendCode}</Text>
             </View>
             <TouchableOpacity style={styles.trainerShareBtn} onPress={handleShareCode} activeOpacity={0.8}>
@@ -621,6 +699,64 @@ export default function SettingsScreen() {
         />
       </Card>
 
+      {/* Section Gestion et Retravail des Fiches d'Exercices */}
+      <Text style={styles.sectionHeader}>CATALOGUE & FICHES D’EXERCICES</Text>
+
+      <Card style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <Text style={styles.label}>Qualification & Fiches Techniques</Text>
+          <Badge label="106 Exercices" color="rgba(6, 182, 212, 0.2)" textColor="#06B6D4" />
+        </View>
+        <Text style={styles.sublabel}>
+          Exportez l’intégralité des données d’exercices (anatomie détaillée, postures, objectifs, charges recommandées, consignes de sécurité et niveaux de risque) dans un fichier JSON pour les auditer et les retravailler sur ordinateur.
+        </Text>
+        <Button
+          title={exportingExercises ? 'Génération du catalogue...' : '📥 Exporter les 106 fiches d’exercices (JSON)'}
+          variant="outline"
+          onPress={handleExportExercises}
+          loading={exportingExercises}
+          style={{ marginTop: 12 }}
+        />
+
+        <View style={styles.divider} />
+
+        <Text style={styles.label}>Importer vos fiches retravaillées</Text>
+        <Text style={styles.sublabel}>
+          Réinjectez votre fichier JSON modifié pour mettre à jour instantanément la base de données et les guides techniques de Vitax.
+        </Text>
+        <Button
+          title={importingExercises ? 'Mise à jour en cours...' : '📤 Importer / Mettre à jour les fiches (JSON)'}
+          variant="secondary"
+          onPress={handleImportExercises}
+          loading={importingExercises}
+          style={{ marginTop: 12 }}
+        />
+      </Card>
+
+      {/* Section Synchronisation Multi-appareils Cloud */}
+      <Text style={styles.sectionHeader}>SYNCHRONISATION MULTI-APPAREILS (CLOUD)</Text>
+
+      <Card style={styles.card}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <Text style={styles.label}>Base partagée Mobile & Web</Text>
+          <Badge
+            label={isSupabaseConfigured() ? 'Connecté' : 'Non configuré'}
+            color={isSupabaseConfigured() ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)'}
+            textColor={isSupabaseConfigured() ? '#4ADE80' : '#FACC15'}
+          />
+        </View>
+        <Text style={styles.sublabel}>
+          Synchronise instantanément vos séances, séries, poids, objectifs et XP entre votre smartphone et l’application web vitaxsport.vercel.app.
+        </Text>
+        <Button
+          title={syncingCloud ? 'Synchronisation en cours...' : '🔄 Synchroniser avec le Cloud maintenant'}
+          variant="primary"
+          onPress={handleManualCloudSync}
+          loading={syncingCloud}
+          style={{ marginTop: 12 }}
+        />
+      </Card>
+
       {/* Section Zone de danger */}
       <Text style={[styles.sectionHeader, { color: Colors.danger }]}>ZONE DE DANGER</Text>
 
@@ -637,43 +773,47 @@ export default function SettingsScreen() {
         />
       </Card>
 
-      {/* Section Mises à jour de l'application */}
-      <Text style={styles.sectionHeader}>MISES À JOUR DE L’APPLICATION</Text>
+      {/* Section Mises à jour de l'application (Masquée sur le Web car non applicable) */}
+      {Platform.OS !== 'web' && (
+        <>
+          <Text style={styles.sectionHeader}>MISES À JOUR DE L’APPLICATION</Text>
 
-      <Card style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Text style={styles.label}>Mises à jour en direct (OTA)</Text>
-          <Badge
-            label={Updates.isEnabled ? 'Prêt (EAS)' : 'Non actif'}
-            color={Updates.isEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
-            textColor={Updates.isEnabled ? Colors.success : Colors.danger}
-          />
-        </View>
+          <Card style={styles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={styles.label}>Mises à jour en direct (OTA)</Text>
+              <Badge
+                label={Updates.isEnabled ? 'Prêt (EAS)' : 'Non actif'}
+                color={Updates.isEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
+                textColor={Updates.isEnabled ? Colors.success : Colors.danger}
+              />
+            </View>
 
-        <Text style={styles.sublabel}>
-          Téléchargez les nouveaux modes, écrans et correctifs sans réinstaller l’APK.
-        </Text>
+            <Text style={styles.sublabel}>
+              Téléchargez les nouveaux modes, écrans et correctifs sans réinstaller l’APK.
+            </Text>
 
-        <View style={styles.updateInfoBox}>
-          <Text style={styles.updateInfoRow}>
-            Canal : <Text style={styles.updateInfoVal}>{Updates.channel || 'preview'}</Text>
-          </Text>
-          <Text style={styles.updateInfoRow}>
-            Version Runtime : <Text style={styles.updateInfoVal}>{Updates.runtimeVersion || '1.0.0'}</Text>
-          </Text>
-          <Text style={styles.updateInfoRow}>
-            Mise à jour active : <Text style={styles.updateInfoVal}>{Updates.updateId ? `${Updates.updateId.substring(0, 10)}...` : 'Version de base'}</Text>
-          </Text>
-        </View>
+            <View style={styles.updateInfoBox}>
+              <Text style={styles.updateInfoRow}>
+                Canal : <Text style={styles.updateInfoVal}>{Updates.channel || 'preview'}</Text>
+              </Text>
+              <Text style={styles.updateInfoRow}>
+                Version Runtime : <Text style={styles.updateInfoVal}>{Updates.runtimeVersion || '1.0.0'}</Text>
+              </Text>
+              <Text style={styles.updateInfoRow}>
+                Mise à jour active : <Text style={styles.updateInfoVal}>{Updates.updateId ? `${Updates.updateId.substring(0, 10)}...` : 'Version de base'}</Text>
+              </Text>
+            </View>
 
-        <Button
-          title={checkingUpdate ? 'Recherche en cours...' : '🔄 Vérifier les mises à jour en direct'}
-          variant="primary"
-          onPress={handleCheckUpdate}
-          disabled={checkingUpdate}
-          style={{ marginTop: 12 }}
-        />
-      </Card>
+            <Button
+              title={checkingUpdate ? 'Recherche en cours...' : '🔄 Vérifier les mises à jour en direct'}
+              variant="primary"
+              onPress={handleCheckUpdate}
+              disabled={checkingUpdate}
+              style={{ marginTop: 12 }}
+            />
+          </Card>
+        </>
+      )}
 
       {/* Footer À propos */}
       <View style={styles.footer}>

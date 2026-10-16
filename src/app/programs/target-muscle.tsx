@@ -28,11 +28,19 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { ExerciseIllustration } from '../../components/common/ExerciseIllustration';
+import {
+  getFavoriteExerciseIds,
+  toggleFavoriteExercise,
+} from '../../services/favoritesService';
+import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
 
 export default function TargetMuscleScreen() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [guideModalVisible, setGuideModalVisible] = useState(false);
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
 
   // Sélections
   const [selectedZoneId, setSelectedZoneId] = useState<BodyZoneId>('upper');
@@ -55,16 +63,24 @@ export default function TargetMuscleScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [exList, progList] = await Promise.all([
+      const [exList, progList, favs] = await Promise.all([
         getAllExercises(),
         getAllPrograms(),
+        getFavoriteExerciseIds(),
       ]);
       setExercises(exList);
       setPrograms(progList);
+      setFavoriteIds(favs);
     } catch (err) {
       console.error('Erreur chargement ciblage musculaire:', err);
     }
   }, []);
+
+  const handleToggleFavorite = async (exerciseId: string) => {
+    await toggleFavoriteExercise(exerciseId);
+    const updated = await getFavoriteExerciseIds();
+    setFavoriteIds(updated);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -163,6 +179,12 @@ export default function TargetMuscleScreen() {
   // Lancement d'un programme sélectionné
   const handleStartProgram = async (programId: string) => {
     await startWorkoutFromProgram(programId);
+    router.push('/workout/active');
+  };
+
+  // Lancement direct d'un exercice individuel
+  const handleStartSingleExercise = async (exercise: Exercise) => {
+    await startTargetedWorkout(exercise.name, [exercise]);
     router.push('/workout/active');
   };
 
@@ -471,14 +493,29 @@ export default function TargetMuscleScreen() {
               <Card key={exercise.id} style={styles.exerciseCard}>
                 <View style={styles.exerciseCardRow}>
                   {/* Illustration vectorielle */}
-                  <ExerciseIllustration
-                    targetMuscle={exercise.target_muscle}
-                    exerciseId={exercise.id}
-                    size={72}
-                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedGuideExercise(exercise);
+                      setGuideModalVisible(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <ExerciseIllustration
+                      targetMuscle={exercise.target_muscle}
+                      exerciseId={exercise.id}
+                      size={64}
+                    />
+                  </TouchableOpacity>
 
                   {/* Infos exercice */}
-                  <View style={styles.exerciseInfo}>
+                  <TouchableOpacity
+                    style={styles.exerciseInfo}
+                    onPress={() => {
+                      setSelectedGuideExercise(exercise);
+                      setGuideModalVisible(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
                     <Text style={styles.exerciseName}>{exercise.name}</Text>
                     <View style={styles.badgesRow}>
                       <Badge
@@ -495,6 +532,46 @@ export default function TargetMuscleScreen() {
                     <Text style={styles.exerciseDesc} numberOfLines={2}>
                       {exercise.description}
                     </Text>
+                  </TouchableOpacity>
+
+                  {/* Actions droite : Lancer, Guide & Favori */}
+                  <View style={styles.exerciseActionBtns}>
+                    <TouchableOpacity
+                      onPress={() => handleStartSingleExercise(exercise)}
+                      style={styles.startExerciseCardBtn}
+                      activeOpacity={0.8}
+                      accessibilityLabel={`Démarrer ${exercise.name}`}
+                    >
+                      <Text style={styles.startExerciseCardBtnText}>Lancer ▶</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.miniIconsRow}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedGuideExercise(exercise);
+                          setGuideModalVisible(true);
+                        }}
+                        style={styles.guideCardBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.guideCardBtnIcon}>ℹ️</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => handleToggleFavorite(exercise.id)}
+                        style={[
+                          styles.favoriteCardBtn,
+                          favoriteIds.includes(exercise.id) && styles.favoriteCardBtnActive,
+                        ]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.favoriteCardBtnIcon}>
+                          {favoriteIds.includes(exercise.id) ? '⭐' : '☆'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </Card>
@@ -502,6 +579,13 @@ export default function TargetMuscleScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Guide d'exécution technique */}
+      <ExerciseGuideModal
+        visible={guideModalVisible}
+        exercise={selectedGuideExercise}
+        onClose={() => setGuideModalVisible(false)}
+      />
     </View>
   );
 }
@@ -664,7 +748,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   expressStartBanner: {
-    backgroundColor: '#FF5A1F',
+    backgroundColor: Colors.primary,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
@@ -691,18 +775,18 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   expressTitle: {
-    color: '#FFFFFF',
+    color: Colors.primaryText,
     fontSize: 16,
     fontWeight: '900',
   },
   expressSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(8, 12, 20, 0.85)',
     fontSize: 12,
     marginTop: 2,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   expressArrow: {
-    color: '#FFFFFF',
+    color: Colors.primaryText,
     fontSize: 18,
     fontWeight: '900',
     marginLeft: 8,
@@ -779,6 +863,60 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
+  },
+  exerciseActionBtns: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginLeft: 8,
+  },
+  startExerciseCardBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  startExerciseCardBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  miniIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  guideCardBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guideCardBtnIcon: {
+    fontSize: 14,
+  },
+  favoriteCardBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favoriteCardBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: 'rgba(245, 158, 11, 0.6)',
+  },
+  favoriteCardBtnIcon: {
+    fontSize: 15,
   },
   emptyCard: {
     padding: 24,

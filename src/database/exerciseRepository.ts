@@ -52,7 +52,7 @@ export async function getLastPerformanceForExercise(
     `SELECT ws.weight, ws.reps
      FROM workout_sets ws
      JOIN workout_sessions s ON s.id = ws.workout_session_id
-     WHERE ws.exercise_id = ? AND ws.completed = 1
+     WHERE ws.exercise_id = ? AND (ws.completed = 1 OR ws.completed = '1' OR ws.completed = true OR ws.completed IS NULL)
      ORDER BY s.date DESC, ws.set_order DESC
      LIMIT 1`,
     [exerciseId]
@@ -80,7 +80,7 @@ export async function getExerciseProgression(
        ws.reps
      FROM workout_sets ws
      JOIN workout_sessions s ON s.id = ws.workout_session_id
-     WHERE ws.exercise_id = ? AND ws.completed = 1
+     WHERE ws.exercise_id = ? AND (ws.completed = 1 OR ws.completed = '1' OR ws.completed = true OR ws.completed IS NULL)
      ORDER BY s.date ASC`,
     [exerciseId]
   );

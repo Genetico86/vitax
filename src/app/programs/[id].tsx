@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { getProgramById, deleteCustomProgram } from '../../database/programRepository';
@@ -17,12 +18,25 @@ import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { ExerciseIllustration } from '../../components/common/ExerciseIllustration';
 import { getExerciseUnitInfo } from '../../utils/exerciseUnits';
+import {
+  getFavoriteExerciseIds,
+  toggleFavoriteExercise,
+} from '../../services/favoritesService';
+import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
 
 export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [program, setProgram] = useState<Program | null>(null);
   const [exercises, setExercises] = useState<ProgramExerciseDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [guideModalVisible, setGuideModalVisible] = useState(false);
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<{
+    id: string;
+    name: string;
+    target_muscle?: string;
+    equipment_needed?: string;
+  } | null>(null);
 
   const startWorkoutFromProgram = useWorkoutSessionStore(
     (state) => state.startWorkoutFromProgram
@@ -38,8 +52,19 @@ export default function ProgramDetailScreen() {
       }
       setLoading(false);
     }
+    async function loadFavorites() {
+      const favs = await getFavoriteExerciseIds();
+      setFavoriteIds(favs);
+    }
     load();
+    loadFavorites();
   }, [id]);
+
+  const handleToggleFavorite = async (exerciseId: string) => {
+    await toggleFavoriteExercise(exerciseId);
+    const updated = await getFavoriteExerciseIds();
+    setFavoriteIds(updated);
+  };
 
   if (loading) {
     return (
@@ -122,17 +147,73 @@ export default function ProgramDetailScreen() {
           <Card key={item.id || idx} style={styles.exerciseCard}>
             <View style={styles.exerciseHeader}>
               <Text style={styles.exerciseIndex}>{idx + 1}</Text>
-              <ExerciseIllustration
-                exerciseId={item.exercise_id}
-                targetMuscle={item.target_muscle}
-                size={46}
-              />
-              <View style={{ flex: 1, marginLeft: 10 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedGuideExercise({
+                    id: item.exercise_id,
+                    name: item.name,
+                    target_muscle: item.target_muscle,
+                    equipment_needed: item.equipment_needed,
+                  });
+                  setGuideModalVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <ExerciseIllustration
+                  exerciseId={item.exercise_id}
+                  targetMuscle={item.target_muscle}
+                  size={46}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, marginLeft: 10 }}
+                onPress={() => {
+                  setSelectedGuideExercise({
+                    id: item.exercise_id,
+                    name: item.name,
+                    target_muscle: item.target_muscle,
+                    equipment_needed: item.equipment_needed,
+                  });
+                  setGuideModalVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.exerciseName}>{item.name}</Text>
                 <Text style={styles.exerciseMeta}>
                   {item.target_muscle} • {item.equipment_needed}
                 </Text>
-              </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedGuideExercise({
+                    id: item.exercise_id,
+                    name: item.name,
+                    target_muscle: item.target_muscle,
+                    equipment_needed: item.equipment_needed,
+                  });
+                  setGuideModalVisible(true);
+                }}
+                style={styles.guideCardBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.guideCardBtnIcon}>ℹ️</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleToggleFavorite(item.exercise_id)}
+                style={[
+                  styles.favoriteCardBtn,
+                  favoriteIds.includes(item.exercise_id) && styles.favoriteCardBtnActive,
+                ]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.favoriteCardBtnIcon}>
+                  {favoriteIds.includes(item.exercise_id) ? '⭐' : '☆'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {item.description ? (
@@ -182,6 +263,13 @@ export default function ProgramDetailScreen() {
           />
         )}
       </ScrollView>
+
+      {/* Modal du guide d'exécution technique */}
+      <ExerciseGuideModal
+        visible={guideModalVisible}
+        exercise={selectedGuideExercise}
+        onClose={() => setGuideModalVisible(false)}
+      />
     </View>
   );
 }
@@ -290,5 +378,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     marginTop: 2,
+  },
+  guideCardBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  guideCardBtnIcon: {
+    fontSize: 15,
+  },
+  favoriteCardBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  favoriteCardBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: 'rgba(245, 158, 11, 0.6)',
+  },
+  favoriteCardBtnIcon: {
+    fontSize: 16,
   },
 });

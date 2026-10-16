@@ -54,6 +54,8 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getTextStyle = () => {
     switch (variant) {
+      case 'primary':
+        return styles.primaryText;
       case 'outline':
         return styles.outlineText;
       case 'ghost':
@@ -101,7 +103,15 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? Colors.primary : Colors.text} />
+        <ActivityIndicator
+          color={
+            variant === 'outline'
+              ? Colors.primary
+              : variant === 'primary'
+              ? Colors.primaryText
+              : Colors.text
+          }
+        />
       ) : (
         <>
           {icon}
@@ -180,8 +190,13 @@ const styles = StyleSheet.create({
   lgText: {
     fontSize: 18,
   },
+  primaryText: {
+    color: Colors.primaryText,
+    fontWeight: '900',
+  },
   defaultText: {
     color: '#FFFFFF',
+    fontWeight: '800',
   },
   secondaryText: {
     color: Colors.text,

@@ -1,10 +1,11 @@
 import { getDatabase } from './db';
 import { FitnessGoal, GoalCategory } from '../types';
 import { getLatestWeightLog } from './weightRepository';
+import { syncFitnessGoalToCloud, fetchFitnessGoalsFromCloud } from '../services/cloudSyncService';
 
 export async function getAllGoals(): Promise<FitnessGoal[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<FitnessGoal>(`
+  let rows = await db.getAllAsync<FitnessGoal>(`
     SELECT
       g.*,
       e.name AS exercise_name
@@ -12,6 +13,44 @@ export async function getAllGoals(): Promise<FitnessGoal[]> {
     LEFT JOIN exercises e ON e.id = g.exercise_id
     ORDER BY g.completed ASC, g.created_at DESC
   `);
+
+  if (rows.length === 0) {
+    try {
+      const cloudGoals = await fetchFitnessGoalsFromCloud();
+      if (cloudGoals.length > 0) {
+        for (const g of cloudGoals) {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO fitness_goals (
+               id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?)`,
+            [
+              g.id,
+              g.title,
+              g.category,
+              g.target_value,
+              g.starting_value || 0,
+              g.current_value,
+              g.unit || 'kg',
+              g.target_date || null,
+              g.completed ? 1 : 0,
+              g.created_at || new Date().toISOString(),
+            ]
+          );
+        }
+        rows = await db.getAllAsync<FitnessGoal>(`
+          SELECT
+            g.*,
+            e.name AS exercise_name
+          FROM fitness_goals g
+          LEFT JOIN exercises e ON e.id = g.exercise_id
+          ORDER BY g.completed ASC, g.created_at DESC
+        `);
+      }
+    } catch (err) {
+      console.warn('Erreur synchro cloud objectifs:', err);
+    }
+  }
+
   return rows;
 }
 
@@ -56,6 +95,15 @@ export async function setTargetWeightGoal(
         existing.id,
       ]
     );
+
+    void syncFitnessGoalToCloud({
+      ...existing,
+      target_value: targetWeight,
+      current_value: currentWeight,
+      target_date: targetDate,
+      completed: isCompleted ? 1 : 0,
+    });
+
     return existing.id;
   }
 
@@ -76,6 +124,19 @@ export async function setTargetWeightGoal(
       now,
     ]
   );
+
+  void syncFitnessGoalToCloud({
+    id,
+    title: `Poids cible : ${targetWeight} kg`,
+    category: 'weight',
+    target_value: targetWeight,
+    starting_value: initialWeight,
+    current_value: currentWeight,
+    unit: 'kg',
+    target_date: targetDate,
+    completed: isCompleted ? 1 : 0,
+    created_at: now,
+  });
 
   return id;
 }
@@ -117,6 +178,20 @@ export async function createGoal(input: {
       now,
     ]
   );
+
+  void syncFitnessGoalToCloud({
+    id,
+    title: input.title,
+    category: input.category,
+    target_value: input.target_value,
+    starting_value: input.starting_value,
+    current_value: currentValue,
+    unit,
+    target_date: input.target_date,
+    exercise_id: input.exercise_id,
+    completed: isCompleted ? 1 : 0,
+    created_at: now,
+  });
 
   return id;
 }
@@ -180,7 +255,7 @@ export async function syncGoalsWithUserRecords(): Promise<void> {
       const maxRow = await db.getFirstAsync<{ max_weight: number | null }>(
         `SELECT MAX(weight) AS max_weight
          FROM workout_sets
-         WHERE exercise_id = ? AND completed = 1`,
+         WHERE exercise_id = ? AND (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)`,
         [goal.exercise_id]
       );
       if (maxRow && maxRow.max_weight !== null && maxRow.max_weight > 0) {

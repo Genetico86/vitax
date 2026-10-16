@@ -12,9 +12,9 @@ import {
 import { getProgramById } from '../database/programRepository';
 import { getLastPerformanceForExercise } from '../database/exerciseRepository';
 import { saveWorkoutSession } from '../database/workoutRepository';
-import { calculateSessionXp } from '../services/gamificationService';
 import { distributeWorkoutXpToIncubators } from '../services/pokemonEggService';
 import { useSettingsStore } from './settingsStore';
+import { computeSetXp, claimDailyWorkoutBonus } from '../services/exerciseWeightingService';
 
 interface RestTimerState {
   isRunning: boolean;
@@ -33,6 +33,7 @@ interface WorkoutSessionState {
   notes: string;
   exercises: ActiveWorkoutExerciseItem[];
   restTimer: RestTimerState;
+  activeSessionXp: number;
   lastCompletedSession: {
     session: WorkoutSession;
     sets: WorkoutSet[];
@@ -76,6 +77,25 @@ interface WorkoutSessionState {
   setNotes: (notes: string) => void;
 }
 
+function computeSessionXpFromExercises(exercises: ActiveWorkoutExerciseItem[]): number {
+  let sessionXp = 0;
+  exercises.forEach((ex) => {
+    ex.sets.forEach((s) => {
+      if (s.completed || (s.weight > 0 && s.reps > 0)) {
+        const computed = computeSetXp({
+          exerciseName: ex.exercise.name,
+          targetMuscle: ex.exercise.target_muscle,
+          equipmentNeeded: ex.exercise.equipment_needed,
+          weight: s.weight || 0,
+          reps: s.reps || 0,
+        });
+        sessionXp += computed.totalSetXp;
+      }
+    });
+  });
+  return sessionXp;
+}
+
 export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => ({
   isActive: false,
   sessionId: null,
@@ -91,6 +111,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     remainingSeconds: 0,
     exerciseName: '',
   },
+  activeSessionXp: 0,
   lastCompletedSession: null,
 
   startWorkoutFromProgram: async (programId: string) => {
@@ -383,7 +404,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       targetEx.sets[setIndex].weight = Math.max(0, weight);
       targetEx.sets[setIndex].reps = Math.max(0, reps);
 
-      return { exercises: updated };
+      const liveXp = computeSessionXpFromExercises(updated);
+      return { exercises: updated, activeSessionXp: liveXp };
     });
   },
 
@@ -418,7 +440,8 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       }
     }
 
-    set({ exercises: updated });
+    const liveXp = computeSessionXpFromExercises(updated);
+    set({ exercises: updated, activeSessionXp: liveXp });
   },
 
   tickWorkoutTimer: () => {
@@ -534,17 +557,38 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     // Sauvegarde immédiate dans SQLite
     await saveWorkoutSession(session, allSets);
 
-    // Calcul de l'XP et distribution aux œufs en cours d'incubation
-    const xpSummary = calculateSessionXp(session);
+    // Calcul de l'XP biomécanique des séries + bonus journalier d'entraînement
+    const setsXp = computeSessionXpFromExercises(state.exercises);
+    let dailyBonusXp = 0;
+    if (completedCount > 0) {
+      try {
+        const bonusRes = await claimDailyWorkoutBonus();
+        if (bonusRes.awarded) {
+          dailyBonusXp = bonusRes.bonusXp;
+        }
+      } catch (bErr) {
+        console.warn('Erreur claimDailyWorkoutBonus:', bErr);
+      }
+    }
+
+    const totalEarnedXp = setsXp + dailyBonusXp;
     let hatchedPokemon: EggHatchResult[] = [];
     let incubatingEggsProgress: PokemonEgg[] = [];
 
     try {
-      const incubationResult = await distributeWorkoutXpToIncubators(xpSummary.totalXp);
+      const incubationResult = await distributeWorkoutXpToIncubators(totalEarnedXp);
       hatchedPokemon = incubationResult.newlyHatched;
       incubatingEggsProgress = incubationResult.updatedEggs;
     } catch (err) {
       console.error('Erreur distribution XP incubateurs:', err);
+    }
+
+    // Mise à jour immédiate du profil athlète (XP, séances, tonnage & ligue)
+    try {
+      const { updateTrainerProfileXpAndStats } = await import('../services/multiplayerService');
+      await updateTrainerProfileXpAndStats(totalEarnedXp, session.total_volume || 0);
+    } catch (err) {
+      console.warn('Erreur mise à jour XP profil:', err);
     }
 
     // Arrêt de la session active et enregistrement du résumé
@@ -557,6 +601,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       elapsedSeconds: 0,
       notes: '',
       exercises: [],
+      activeSessionXp: 0,
       restTimer: {
         isRunning: false,
         totalDuration: 90,

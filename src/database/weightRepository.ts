@@ -1,11 +1,40 @@
 import { getDatabase } from './db';
 import { BodyWeightLog, WeightProgressStats } from '../types';
+import { syncBodyWeightToCloud, fetchBodyWeightsFromCloud } from '../services/cloudSyncService';
 
 export async function getAllWeightLogs(): Promise<BodyWeightLog[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<BodyWeightLog>(
+  let rows = await db.getAllAsync<BodyWeightLog>(
     'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC'
   );
+
+  if (rows.length === 0) {
+    try {
+      const cloudWeights = await fetchBodyWeightsFromCloud();
+      if (cloudWeights.length > 0) {
+        for (const w of cloudWeights) {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              w.id,
+              w.weight,
+              w.date,
+              w.note || null,
+              w.body_fat_percentage || null,
+              w.created_at || new Date().toISOString(),
+            ]
+          );
+        }
+        rows = await db.getAllAsync<BodyWeightLog>(
+          'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC'
+        );
+      }
+    } catch (err) {
+      console.warn('Erreur synchro cloud poids:', err);
+    }
+  }
+
   return rows;
 }
 
@@ -58,6 +87,9 @@ export async function addWeightLog(
       newLog.created_at,
     ]
   );
+
+  // Synchronisation Cloud Supabase
+  void syncBodyWeightToCloud(newLog);
 
   return newLog;
 }

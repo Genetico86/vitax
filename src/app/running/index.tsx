@@ -49,6 +49,8 @@ export default function RunningScreen() {
   const [notesInput, setNotesInput] = useState('');
   const [savingLoading, setSavingLoading] = useState(false);
 
+  const [activityType, setActivityType] = useState<'running' | 'walking'>('running');
+
   // Chronomètre en direct
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -62,7 +64,7 @@ export default function RunningScreen() {
       const st = await getRunningStats();
       setStats(st);
     } catch (err) {
-      console.error('Erreur chargement course à pied:', err);
+      console.error('Erreur chargement course & marche:', err);
     }
   }, []);
 
@@ -108,7 +110,12 @@ export default function RunningScreen() {
 
   const handleStopAndSave = () => {
     if (timerSeconds < 10) {
-      Alert.alert('Chronomètre trop court', 'Courrez au moins quelques secondes avant de valider.');
+      Alert.alert(
+        'Chronomètre trop court',
+        activityType === 'walking'
+          ? 'Marchez au moins quelques secondes avant de valider.'
+          : 'Courrez au moins quelques secondes avant de valider.'
+      );
       return;
     }
     setIsTimerRunning(false);
@@ -124,10 +131,14 @@ export default function RunningScreen() {
 
     setSavingLoading(true);
     try {
+      const isWalk = activityType === 'walking';
+      const tag = isWalk ? '[Marche] ' : '';
+      const notesToSave = notesInput.trim() ? `${tag}${notesInput.trim()}` : (isWalk ? '[Marche]' : undefined);
+
       await createRunningSession({
         distance_km: dist,
         duration_seconds: timerSeconds,
-        notes: notesInput.trim() || undefined,
+        notes: notesToSave,
       });
 
       setFinishModalVisible(false);
@@ -137,11 +148,11 @@ export default function RunningScreen() {
       await loadData();
 
       Alert.alert(
-        'Course enregistrée ! 🏃‍♂️🔥',
+        isWalk ? 'Marche enregistrée ! 🚶‍♂️🔥' : 'Course enregistrée ! 🏃‍♂️🔥',
         `Superbe séance de ${dist} km en ${formatDuration(timerSeconds)} ! Vos points XP ont été attribués.`
       );
     } catch {
-      Alert.alert('Erreur', 'Impossible d’enregistrer la session de course.');
+      Alert.alert('Erreur', 'Impossible d’enregistrer la session.');
     } finally {
       setSavingLoading(false);
     }
@@ -164,10 +175,14 @@ export default function RunningScreen() {
 
     setSavingLoading(true);
     try {
+      const isWalk = activityType === 'walking';
+      const tag = isWalk ? '[Marche] ' : '';
+      const notesToSave = notesInput.trim() ? `${tag}${notesInput.trim()}` : (isWalk ? '[Marche]' : undefined);
+
       await createRunningSession({
         distance_km: dist,
         duration_seconds: totalSecs,
-        notes: notesInput.trim() || undefined,
+        notes: notesToSave,
       });
 
       setManualModalVisible(false);
@@ -178,7 +193,7 @@ export default function RunningScreen() {
       await loadData();
 
       Alert.alert(
-        'Sortie ajoutée ! 🏅',
+        isWalk ? 'Marche enregistrée ! 🚶‍♂️🏅' : 'Course enregistrée ! 🏃‍♂️🏅',
         `${dist} km validés avec une allure moyenne de ${formatPace(totalSecs / dist)}.`
       );
     } catch {
@@ -230,7 +245,7 @@ export default function RunningScreen() {
           <Text style={styles.backArrow}>❮</Text>
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Course à Pied & Endurance</Text>
+          <Text style={styles.headerTitle}>Course & Marche à Pied</Text>
           <Text style={styles.headerSubtitle}>Suivi des temps, allures et distances</Text>
         </View>
         <TouchableOpacity
@@ -258,13 +273,57 @@ export default function RunningScreen() {
           />
         }
       >
+        {/* Sélecteur d'activité : Course ou Marche */}
+        <View style={styles.activitySegmentContainer}>
+          <TouchableOpacity
+            style={[
+              styles.activitySegmentBtn,
+              activityType === 'running' && styles.activitySegmentBtnActive,
+            ]}
+            onPress={() => setActivityType('running')}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.activitySegmentText,
+                activityType === 'running' && styles.activitySegmentTextActive,
+              ]}
+            >
+              🏃‍♂️ Course à pied
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.activitySegmentBtn,
+              activityType === 'walking' && styles.activitySegmentBtnActive,
+            ]}
+            onPress={() => setActivityType('walking')}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.activitySegmentText,
+                activityType === 'walking' && styles.activitySegmentTextActive,
+              ]}
+            >
+              🚶‍♂️ Marche
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Module Chronomètre en Direct */}
         <Card style={styles.liveTimerCard}>
           <View style={styles.timerHeaderRow}>
             <View style={styles.timerBadge}>
               <View style={[styles.liveDot, isTimerRunning && styles.liveDotActive]} />
               <Text style={styles.timerBadgeText}>
-                {isTimerRunning ? 'COURSE EN DIRECT' : 'CHRONOMÈTRE DE SORTIE'}
+                {isTimerRunning
+                  ? activityType === 'walking'
+                    ? 'MARCHE EN DIRECT'
+                    : 'COURSE EN DIRECT'
+                  : activityType === 'walking'
+                  ? 'CHRONOMÈTRE DE MARCHE'
+                  : 'CHRONOMÈTRE DE SORTIE'}
               </Text>
             </View>
             <Text style={styles.livePaceEstimate}>
@@ -277,7 +336,13 @@ export default function RunningScreen() {
           <View style={styles.timerButtonsRow}>
             {!isTimerRunning ? (
               <Button
-                title={timerSeconds > 0 ? 'Reprendre ▶' : 'Démarrer la course ▶'}
+                title={
+                  timerSeconds > 0
+                    ? 'Reprendre ▶'
+                    : activityType === 'walking'
+                    ? 'Démarrer la marche ▶'
+                    : 'Démarrer la course ▶'
+                }
                 variant="primary"
                 size="md"
                 onPress={handleStartTimer}
@@ -623,6 +688,35 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  activitySegmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    gap: 6,
+  },
+  activitySegmentBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  activitySegmentBtnActive: {
+    backgroundColor: '#00E5FF22',
+    borderWidth: 1,
+    borderColor: '#00E5FF',
+  },
+  activitySegmentText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  activitySegmentTextActive: {
+    color: '#00E5FF',
   },
   liveTimerCard: {
     backgroundColor: '#0E1726',

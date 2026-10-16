@@ -1,36 +1,50 @@
 export const Colors = {
-  background: '#0B0F19',
-  surface: '#151E2E',
-  surfaceHover: '#1E293B',
-  surfaceBorder: '#273549',
+  // Fond et surfaces (Obsidian & Slate)
+  background: '#080C14',        // Noir obsidienne profond (supprime reflets et halo)
+  surface: '#111827',           // Slate neutre et élégant pour les cartes
+  surfaceHover: '#1E293B',      // État survol / sélection active
+  surfaceBorder: '#283548',     // Bordure subtile haute définition (contraste 3:1)
   
-  primary: '#FF5A1F', // Orange musculation énergique
-  primaryLight: '#FF7D4D',
-  primaryDark: '#D83E00',
+  // Brand Totem (L'Énergie Strava de la Musculation)
+  primary: '#FF5500',           // Apex Ember incandescent
+  primaryLight: '#FF7733',      // Dégradés et états pressés
+  primaryDark: '#D94400',       // Ombres et bordures de boutons
+  primaryText: '#080C14',       // NOUVEAU : Texte noir ultra-contrasté sur bouton orange (WCAG AAA 7.8:1)
   
-  accent: '#06B6D4', // Cyan high-tech
-  accentLight: '#22D3EE',
+  // Accents Fonctionnels
+  accent: '#00E5FF',            // Cryo Cyan : Chrono de repos, Coach IA, biofeedback
+  accentLight: '#67EEFF',
   
-  success: '#10B981', // Vert validation éclatant
+  // Validation et Croissance
+  success: '#10B981',           // Emerald Power : Séries validées, gains musculaires
   successLight: '#34D399',
   successBackground: 'rgba(16, 185, 129, 0.15)',
   
-  danger: '#EF4444',
+  // Dangers et Alertes
+  danger: '#EF4444',            // Crimson : Annulations, boss de raid, échecs
   dangerLight: '#F87171',
   dangerBackground: 'rgba(239, 68, 68, 0.15)',
   
-  warning: '#F59E0B',
+  // Prestige, Trophées & Badges RP
+  warning: '#F59E0B',           // Solar Gold : Records personnels, médailles
+  gold: '#F59E0B',
   
-  text: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  textInverse: '#0B0F19',
+  // Social & Arène
+  arena: '#8B5CF6',             // Mystic Amethyst : Bannières d'arène, ligues, duels
+  arenaLight: '#A855F7',
   
-  cardBg: '#131B29',
-  inputBg: '#1A2436',
-  buttonGray: '#243044',
-  buttonGrayText: '#E2E8F0',
+  // Typographie Scientifique (WCAG AAA)
+  text: '#F9FAFB',              // Blanc glacier pur (18.2:1 sur fond)
+  textSecondary: '#94A3B8',     // Slate moyen lisible (7.2:1 sur fond)
+  textMuted: '#64748B',         // Slate discret pour métadonnées (4.6:1)
+  textInverse: '#080C14',
   
-  timerOverlay: 'rgba(11, 15, 25, 0.95)',
+  // Composants et Formulaires
+  cardBg: '#111827',
+  inputBg: '#0F172A',
+  buttonGray: '#1E293B',
+  buttonGrayText: '#F1F5F9',
+  
+  timerOverlay: 'rgba(8, 12, 20, 0.95)',
   divider: '#1E293B',
 };

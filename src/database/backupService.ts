@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -54,6 +55,21 @@ export async function exportAllData(): Promise<{ success: boolean; filePath?: st
     const fileName = `vitax_sauvegarde_${new Date().toISOString().slice(0, 10)}.json`;
     const jsonString = JSON.stringify(backup, null, 2);
 
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      return { success: true, filePath: fileName };
+    }
+
     // Écriture du fichier dans le répertoire de cache
     const targetFile = new File(Paths.cache, fileName);
     if (targetFile.exists) {
@@ -94,8 +110,19 @@ export async function importDataFromFile(): Promise<{
     }
 
     const asset = pickerResult.assets[0];
-    const sourceFile = new File(asset.uri);
-    const content = await sourceFile.text();
+    let content = '';
+
+    if (Platform.OS === 'web') {
+      if ((asset as any).file && typeof (asset as any).file.text === 'function') {
+        content = await (asset as any).file.text();
+      } else if (asset.uri) {
+        const res = await fetch(asset.uri);
+        content = await res.text();
+      }
+    } else {
+      const sourceFile = new File(asset.uri);
+      content = await sourceFile.text();
+    }
 
     const backupData: BackupData = JSON.parse(content);
 

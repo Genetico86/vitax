@@ -77,11 +77,11 @@ export function getSportsScienceParams(
         compoundRpe: 'RPE 8.5',
         isolationRpe: 'RPE 8',
         warmupTip:
-          '5 min d’activation cardio progressive (montées de genoux, sautillements) pour élever la fréquence cardiaque à 65% FCM.',
+          '5 min d’activation cardio progressive (montées de genoux, air squats, sautillements) pour élever la fréquence cardiaque à 65% FCM.',
         cooldownTip:
-          'Marche lente et retour progressif de la fréquence cardiaque en dessous de 100 bpm.',
+          'Marche lente et retour progressif de la fréquence cardiaque en dessous de 100 bpm avec respiration diaphragmatique profonde.',
         rationale:
-          'Densité d’entraînement élevée provoquant une surconsommation d’oxygène post-exercice (effet EPOC) et une stimulation cardiovasculaire maximale.',
+          'Dépense calorique maximale et effet EPOC (surconsommation d’oxygène post-effort) : le travail dynamique à haute intensité avec des temps de repos courts (30s) optimise l’oxydation des graisses et maintient un métabolisme élevé pendant plusieurs heures après la séance.',
       };
 
     case 'endurance':

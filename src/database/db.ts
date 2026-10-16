@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import { CREATE_TABLES_SQL } from './schema';
 import seedData from './seedData.json';
@@ -5,13 +6,60 @@ import seedData from './seedData.json';
 const DATABASE_NAME = 'vitax.db';
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (dbInstance) {
+      dbInstance.closeAsync().catch(() => {});
+      dbInstance = null;
+    }
+  });
+}
+
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) {
     return dbInstance;
   }
-  dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);
-  await dbInstance.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-  return dbInstance;
+
+  const maxAttempts = Platform.OS === 'web' ? 3 : 1;
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      break;
+    } catch (err: any) {
+      lastError = err;
+      const msg = String(err?.message || err || '');
+      const isLockError =
+        msg.includes('NoModificationAllowed') ||
+        msg.includes('Access Handles') ||
+        msg.includes('createSyncAccessHandle');
+
+      if (Platform.OS === 'web' && isLockError && attempt < maxAttempts) {
+        // Attendre un court instant si l'autre fenêtre est en cours de fermeture
+        await new Promise((res) => setTimeout(res, 600 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (!dbInstance) {
+    throw lastError || new Error('Impossible d’ouvrir la base de données locale.');
+  }
+
+  const activeDb = dbInstance;
+
+  if (Platform.OS !== 'web') {
+    await activeDb.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+  } else {
+    try {
+      await activeDb.execAsync('PRAGMA foreign_keys = ON;');
+    } catch {
+      // Ignoré sur le web si non supporté
+    }
+  }
+  return activeDb;
 }
 
 export async function initDatabase(): Promise<void> {

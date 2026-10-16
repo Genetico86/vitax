@@ -20,11 +20,11 @@ export function sanitizeUsername(username: string): string {
 }
 
 /**
- * Génère un code ami au format VTX-XXXX (ex: VTX-4821)
+ * Génère un code ami unique à 5 chiffres (ex: 48219)
  */
 export function generateFriendCode(): string {
-  const digits = Math.floor(1000 + Math.random() * 9000);
-  return `VTX-${digits}`;
+  const digits = Math.floor(10000 + Math.random() * 90000);
+  return `${digits}`;
 }
 
 /**
@@ -49,8 +49,8 @@ export async function savePersistedSession(session: AuthSession): Promise<void> 
 }
 
 /**
- * Inscription d'un nouveau Dresseur avec Nom d'utilisateur + Mot de passe
- * (Aucune mention de Supabase côté utilisateur)
+ * Inscription d'un Athlète avec Nom d'utilisateur + Mot de passe
+ * Enregistre le compte et son mot de passe directement dans public.profiles (consultable par l'administrateur dans Supabase)
  */
 export async function registerTrainer(
   username: string,
@@ -65,15 +65,14 @@ export async function registerTrainer(
   }
 
   const cleanUser = sanitizeUsername(trimmedName);
-  const internalEmail = `${cleanUser}@vitax.app`;
   const friendCode = generateFriendCode();
-  const userId = `vtx_${Date.now()}_${cleanUser}`;
+  const userId = `vtx_${cleanUser}`;
 
   const initialProfile: TrainerProfile = {
     id: userId,
     username: trimmedName,
     friendCode,
-    trainerTitle: 'Dresseur Rookie',
+    trainerTitle: 'Athlète Vitax',
     avatarPokemonId: 'pikachu',
     avatarPokemonEmoji: '⚡',
     currentLeague: 'pierre',
@@ -82,27 +81,29 @@ export async function registerTrainer(
     createdAt: new Date().toISOString(),
   };
 
-  // 1. Enregistrement Supabase si configuré
+  // 1. Enregistrement central dans Supabase (table public.profiles avec mot de passe lisible)
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: internalEmail,
-          password,
-        });
+        // Vérifier si le nom d'utilisateur est déjà pris (insensible à la casse)
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .ilike('username', trimmedName);
 
-        if (authError && !authError.message.includes('already registered')) {
-          console.warn('Erreur Supabase signUp:', authError.message);
+        if (existing && existing.length > 0) {
+          return {
+            success: false,
+            error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
+          };
         }
 
-        const effectiveUserId = authData?.user?.id || userId;
-        initialProfile.id = effectiveUserId;
-
-        // Upsert dans la table profiles
-        await supabase.from('profiles').upsert({
-          id: effectiveUserId,
+        // Insérer le profil avec son mot de passe
+        const { error: insertErr } = await supabase.from('profiles').insert({
+          id: userId,
           username: trimmedName,
+          password: password,
           friend_code: friendCode,
           trainer_title: initialProfile.trainerTitle,
           avatar_pokemon_id: initialProfile.avatarPokemonId,
@@ -110,14 +111,52 @@ export async function registerTrainer(
           current_league: initialProfile.currentLeague,
           total_xp: 0,
           total_workouts: 0,
+          created_at: initialProfile.createdAt,
+          updated_at: initialProfile.createdAt,
         });
-      } catch (e: any) {
-        console.warn('Connexion serveur indisponible, inscription locale sécurisée:', e?.message);
+
+        if (insertErr) {
+          if (
+            insertErr.code === '23505' ||
+            insertErr.message.includes('unique') ||
+            insertErr.message.includes('duplicate')
+          ) {
+            return {
+              success: false,
+              error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
+            };
+          }
+
+          console.warn('Erreur insertion profil Supabase:', insertErr.message);
+          // Si la colonne password n'existe pas encore dans Supabase, tenter sans bloquer
+          if (insertErr.message.includes('password')) {
+            const { error: fallbackErr } = await supabase.from('profiles').insert({
+              id: userId,
+              username: trimmedName,
+              friend_code: friendCode,
+              trainer_title: initialProfile.trainerTitle,
+              avatar_pokemon_id: initialProfile.avatarPokemonId,
+              avatar_pokemon_emoji: initialProfile.avatarPokemonEmoji,
+              current_league: initialProfile.currentLeague,
+              total_xp: 0,
+              total_workouts: 0,
+            });
+
+            if (fallbackErr && (fallbackErr.code === '23505' || fallbackErr.message.includes('unique'))) {
+              return {
+                success: false,
+                error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
+              };
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('Exception inscription Supabase:', err?.message);
       }
     }
   }
 
-  // 2. Sauvegarde locale persistante (Session + Profil + Identifiants)
+  // 2. Persistance locale
   const session: AuthSession = {
     userId: initialProfile.id,
     username: trimmedName,
@@ -133,18 +172,22 @@ export async function registerTrainer(
     JSON.stringify({ username: trimmedName, password })
   );
 
-  // Synchroniser le nom dans le store pour la salutation
   try {
     await useSettingsStore.getState().setUserName(trimmedName);
-  } catch (e) {
-    console.warn('Erreur synchro store nom:', e);
-  }
+  } catch {}
+
+  // Rapatrier / synchroniser avec le cloud
+  try {
+    const { fullCloudSyncToLocal } = await import('./cloudSyncService');
+    void fullCloudSyncToLocal();
+  } catch {}
 
   return { success: true, profile: initialProfile };
 }
 
 /**
- * Connexion d'un Dresseur existant avec Nom d'utilisateur + Mot de passe
+ * Connexion d'un Athlète avec Nom d'utilisateur + Mot de passe
+ * Vérifie les identifiants directement dans la table public.profiles de Supabase
  */
 export async function loginTrainer(
   username: string,
@@ -156,57 +199,66 @@ export async function loginTrainer(
   }
 
   const cleanUser = sanitizeUsername(trimmedName);
-  const internalEmail = `${cleanUser}@vitax.app`;
 
-  // 1. Tenter la connexion Supabase si configuré
+  // 1. Vérification dans la base centrale Supabase
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: internalEmail,
-          password,
-        });
+        const { data: rows, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('username', trimmedName);
 
-        if (!authError && authData?.user) {
-          // Récupérer le profil depuis Supabase
-          const { data: remoteProfile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
+        if (!error && rows && rows.length > 0) {
+          const userRecord = rows[0];
 
-          const loadedProfile: TrainerProfile = remoteProfile
-            ? {
-                id: remoteProfile.id,
-                username: remoteProfile.username || trimmedName,
-                friendCode: remoteProfile.friend_code || generateFriendCode(),
-                trainerTitle: remoteProfile.trainer_title || 'Athlète Vitax',
-                avatarPokemonId: remoteProfile.avatar_pokemon_id || 'pikachu',
-                avatarPokemonEmoji: remoteProfile.avatar_pokemon_emoji || '⚡',
-                currentLeague: remoteProfile.current_league || 'pierre',
-                totalXp: remoteProfile.total_xp || 0,
-                totalWorkouts: remoteProfile.total_workouts || 0,
-                createdAt: remoteProfile.created_at || new Date().toISOString(),
-              }
-            : {
-                id: authData.user.id,
-                username: trimmedName,
-                friendCode: generateFriendCode(),
-                trainerTitle: 'Athlète Vitax',
-                avatarPokemonId: 'pikachu',
-                avatarPokemonEmoji: '⚡',
-                currentLeague: 'pierre',
-                totalXp: 0,
-                totalWorkouts: 0,
-                createdAt: new Date().toISOString(),
-              };
+          // Si un mot de passe est enregistré dans Supabase, le vérifier
+          if (userRecord.password && userRecord.password !== password) {
+            return { success: false, error: 'Mot de passe incorrect.' };
+          }
+
+          // Si aucun mot de passe n'était encore renseigné (compte déjà existant), on l'enregistre maintenant
+          if (!userRecord.password) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({ password })
+                .eq('id', userRecord.id);
+            } catch {}
+          }
+
+          const safeCode =
+            userRecord.friend_code && userRecord.friend_code !== '10000'
+              ? userRecord.friend_code
+              : generateFriendCode();
+
+          if (!userRecord.friend_code || userRecord.friend_code === '10000') {
+            try {
+              await supabase
+                .from('profiles')
+                .update({ friend_code: safeCode })
+                .eq('id', userRecord.id);
+            } catch {}
+          }
+
+          const loadedProfile: TrainerProfile = {
+            id: userRecord.id,
+            username: userRecord.username || trimmedName,
+            friendCode: safeCode,
+            trainerTitle: userRecord.trainer_title || 'Athlète Vitax',
+            avatarPokemonId: userRecord.avatar_pokemon_id || 'pikachu',
+            avatarPokemonEmoji: userRecord.avatar_pokemon_emoji || '⚡',
+            currentLeague: userRecord.current_league || 'pierre',
+            totalXp: userRecord.total_xp || 0,
+            totalWorkouts: userRecord.total_workouts || 0,
+            createdAt: userRecord.created_at || new Date().toISOString(),
+          };
 
           const session: AuthSession = {
             userId: loadedProfile.id,
             username: loadedProfile.username,
-            friendCode: loadedProfile.friendCode,
-            token: authData.session?.access_token,
+            friendCode: safeCode,
             isLoggedIn: true,
             createdAt: new Date().toISOString(),
           };
@@ -219,15 +271,28 @@ export async function loginTrainer(
           );
           await useSettingsStore.getState().setUserName(trimmedName);
 
+          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris)
+          try {
+            const { fullCloudSyncToLocal } = await import('./cloudSyncService');
+            await fullCloudSyncToLocal();
+          } catch (syncErr) {
+            console.warn('Erreur sync après login:', syncErr);
+          }
+
           return { success: true, profile: loadedProfile };
+        } else if (!error && (!rows || rows.length === 0)) {
+          return {
+            success: false,
+            error: 'Compte introuvable. Veuillez vérifier le nom d’utilisateur ou appuyer sur "Créer un compte".',
+          };
         }
-      } catch (e: any) {
-        console.warn('Tentative connexion serveur échouée, vérification locale:', e?.message);
+      } catch (err: any) {
+        console.warn('Erreur connexion Supabase profiles:', err?.message);
       }
     }
   }
 
-  // 2. Vérification locale (Mode hors-ligne ou compte sauvegardé)
+  // 2. Vérification locale hors-ligne
   try {
     const rawCreds = await AsyncStorage.getItem(STORAGE_KEY_CREDENTIALS);
     if (rawCreds) {
@@ -245,7 +310,7 @@ export async function loginTrainer(
             id: `vtx_${cleanUser}`,
             username: trimmedName,
             friendCode: generateFriendCode(),
-            trainerTitle: 'Dresseur Rookie',
+            trainerTitle: 'Athlète Vitax',
             avatarPokemonId: 'pikachu',
             avatarPokemonEmoji: '⚡',
             currentLeague: 'pierre',
@@ -275,7 +340,7 @@ export async function loginTrainer(
 
   return {
     success: false,
-    error: 'Nom d’utilisateur ou mot de passe incorrect. Vérifiez vos identifiants.',
+    error: 'Nom d’utilisateur ou mot de passe incorrect. Si vous n’avez pas encore créé de compte, appuyez sur "Créer un compte".',
   };
 }
 
@@ -289,9 +354,68 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
       return null;
     }
 
+    // 1. Tenter de rafraîchir en direct le profil depuis la base centrale Supabase
+    if (session.userId && isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const { data: row } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.userId)
+            .maybeSingle();
+
+          if (row) {
+            const safeCode =
+              row.friend_code ||
+              (session.friendCode && session.friendCode !== '10000'
+                ? session.friendCode
+                : generateFriendCode());
+
+            const remoteProf: TrainerProfile = {
+              id: row.id,
+              username: row.username || session.username,
+              friendCode: safeCode,
+              trainerTitle: row.trainer_title || 'Athlète Vitax',
+              avatarPokemonId: row.avatar_pokemon_id || 'pikachu',
+              avatarPokemonEmoji: row.avatar_pokemon_emoji || '⚡',
+              currentLeague: row.current_league || 'pierre',
+              totalXp: row.total_xp || 0,
+              totalWorkouts: row.total_workouts || 0,
+              createdAt: row.created_at || session.createdAt,
+            };
+
+            if (session.friendCode !== safeCode) {
+              session.friendCode = safeCode;
+              await savePersistedSession(session);
+            }
+
+            await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(remoteProf));
+            if (remoteProf.username) {
+              const currentName = useSettingsStore.getState().user_name;
+              if (!currentName || currentName !== remoteProf.username) {
+                await useSettingsStore.getState().setUserName(remoteProf.username);
+              }
+            }
+            return remoteProf;
+          }
+        } catch (fetchErr) {
+          console.warn('Erreur rafraîchissement profil Supabase au démarrage:', fetchErr);
+        }
+      }
+    }
+
+    // 2. Repli sur le profil stocké en local
     const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
     if (rawProf) {
       const prof: TrainerProfile = JSON.parse(rawProf);
+      if (!prof.friendCode || prof.friendCode === '10000' || !/^\d{5}$/.test(prof.friendCode)) {
+        prof.friendCode =
+          session.friendCode && session.friendCode !== '10000'
+            ? session.friendCode
+            : generateFriendCode();
+        await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(prof));
+      }
       // Synchroniser avec les réglages
       if (prof.username) {
         const currentName = useSettingsStore.getState().user_name;
@@ -325,4 +449,36 @@ export async function logoutTrainer(): Promise<void> {
   } catch (e) {
     console.error('Erreur logout:', e);
   }
+}
+
+/**
+ * Vérifie si un nom d'utilisateur est déjà utilisé par un autre athlète dans Supabase
+ */
+export async function isUsernameTaken(username: string): Promise<boolean> {
+  const trimmed = username.trim();
+  if (!trimmed) return false;
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .ilike('username', trimmed)
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          const session = await getPersistedSession();
+          if (session?.userId && data[0].id === session.userId) {
+            return false;
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn('Erreur vérification isUsernameTaken:', err);
+      }
+    }
+  }
+  return false;
 }

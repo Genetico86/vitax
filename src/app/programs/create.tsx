@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,21 @@ import {
   TouchableOpacity,
   Modal,
   Alert,
+  TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAllExercises } from '../../database/exerciseRepository';
 import { createCustomProgram } from '../../database/programRepository';
 import { Exercise, DifficultyLevel } from '../../types';
-import { DIFFICULTY_LEVELS } from '../../constants/muscles';
+import { DIFFICULTY_LEVELS, MUSCLE_GROUPS } from '../../constants/muscles';
 import { Colors } from '../../constants/colors';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Badge } from '../../components/common/Badge';
+import { ExerciseIllustration } from '../../components/common/ExerciseIllustration';
+import { getFavoriteExerciseIds } from '../../services/favoritesService';
 import { useSettingsStore } from '../../stores/settingsStore';
 import {
   isDurationExercise,
@@ -41,21 +44,48 @@ export default function CreateProgramScreen() {
 
   const [catalogModalVisible, setCatalogModalVisible] = useState(false);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMuscle, setSelectedMuscle] = useState('Tous');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { available_equipments, filter_by_available_equipment } = useSettingsStore();
 
-  const filteredModalExercises = React.useMemo(() => {
-    if (!filter_by_available_equipment) return allExercises;
-    return allExercises.filter((ex) =>
-      isExerciseCompatibleWithEquipment(ex, available_equipments)
-    );
-  }, [allExercises, filter_by_available_equipment, available_equipments]);
+  const filteredModalExercises = useMemo(() => {
+    return allExercises.filter((ex) => {
+      // 1. Filtre par équipement disponible
+      if (filter_by_available_equipment && !isExerciseCompatibleWithEquipment(ex, available_equipments)) {
+        return false;
+      }
+      // 2. Filtre favoris
+      if (showFavoritesOnly && !favoriteIds.includes(ex.id)) {
+        return false;
+      }
+      // 3. Filtre par groupe musculaire
+      if (selectedMuscle !== 'Tous' && ex.target_muscle !== selectedMuscle) {
+        return false;
+      }
+      // 4. Recherche textuelle (nom, muscle ou équipement)
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = ex.name.toLowerCase().includes(q);
+        const matchMuscle = ex.target_muscle.toLowerCase().includes(q);
+        const matchEq = ex.equipment_needed.toLowerCase().includes(q);
+        if (!matchName && !matchMuscle && !matchEq) return false;
+      }
+      return true;
+    });
+  }, [allExercises, filter_by_available_equipment, available_equipments, showFavoritesOnly, favoriteIds, selectedMuscle, searchQuery]);
 
   useEffect(() => {
     async function load() {
-      const list = await getAllExercises();
+      const [list, favs] = await Promise.all([
+        getAllExercises(),
+        getFavoriteExerciseIds(),
+      ]);
       setAllExercises(list);
+      setFavoriteIds(favs);
     }
     load();
   }, []);
@@ -207,13 +237,18 @@ export default function CreateProgramScreen() {
             return (
               <Card key={`${item.exercise.id}_${idx}`} style={styles.exerciseCard}>
                 <View style={styles.exerciseTopRow}>
-                  <View style={{ flex: 1 }}>
+                  <ExerciseIllustration
+                    exerciseId={item.exercise.id}
+                    targetMuscle={item.exercise.target_muscle}
+                    size={46}
+                  />
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
                     <Text style={styles.exerciseName}>{item.exercise.name}</Text>
                     <Badge
                       label={item.exercise.target_muscle}
                       color="#213045"
                       textColor={Colors.textSecondary}
-                      style={{ marginTop: 4 }}
+                      style={{ marginTop: 4, alignSelf: 'flex-start' }}
                     />
                   </View>
                   <TouchableOpacity
@@ -311,29 +346,165 @@ export default function CreateProgramScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Sélectionner un exercice</Text>
-            <TouchableOpacity onPress={() => setCatalogModalVisible(false)}>
+            <View>
+              <Text style={styles.modalTitle}>Sélectionner un exercice</Text>
+              <Text style={styles.modalSubtitle}>
+                {filteredModalExercises.length} exercice{filteredModalExercises.length > 1 ? 's' : ''} disponible{filteredModalExercises.length > 1 ? 's' : ''}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setCatalogModalVisible(false)} style={styles.modalCloseBtn}>
               <Text style={styles.modalCloseText}>Fermer</Text>
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalList}>
-            {filteredModalExercises.map((ex) => (
-              <TouchableOpacity
-                key={ex.id}
-                style={styles.modalItem}
-                onPress={() => handleAddExercise(ex)}
-                activeOpacity={0.7}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalItemTitle}>{ex.name}</Text>
-                  <Text style={styles.modalItemSub}>
-                    {ex.target_muscle} • {ex.equipment_needed}
-                  </Text>
-                </View>
-                <Text style={styles.modalItemAdd}>+</Text>
+          {/* 1. BARRE DE RECHERCHE */}
+          <View style={styles.modalSearchBox}>
+            <Text style={styles.modalSearchIcon}>🔍</Text>
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="Rechercher par nom, muscle, équipement..."
+              placeholderTextColor={Colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                <Text style={styles.clearSearchText}>✕</Text>
               </TouchableOpacity>
-            ))}
+            )}
+          </View>
+
+          {/* 2. CHIPS DE FILTRAGE (TOUS, FAVORIS, MUSCLES) */}
+          <View style={styles.chipsContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterChipsRow}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.modalFilterChip,
+                  selectedMuscle === 'Tous' && !showFavoritesOnly && styles.modalFilterChipActive,
+                ]}
+                onPress={() => {
+                  setSelectedMuscle('Tous');
+                  setShowFavoritesOnly(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modalFilterChipText,
+                    selectedMuscle === 'Tous' && !showFavoritesOnly && styles.modalFilterChipTextActive,
+                  ]}
+                >
+                  Tous ({allExercises.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalFilterChip,
+                  styles.modalFilterChipFavorite,
+                  showFavoritesOnly && styles.modalFilterChipFavoriteActive,
+                ]}
+                onPress={() => {
+                  setShowFavoritesOnly(!showFavoritesOnly);
+                  if (!showFavoritesOnly) setSelectedMuscle('Tous');
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modalFilterChipText,
+                    styles.modalFilterChipFavoriteText,
+                    showFavoritesOnly && styles.modalFilterChipFavoriteTextActive,
+                  ]}
+                >
+                  ⭐ Favoris ({favoriteIds.length})
+                </Text>
+              </TouchableOpacity>
+
+              {MUSCLE_GROUPS.map((muscle) => {
+                const isSelected = selectedMuscle === muscle && !showFavoritesOnly;
+                return (
+                  <TouchableOpacity
+                    key={muscle}
+                    style={[styles.modalFilterChip, isSelected && styles.modalFilterChipActive]}
+                    onPress={() => {
+                      setSelectedMuscle(muscle);
+                      setShowFavoritesOnly(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.modalFilterChipText,
+                        isSelected && styles.modalFilterChipTextActive,
+                      ]}
+                    >
+                      {muscle}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* 3. LISTE DES EXERCICES ILLUSTRÉS */}
+          <ScrollView contentContainerStyle={styles.modalList} keyboardShouldPersistTaps="handled">
+            {filteredModalExercises.length === 0 ? (
+              <View style={styles.modalEmptyBox}>
+                <Text style={styles.modalEmptyIcon}>🔍</Text>
+                <Text style={styles.modalEmptyTitle}>Aucun exercice trouvé</Text>
+                <Text style={styles.modalEmptySub}>
+                  Essayez d’ajuster votre recherche ou sélectionnez un autre groupe musculaire.
+                </Text>
+              </View>
+            ) : (
+              filteredModalExercises.map((ex) => {
+                const isAlreadyAdded = selectedExercises.some((item) => item.exercise.id === ex.id);
+                return (
+                  <TouchableOpacity
+                    key={ex.id}
+                    style={[styles.modalItem, isAlreadyAdded && styles.modalItemDisabled]}
+                    onPress={() => handleAddExercise(ex)}
+                    activeOpacity={isAlreadyAdded ? 1 : 0.7}
+                    disabled={isAlreadyAdded}
+                  >
+                    <ExerciseIllustration
+                      exerciseId={ex.id}
+                      targetMuscle={ex.target_muscle}
+                      size={52}
+                    />
+                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                      <Text style={styles.modalItemTitle}>{ex.name}</Text>
+                      <View style={styles.modalItemMetaRow}>
+                        <Badge
+                          label={ex.target_muscle}
+                          color="rgba(255, 85, 0, 0.18)"
+                          textColor={Colors.primary}
+                        />
+                        <Badge
+                          label={ex.equipment_needed}
+                          color="#213045"
+                          textColor={Colors.textSecondary}
+                          style={{ marginLeft: 6 }}
+                        />
+                      </View>
+                    </View>
+                    {isAlreadyAdded ? (
+                      <View style={styles.addedBadge}>
+                        <Text style={styles.addedBadgeText}>✓ Ajouté</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.modalItemAddPill}>
+                        <Text style={styles.modalItemAddText}>+ Ajouter</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -486,49 +657,176 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.surfaceBorder,
+    backgroundColor: Colors.surface,
   },
   modalTitle: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
   },
+  modalSubtitle: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    padding: 6,
+  },
   modalCloseText: {
     color: Colors.primary,
     fontSize: 15,
+    fontWeight: '800',
+  },
+  modalSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#243248',
+  },
+  modalSearchIcon: {
+    fontSize: 15,
+    marginRight: 8,
+  },
+  modalSearchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    paddingVertical: 2,
+  },
+  clearSearchBtn: {
+    padding: 4,
+  },
+  clearSearchText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  chipsContainer: {
+    marginVertical: 10,
+  },
+  filterChipsRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  modalFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  modalFilterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  modalFilterChipFavorite: {
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  modalFilterChipFavoriteActive: {
+    backgroundColor: Colors.gold,
+    borderColor: Colors.gold,
+  },
+  modalFilterChipText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
     fontWeight: '700',
+  },
+  modalFilterChipTextActive: {
+    color: Colors.primaryText,
+    fontWeight: '900',
+  },
+  modalFilterChipFavoriteText: {
+    color: Colors.gold,
+  },
+  modalFilterChipFavoriteTextActive: {
+    color: Colors.primaryText,
+    fontWeight: '900',
   },
   modalList: {
     padding: 16,
+    paddingTop: 4,
     paddingBottom: 40,
+  },
+  modalEmptyBox: {
+    alignItems: 'center',
+    padding: 30,
+    marginTop: 20,
+  },
+  modalEmptyIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  modalEmptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modalEmptySub: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
   },
   modalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#121A28',
-    padding: 16,
+    backgroundColor: Colors.surface,
+    padding: 12,
     borderRadius: 14,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#1E2A3D',
+    borderWidth: 1.5,
+    borderColor: Colors.surfaceBorder,
+  },
+  modalItemDisabled: {
+    opacity: 0.65,
+    backgroundColor: '#0F172A',
   },
   modalItemTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  modalItemSub: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-  },
-  modalItemAdd: {
-    color: Colors.primary,
-    fontSize: 22,
+    fontSize: 15,
     fontWeight: '800',
-    marginLeft: 12,
+    marginBottom: 4,
+  },
+  modalItemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalItemAddPill: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  modalItemAddText: {
+    color: Colors.primaryText,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  addedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addedBadgeText: {
+    color: '#34D399',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

@@ -11,16 +11,21 @@ import {
   RaidParticipant,
   RaidMetric,
   FriendEntry,
+  FriendChallenge,
+  FriendRequest,
 } from '../types/social';
 import { POKEMON_SPECIES, addPokemonEgg } from './pokemonEggService';
 import { getUserGamificationStats, calculateSessionXp } from './gamificationService';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
 import { useSettingsStore } from '../stores/settingsStore';
+import { getPersistedSession, savePersistedSession, generateFriendCode, STORAGE_KEY_AUTH_SESSION } from './authService';
 
 export const STORAGE_KEY_PROFILE = '@vitax_trainer_profile';
 export const STORAGE_KEY_COMMUNITY_TRADES = '@vitax_community_trades';
 export const STORAGE_KEY_FRIENDS = '@vitax_friends_list';
+export const STORAGE_KEY_FRIEND_REQUESTS = '@vitax_friend_requests';
 export const STORAGE_KEY_RAID_CLAIMED = '@vitax_raid_claimed_';
+export const STORAGE_KEY_FRIEND_CHALLENGES = '@vitax_friend_challenges';
 
 // -------------------------------------------------------------
 // CONFIGURATION DES 5 LIGUES D'ARÈNES POKÉMON
@@ -99,79 +104,316 @@ export function getCurrentWeekBounds(): { start: Date; end: Date; weekNumber: nu
 // -------------------------------------------------------------
 // 1. PROFIL DRESSEUR
 // -------------------------------------------------------------
+export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  // Ne synchroniser que les profils de comptes réels (pas les invités anonymes trainer_... ou default_trainer)
+  if (!profile.id || profile.id.startsWith('trainer_') || profile.id === 'default_trainer') {
+    return false;
+  }
+  // Ne JAMAIS écraser Supabase avec un code factice 10000 ou invalide
+  if (!profile.friendCode || profile.friendCode === '10000' || !/^\d{5}$/.test(profile.friendCode)) {
+    return false;
+  }
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const { error } = await supabase.from('profiles').upsert({
+      id: profile.id,
+      username: profile.username,
+      friend_code: profile.friendCode,
+      trainer_title: profile.trainerTitle,
+      avatar_pokemon_id: profile.avatarPokemonId,
+      avatar_pokemon_emoji: profile.avatarPokemonEmoji,
+      current_league: profile.currentLeague,
+      total_xp: profile.totalXp,
+      total_workouts: profile.totalWorkouts,
+    });
+    if (error) {
+      console.warn('Erreur Supabase upsert profil:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e: any) {
+    console.warn('Exception Supabase upsert profil:', e?.message);
+    return false;
+  }
+}
+
+/**
+ * Met à jour instantanément les statistiques et l'expérience du profil après une séance
+ * et les synchronise avec Supabase et le stockage local
+ */
+export async function updateTrainerProfileXpAndStats(
+  xpGained: number,
+  volumeGained: number = 0
+): Promise<TrainerProfile> {
+  const profile = await getOrCreateTrainerProfile();
+
+  profile.totalXp = Math.max(0, (profile.totalXp || 0) + Math.round(xpGained));
+  profile.totalWorkouts = Math.max(1, (profile.totalWorkouts || 0) + 1);
+
+  // Mise à jour de la ligue si l'XP dépasse le palier
+  if (profile.totalXp >= 10500) {
+    profile.currentLeague = 'maitre';
+  } else if (profile.totalXp >= 5200) {
+    profile.currentLeague = 'volcan';
+  } else if (profile.totalXp >= 2200) {
+    profile.currentLeague = 'foudre';
+  } else if (profile.totalXp >= 500) {
+    profile.currentLeague = 'cascade';
+  }
+
+  // Sauvegarde locale dans AsyncStorage
+  await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+
+  // Mise à jour de la session auth si connecté
+  try {
+    const rawSession = await AsyncStorage.getItem(STORAGE_KEY_AUTH_SESSION);
+    if (rawSession) {
+      const parsed = JSON.parse(rawSession);
+      parsed.totalXp = profile.totalXp;
+      await AsyncStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(parsed));
+    }
+  } catch (sessErr) {
+    console.warn('Erreur mise à jour auth session XP:', sessErr);
+  }
+
+  // Synchronisation avec Supabase
+  void syncTrainerProfileToSupabase(profile);
+
+  return profile;
+}
+
 export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
   try {
+    const session = await getPersistedSession();
     const raw = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
-    const gamification = await getUserGamificationStats();
     const storeName = useSettingsStore.getState().user_name;
+
+    // Récupérer les stats de gamification sans risquer de bloquer si la base locale est en cours d'init
+    let gamification = {
+      totalXp: 0,
+      totalSessions: 0,
+      levelInfo: { title: 'Athlète Vitax' },
+      hatchedPokemon: [] as any[],
+    };
+    try {
+      const stats = await getUserGamificationStats();
+      if (stats) {
+        gamification = {
+          totalXp: stats.totalXp || 0,
+          totalSessions: stats.totalSessions || 0,
+          levelInfo: stats.levelInfo || { title: 'Athlète Vitax' },
+          hatchedPokemon: stats.hatchedPokemon || [],
+        };
+      }
+    } catch (gamErr) {
+      console.warn('Stats gamification non dispo dans getOrCreateTrainerProfile:', gamErr);
+    }
+
+    let profileToReturn: TrainerProfile;
 
     if (raw) {
       const parsed: TrainerProfile = JSON.parse(raw);
-      parsed.totalXp = gamification.totalXp;
-      parsed.totalWorkouts = gamification.totalSessions;
-      parsed.trainerTitle = gamification.levelInfo.title;
-      if (storeName && (!parsed.username || parsed.username === 'Athlète Vitax')) {
-        parsed.username = storeName;
+
+      // Si l'utilisateur a un compte actif, l'identifiant d'arène DOIT être strictement identique à l'identifiant de compte
+      if (session?.isLoggedIn && session.userId) {
+        parsed.id = session.userId;
+        if (session.username) parsed.username = session.username;
+        if (session.friendCode && session.friendCode !== '10000') {
+          parsed.friendCode = session.friendCode;
+        }
+
+        // Récupérer en direct le profil authentique et à jour depuis Supabase
+        if (isSupabaseConfigured()) {
+          const supabase = getSupabaseClient();
+          if (supabase) {
+            try {
+              const { data: cloudRow } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.userId)
+                .maybeSingle();
+
+              if (cloudRow) {
+                if (cloudRow.friend_code) {
+                  parsed.friendCode = cloudRow.friend_code;
+                  if (session.friendCode !== cloudRow.friend_code) {
+                    session.friendCode = cloudRow.friend_code;
+                    await savePersistedSession(session);
+                  }
+                }
+                if (cloudRow.username) parsed.username = cloudRow.username;
+                if (cloudRow.trainer_title) parsed.trainerTitle = cloudRow.trainer_title;
+                if (cloudRow.avatar_pokemon_id) parsed.avatarPokemonId = cloudRow.avatar_pokemon_id;
+                if (cloudRow.avatar_pokemon_emoji) parsed.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
+                if (cloudRow.current_league) parsed.currentLeague = cloudRow.current_league;
+              }
+            } catch (cloudErr) {
+              console.warn('Erreur vérification profil cloud Supabase:', cloudErr);
+            }
+          }
+        }
       }
 
-      if (gamification.totalXp >= 7000) parsed.currentLeague = 'maitre';
-      else if (gamification.totalXp >= 3500) parsed.currentLeague = 'volcan';
-      else if (gamification.totalXp >= 1500) parsed.currentLeague = 'foudre';
-      else if (gamification.totalXp >= 500) parsed.currentLeague = 'cascade';
+      // Si le code ami est factice ('10000') ou absent ou invalide, tenter de retrouver le compte par le nom dans Supabase
+      if (
+        (!parsed.friendCode || parsed.friendCode === '10000' || !/^\d{5}$/.test(parsed.friendCode)) &&
+        isSupabaseConfigured()
+      ) {
+        const candidateName = (storeName || parsed.username || '').trim();
+        if (candidateName) {
+          const supabase = getSupabaseClient();
+          if (supabase) {
+            try {
+              const { data: matched } = await supabase
+                .from('profiles')
+                .select('*')
+                .ilike('username', candidateName)
+                .maybeSingle();
+
+              if (matched && matched.friend_code) {
+                parsed.friendCode = matched.friend_code;
+                parsed.id = matched.id;
+                if (matched.username) parsed.username = matched.username;
+              }
+            } catch {}
+          }
+        }
+      }
+
+      parsed.totalXp = Math.max(parsed.totalXp || 0, gamification.totalXp);
+      parsed.totalWorkouts = Math.max(parsed.totalWorkouts || 0, gamification.totalSessions);
+      if (storeName && storeName.trim()) {
+        parsed.username = storeName.trim();
+      }
+
+      // Élimination absolue du code factice 10000 ou format invalide
+      if (!parsed.friendCode || parsed.friendCode === '10000' || !/^\d{5}$/.test(parsed.friendCode)) {
+        parsed.friendCode = generateFriendCode();
+      }
+
+      const activeLeagueXp = parsed.totalXp;
+      if (activeLeagueXp >= 7000) parsed.currentLeague = 'maitre';
+      else if (activeLeagueXp >= 3500) parsed.currentLeague = 'volcan';
+      else if (activeLeagueXp >= 1500) parsed.currentLeague = 'foudre';
+      else if (activeLeagueXp >= 500) parsed.currentLeague = 'cascade';
       else parsed.currentLeague = 'pierre';
 
       await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
-      return parsed;
-    }
+      profileToReturn = parsed;
+    } else {
+      let fetchedFromCloud: TrainerProfile | null = null;
+      if (session?.isLoggedIn && session.userId && isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          try {
+            const { data: cloudRow } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.userId)
+              .maybeSingle();
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const friendCode = `VTX-${randomSuffix}`;
-    const defaultAvatar = gamification.hatchedPokemon[0]?.pokemon_id || 'pikachu';
-    const defaultEmoji = gamification.hatchedPokemon[0]?.pokemon_emoji || '⚡';
-    const effectiveName = storeName || gamification.levelInfo.title || 'Athlète Vitax';
+            if (cloudRow) {
+              const realCode =
+                cloudRow.friend_code ||
+                (session.friendCode && session.friendCode !== '10000'
+                  ? session.friendCode
+                  : generateFriendCode());
 
-    const newProfile: TrainerProfile = {
-      id: `trainer_${Date.now()}_${randomSuffix}`,
-      username: effectiveName,
-      friendCode,
-      trainerTitle: gamification.levelInfo.title,
-      avatarPokemonId: defaultAvatar,
-      avatarPokemonEmoji: defaultEmoji,
-      currentLeague: 'pierre',
-      totalXp: gamification.totalXp,
-      totalWorkouts: gamification.totalSessions,
-      createdAt: new Date().toISOString(),
-    };
+              fetchedFromCloud = {
+                id: cloudRow.id,
+                username: cloudRow.username || session.username || 'Athlète Vitax',
+                friendCode: realCode,
+                trainerTitle: cloudRow.trainer_title || gamification.levelInfo.title,
+                avatarPokemonId: cloudRow.avatar_pokemon_id || 'pikachu',
+                avatarPokemonEmoji: cloudRow.avatar_pokemon_emoji || '⚡',
+                currentLeague: cloudRow.current_league || 'pierre',
+                totalXp: Math.max(cloudRow.total_xp || 0, gamification.totalXp),
+                totalWorkouts: Math.max(cloudRow.total_workouts || 0, gamification.totalSessions),
+                createdAt: cloudRow.created_at || session.createdAt || new Date().toISOString(),
+              };
 
-    await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(newProfile));
-
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        void Promise.resolve(
-          supabase.from('profiles').upsert({
-            id: newProfile.id,
-            username: newProfile.username,
-            friend_code: newProfile.friendCode,
-            trainer_title: newProfile.trainerTitle,
-            avatar_pokemon_id: newProfile.avatarPokemonId,
-            avatar_pokemon_emoji: newProfile.avatarPokemonEmoji,
-            current_league: newProfile.currentLeague,
-            total_xp: newProfile.totalXp,
-            total_workouts: newProfile.totalWorkouts,
-          })
-        ).catch(() => {});
+              if (session.friendCode !== realCode) {
+                session.friendCode = realCode;
+                await savePersistedSession(session);
+              }
+            }
+          } catch {}
+        }
       }
+
+      // Si pas encore connecté mais un nom d'athlète est renseigné dans les réglages, chercher dans Supabase
+      if (!fetchedFromCloud && storeName && isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          try {
+            const { data: matched } = await supabase
+              .from('profiles')
+              .select('*')
+              .ilike('username', storeName.trim())
+              .maybeSingle();
+
+            if (matched && matched.friend_code) {
+              fetchedFromCloud = {
+                id: matched.id,
+                username: matched.username,
+                friendCode: matched.friend_code,
+                trainerTitle: matched.trainer_title || gamification.levelInfo.title,
+                avatarPokemonId: matched.avatar_pokemon_id || 'pikachu',
+                avatarPokemonEmoji: matched.avatar_pokemon_emoji || '⚡',
+                currentLeague: matched.current_league || 'pierre',
+                totalXp: Math.max(matched.total_xp || 0, gamification.totalXp),
+                totalWorkouts: Math.max(matched.total_workouts || 0, gamification.totalSessions),
+                createdAt: matched.created_at || new Date().toISOString(),
+              };
+            }
+          } catch {}
+        }
+      }
+
+      if (fetchedFromCloud) {
+        profileToReturn = fetchedFromCloud;
+      } else {
+        const friendCode =
+          session?.friendCode && session.friendCode !== '10000'
+            ? session.friendCode
+            : generateFriendCode();
+        const defaultAvatar = gamification.hatchedPokemon[0]?.pokemon_id || 'pikachu';
+        const defaultEmoji = gamification.hatchedPokemon[0]?.pokemon_emoji || '⚡';
+        const effectiveName = session?.username || storeName || gamification.levelInfo.title || 'Athlète Vitax';
+        const effectiveId = session?.isLoggedIn && session.userId ? session.userId : `vtx_${Date.now()}_${friendCode}`;
+
+        profileToReturn = {
+          id: effectiveId,
+          username: effectiveName,
+          friendCode,
+          trainerTitle: gamification.levelInfo.title,
+          avatarPokemonId: defaultAvatar,
+          avatarPokemonEmoji: defaultEmoji,
+          currentLeague: 'pierre',
+          totalXp: gamification.totalXp,
+          totalWorkouts: gamification.totalSessions,
+          createdAt: session?.createdAt || new Date().toISOString(),
+        };
+      }
+
+      await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profileToReturn));
     }
 
-    return newProfile;
+    // Synchronisation en arrière-plan vers Supabase
+    void syncTrainerProfileToSupabase(profileToReturn);
+
+    return profileToReturn;
   } catch (err) {
     console.error('Erreur getOrCreateTrainerProfile:', err);
+    const storeName = useSettingsStore.getState().user_name;
     return {
       id: 'default_trainer',
-      username: 'Athlète Vitax',
-      friendCode: 'VTX-1000',
-      trainerTitle: 'Dresseur Débutant',
+      username: storeName || 'Athlète Vitax',
+      friendCode: generateFriendCode(),
+      trainerTitle: 'Athlète Débutant',
       avatarPokemonId: 'pikachu',
       avatarPokemonEmoji: '⚡',
       currentLeague: 'pierre',
@@ -292,75 +534,210 @@ export async function getFriendsList(): Promise<FriendEntry[]> {
 }
 
 /**
- * Ajoute un ami par son vrai Code Ami unique sur la base partagée
+ * Ajoute un ami par son vrai Code Ami unique ou son pseudo sur la base partagée
  */
 export async function addFriendByCode(
-  rawFriendCode: string
+  rawInput: string
 ): Promise<{ success: boolean; friend?: FriendEntry; error?: string }> {
   const profile = await getOrCreateTrainerProfile();
-  let cleanCode = rawFriendCode.trim().toUpperCase();
-  if (!cleanCode.startsWith('VTX-') && cleanCode.length === 4) {
-    cleanCode = `VTX-${cleanCode}`;
+  const trimmed = rawInput.trim();
+
+  if (!trimmed) {
+    return { success: false, error: 'Veuillez saisir un code ami ou un nom d’athlète.' };
   }
 
-  if (cleanCode === profile.friendCode) {
-    return { success: false, error: 'Vous ne pouvez pas vous ajouter vous-même comme ami.' };
+  // Synchroniser notre profil vers Supabase en priorité pour garantir la clé étrangère
+  await syncTrainerProfileToSupabase(profile);
+
+  // 1. Génération des variantes possibles (priorité absolue au code à 5 chiffres)
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  const candidateCodes: string[] = [trimmed];
+
+  if (cleanDigits.length === 5) {
+    candidateCodes.push(cleanDigits);
+    candidateCodes.push(`VTX-${cleanDigits}`);
+  } else if (cleanDigits.length > 0 && cleanDigits.length < 5) {
+    candidateCodes.push(cleanDigits);
+    candidateCodes.push(cleanDigits.padStart(5, '0'));
+    candidateCodes.push(`VTX-${cleanDigits}`);
+  } else if (cleanDigits.length > 5) {
+    candidateCodes.push(cleanDigits.slice(0, 5));
   }
 
-  const existingFriends = await getFriendsList();
-  if (existingFriends.some((f) => f.friendCode === cleanCode)) {
-    return { success: false, error: 'Cet athlète fait déjà partie de votre liste d’amis.' };
-  }
-
-  // Recherche sur la base centrale Supabase
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('friend_code', cleanCode)
-          .single();
-
-        if (!error && data) {
-          const newFriend: FriendEntry = {
-            friendId: data.id,
-            username: data.username,
-            friendCode: data.friend_code,
-            trainerTitle: data.trainer_title || 'Athlète Vitax',
-            avatarPokemonEmoji: data.avatar_pokemon_emoji || '⚡',
-            currentLeague: (data.current_league as LeagueTier) || 'pierre',
-            totalXp: data.total_xp || 0,
-            addedAt: new Date().toISOString(),
-          };
-
-          const updatedList = [newFriend, ...existingFriends];
-          await AsyncStorage.setItem(STORAGE_KEY_FRIENDS, JSON.stringify(updatedList));
-
-          // Enregistrer la relation dans Supabase
-          await supabase.from('friends').upsert({
-            id: `${profile.id}_${data.id}`,
-            user_id: profile.id,
-            friend_id: data.id,
-          });
-
-          return { success: true, friend: newFriend };
-        }
-      } catch (e: any) {
-        console.warn('Recherche Supabase amitié:', e?.message);
-      }
+  const upper = trimmed.toUpperCase();
+  if (upper.startsWith('VTX')) {
+    const suffix = upper.replace(/^VTX[\s-_]*/, '');
+    if (suffix) {
+      candidateCodes.push(suffix);
+      candidateCodes.push(`VTX-${suffix}`);
     }
   }
 
-  return {
-    success: false,
-    error: `Aucun athlète trouvé avec le code ami ${cleanCode}. Vérifiez le code avec votre partenaire.`,
-  };
+  // 2. Empêcher de s'ajouter soi-même
+  const myCodeUpper = (profile.friendCode || '').toUpperCase();
+  const myNameUpper = (profile.username || '').toUpperCase();
+  if (
+    candidateCodes.includes(myCodeUpper) ||
+    candidateCodes.includes(myNameUpper) ||
+    upper === myCodeUpper ||
+    upper === myNameUpper
+  ) {
+    return { success: false, error: 'Vous ne pouvez pas vous ajouter vous-même comme ami.' };
+  }
+
+  // 3. Vérifier si déjà ami localement
+  const existingFriends = await getFriendsList();
+  if (
+    existingFriends.some(
+      (f) =>
+        candidateCodes.includes(f.friendCode.toUpperCase()) ||
+        f.username.toLowerCase() === trimmed.toLowerCase()
+    )
+  ) {
+    return { success: false, error: 'Cet athlète fait déjà partie de votre cercle d’amis.' };
+  }
+
+  // 4. Recherche sur Supabase
+  if (!isSupabaseConfigured()) {
+    return {
+      success: false,
+      error: 'La connexion au serveur partagé n’est pas configurée dans l’application.',
+    };
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return {
+      success: false,
+      error: 'Impossible d’établir la connexion au réseau partagé.',
+    };
+  }
+
+  try {
+    let targetProfile: any = null;
+
+    // Étape A : Recherche exacte par code ami parmi les variantes
+    const { data: codeData, error: codeErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('friend_code', candidateCodes)
+      .limit(5);
+
+    if (codeErr) {
+      if (codeErr.code === '42501') {
+        return {
+          success: false,
+          error:
+            'Sécurité Supabase (RLS actif) : exécutez le script SQL de déverrouillage dans votre dashboard Supabase pour autoriser l’accès.',
+        };
+      }
+      console.warn('Erreur Supabase search by code:', codeErr.message);
+    }
+
+    if (codeData && codeData.length > 0) {
+      targetProfile = codeData.find((p: any) => p.id !== profile.id) || null;
+    }
+
+    // Étape B : Recherche par Nom / Pseudo exact ou similaire
+    if (!targetProfile) {
+      const { data: nameData } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('username', trimmed)
+        .limit(5);
+
+      if (nameData && nameData.length > 0) {
+        targetProfile = nameData.find((p: any) => p.id !== profile.id) || null;
+      }
+    }
+
+    // Étape C : Recherche par portion de code ami (ex: "76" dans VTX-7640 ou VTX-76)
+    if (!targetProfile && cleanDigits.length >= 2) {
+      const { data: partialData } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('friend_code', `%${cleanDigits}%`)
+        .limit(5);
+
+      if (partialData && partialData.length > 0) {
+        targetProfile = partialData.find((p: any) => p.id !== profile.id) || null;
+      }
+    }
+
+    if (!targetProfile) {
+      return {
+        success: false,
+        error: `Aucun athlète trouvé avec "${trimmed}". Demandez à votre partenaire d'ouvrir l'onglet Arène pour synchroniser son profil.`,
+      };
+    }
+
+    if (targetProfile.id === profile.id) {
+      return { success: false, error: 'Vous ne pouvez pas vous ajouter vous-même comme ami.' };
+    }
+
+    const newFriend: FriendEntry = {
+      friendId: targetProfile.id,
+      username: targetProfile.username,
+      friendCode: targetProfile.friend_code,
+      trainerTitle: targetProfile.trainer_title || 'Athlète Vitax',
+      avatarPokemonEmoji: targetProfile.avatar_pokemon_emoji || '⚡',
+      currentLeague: (targetProfile.current_league as LeagueTier) || 'pierre',
+      totalXp: targetProfile.total_xp || 0,
+      addedAt: new Date().toISOString(),
+    };
+
+    // Sauvegarde dans le cache local
+    const updatedList = [
+      newFriend,
+      ...existingFriends.filter((f) => f.friendId !== newFriend.friendId),
+    ];
+    await AsyncStorage.setItem(STORAGE_KEY_FRIENDS, JSON.stringify(updatedList));
+
+    // Enregistrement RÉCIPROQUE dans Supabase :
+    // 1. Moi -> Mon Ami
+    await supabase.from('friends').upsert({
+      id: `${profile.id}_${targetProfile.id}`,
+      user_id: profile.id,
+      friend_id: targetProfile.id,
+    });
+    // 2. Mon Ami -> Moi (réciproque automatique pour que les deux se voient directement !)
+    await supabase.from('friends').upsert({
+      id: `${targetProfile.id}_${profile.id}`,
+      user_id: targetProfile.id,
+      friend_id: profile.id,
+    });
+
+    // 3. Enregistrement d'une demande d'invitation pour alerter immédiatement le destinataire
+    try {
+      await supabase.from('friend_requests').upsert({
+        id: `req_${profile.id}_${targetProfile.id}`,
+        sender_id: profile.id,
+        sender_name: profile.username || 'Athlète Vitax',
+        sender_code: profile.friendCode,
+        sender_avatar: profile.avatarPokemonEmoji || '⚡',
+        sender_title: profile.trainerTitle || 'Athlète Vitax',
+        receiver_id: targetProfile.id,
+        receiver_code: targetProfile.friend_code,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    } catch (reqErr) {
+      console.warn('Erreur envoi friend_request Supabase:', reqErr);
+    }
+
+    return { success: true, friend: newFriend };
+  } catch (e: any) {
+    console.error('Erreur addFriendByCode:', e);
+    return {
+      success: false,
+      error: e?.message || 'Une erreur est survenue lors de l’ajout de l’ami.',
+    };
+  }
 }
 
 /**
- * Supprime un ami de sa liste restreinte (local + Supabase)
+ * Supprime un ami de sa liste restreinte (local + Supabase dans les 2 sens)
  */
 export async function removeFriend(friendId: string): Promise<void> {
   const current = await getFriendsList();
@@ -375,7 +752,9 @@ export async function removeFriend(friendId: string): Promise<void> {
         await supabase
           .from('friends')
           .delete()
-          .match({ user_id: profile.id, friend_id: friendId });
+          .or(
+            `and(user_id.eq.${profile.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${profile.id})`
+          );
       } catch (e) {
         console.warn('Erreur suppression ami Supabase:', e);
       }
@@ -781,7 +1160,7 @@ export async function executePokemonTrade(
     const friends = await getFriendsList();
     const isFriend = friends.some((f) => f.friendCode === offer.senderCode);
     if (!isFriend) {
-      throw new Error('Cette offre est exclusivement réservée aux amis de ce dresseur. Ajoutez son Code Ami d’abord !');
+      throw new Error('Cette offre est exclusivement réservée aux amis de cet athlète. Ajoutez son Code Ami d’abord !');
     }
   }
 
@@ -965,3 +1344,408 @@ export async function claimRaidVictoryReward(): Promise<PokemonEgg> {
 
   return egg;
 }
+
+// -------------------------------------------------------------
+// 6. DÉFIS DIRECTS ENTRE AMIS (EXERCICES & PROGRAMMES)
+// -------------------------------------------------------------
+
+export async function getFriendChallenges(): Promise<FriendChallenge[]> {
+  const profile = await getOrCreateTrainerProfile();
+  let localChallenges: FriendChallenge[] = [];
+
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY_FRIEND_CHALLENGES);
+    if (raw) {
+      localChallenges = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Erreur lecture défis locaux:', e);
+  }
+
+  // Tenter de récupérer depuis Supabase si connecté
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('friend_challenges')
+          .select('*')
+          .or(`target_friend_code.eq.${profile.friendCode},creator_id.eq.${profile.id},target_friend_code.eq.all`)
+          .order('created_at', { ascending: false });
+
+        if (!error && data && Array.isArray(data)) {
+          const cloudChallenges: FriendChallenge[] = data.map((d: any) => ({
+            id: d.id,
+            creatorId: d.creator_id,
+            creatorName: d.creator_name,
+            creatorAvatarEmoji: d.creator_avatar || '⚡',
+            targetFriendCode: d.target_friend_code,
+            targetFriendName: d.target_friend_name,
+            type: d.challenge_type || 'exercise',
+            title: d.title,
+            exerciseId: d.exercise_id,
+            exerciseName: d.exercise_name,
+            programId: d.program_id,
+            programName: d.program_name,
+            targetWeightKg: d.target_weight,
+            targetReps: d.target_reps,
+            targetDurationSeconds: d.target_duration_seconds,
+            targetVolumeKg: d.target_volume_kg,
+            instructions: d.instructions || '',
+            rewardXp: d.reward_xp || 150,
+            status: d.status || 'active',
+            winnerName: d.winner_name,
+            createdAt: d.created_at,
+          }));
+
+          const cloudIds = new Set(cloudChallenges.map((c) => c.id));
+          const uniqueLocal = localChallenges.filter((c) => !cloudIds.has(c.id));
+          localChallenges = [...cloudChallenges, ...uniqueLocal];
+          await AsyncStorage.setItem(STORAGE_KEY_FRIEND_CHALLENGES, JSON.stringify(localChallenges));
+        }
+      } catch (err) {
+        console.warn('Erreur synchro défis Supabase:', err);
+      }
+    }
+  }
+
+  // Défis de démarrage stimulants si vide
+  if (localChallenges.length === 0) {
+    const starterChallenges: FriendChallenge[] = [
+      {
+        id: 'challenge_bench_press_master',
+        creatorId: 'contender_red',
+        creatorName: 'Red (Champion Kanto)',
+        creatorAvatarEmoji: '🧢',
+        targetFriendCode: 'all',
+        type: 'exercise',
+        title: 'Défi Développé Couché : 80 kg × 10 reps',
+        exerciseId: 'ex_bench_press',
+        exerciseName: 'Développé couché à la barre',
+        targetWeightKg: 80,
+        targetReps: 10,
+        instructions: 'Bats mes 10 répétitions propres à 80 kg avec tempo contrôlé !',
+        rewardXp: 200,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'challenge_pullups_blake',
+        creatorId: 'contender_blue',
+        creatorName: 'Blue (Rival Arène)',
+        creatorAvatarEmoji: '🔥',
+        targetFriendCode: 'all',
+        type: 'exercise',
+        title: 'Défi Tractions : 15 répétitions strictes',
+        exerciseId: 'ex_pullups',
+        exerciseName: 'Tractions en pronation',
+        targetReps: 15,
+        targetWeightKg: 0,
+        instructions: 'Menton au-dessus de la barre, zéro balancement !',
+        rewardXp: 150,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    localChallenges = starterChallenges;
+    await AsyncStorage.setItem(STORAGE_KEY_FRIEND_CHALLENGES, JSON.stringify(localChallenges));
+  }
+
+  return localChallenges;
+}
+
+export async function createFriendChallenge(
+  challenge: Omit<FriendChallenge, 'id' | 'createdAt' | 'status'>
+): Promise<FriendChallenge> {
+  const profile = await getOrCreateTrainerProfile();
+  const id = `chlg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const fullChallenge: FriendChallenge = {
+    id,
+    ...challenge,
+    creatorId: profile.id,
+    creatorName: profile.username || 'Athlète Vitax',
+    creatorAvatarEmoji: profile.avatarPokemonEmoji || '⚡',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  };
+
+  const existing = await getFriendChallenges();
+  const updated = [fullChallenge, ...existing];
+  await AsyncStorage.setItem(STORAGE_KEY_FRIEND_CHALLENGES, JSON.stringify(updated));
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('friend_challenges').insert({
+          id: fullChallenge.id,
+          creator_id: fullChallenge.creatorId,
+          creator_name: fullChallenge.creatorName,
+          creator_avatar: fullChallenge.creatorAvatarEmoji,
+          target_friend_code: fullChallenge.targetFriendCode || 'all',
+          target_friend_name: fullChallenge.targetFriendName,
+          challenge_type: fullChallenge.type,
+          title: fullChallenge.title,
+          exercise_id: fullChallenge.exerciseId,
+          exercise_name: fullChallenge.exerciseName,
+          program_id: fullChallenge.programId,
+          program_name: fullChallenge.programName,
+          target_weight: fullChallenge.targetWeightKg,
+          target_reps: fullChallenge.targetReps,
+          target_duration_seconds: fullChallenge.targetDurationSeconds,
+          target_volume_kg: fullChallenge.targetVolumeKg,
+          instructions: fullChallenge.instructions,
+          reward_xp: fullChallenge.rewardXp,
+          status: 'active',
+        });
+      } catch (err) {
+        console.warn('Erreur envoi défi Supabase:', err);
+      }
+    }
+  }
+
+  return fullChallenge;
+}
+
+export async function completeFriendChallenge(
+  challengeId: string,
+  winnerName: string
+): Promise<{ success: boolean; earnedXp: number }> {
+  const existing = await getFriendChallenges();
+  const idx = existing.findIndex((c) => c.id === challengeId);
+  if (idx === -1) return { success: false, earnedXp: 0 };
+
+  const challenge = existing[idx];
+  challenge.status = 'beaten';
+  challenge.winnerName = winnerName;
+  existing[idx] = challenge;
+  await AsyncStorage.setItem(STORAGE_KEY_FRIEND_CHALLENGES, JSON.stringify(existing));
+
+  // Créditer immédiatement l'XP au profil
+  const rewardXp = challenge.rewardXp || 150;
+  await updateTrainerProfileXpAndStats(rewardXp, 0);
+
+  // Mettre à jour Supabase si configuré
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('friend_challenges').update({
+          status: 'beaten',
+          winner_name: winnerName,
+        }).eq('id', challengeId);
+      } catch (err) {
+        console.warn('Erreur mise à jour défi Supabase:', err);
+      }
+    }
+  }
+
+  return { success: true, earnedXp: rewardXp };
+}
+
+// -------------------------------------------------------------
+// 7. GESTION DES INVITATIONS / DEMANDES D'AMIS ET NOTIFICATIONS
+// -------------------------------------------------------------
+
+/**
+ * Récupère les demandes d'invitations d'amis reçues et en attente
+ */
+export async function getPendingFriendRequests(): Promise<FriendRequest[]> {
+  const profile = await getOrCreateTrainerProfile();
+  let pendingRequests: FriendRequest[] = [];
+
+  // 1. Lire le cache local
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY_FRIEND_REQUESTS);
+    if (raw) {
+      pendingRequests = JSON.parse(raw);
+    }
+  } catch (err) {
+    console.warn('Erreur lecture local friend requests:', err);
+  }
+
+  // 2. Synchronisation Supabase si connecté
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('friend_requests')
+          .select('*')
+          .or(`receiver_id.eq.${profile.id},receiver_code.eq.${profile.friendCode}`)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+
+        if (!error && data && Array.isArray(data)) {
+          const cloudRequests: FriendRequest[] = data.map((d: any) => ({
+            id: d.id,
+            senderId: d.sender_id,
+            senderName: d.sender_name || 'Athlète Vitax',
+            senderCode: d.sender_code,
+            senderAvatarEmoji: d.sender_avatar || '⚡',
+            senderTrainerTitle: d.sender_title || 'Athlète Vitax',
+            receiverId: d.receiver_id,
+            receiverCode: d.receiver_code,
+            status: d.status || 'pending',
+            createdAt: d.created_at,
+          }));
+
+          // Filtrer ceux qui sont déjà nos amis confirmés
+          const existingFriends = await getFriendsList();
+          const friendIds = new Set(existingFriends.map((f) => f.friendId));
+          const actualPending = cloudRequests.filter((r) => !friendIds.has(r.senderId));
+
+          pendingRequests = actualPending;
+          await AsyncStorage.setItem(STORAGE_KEY_FRIEND_REQUESTS, JSON.stringify(actualPending));
+        }
+      } catch (err) {
+        console.warn('Erreur synchro friend requests Supabase:', err);
+      }
+    }
+  }
+
+  return pendingRequests;
+}
+
+/**
+ * Retourne le nombre d'invitations d'amis en attente
+ */
+export async function getPendingFriendRequestsCount(): Promise<number> {
+  const list = await getPendingFriendRequests();
+  return list.length;
+}
+
+/**
+ * Accepte une demande d'invitation d'ami reçue
+ */
+export async function acceptFriendRequest(
+  requestId: string
+): Promise<{ success: boolean; friend?: FriendEntry; error?: string }> {
+  try {
+    const profile = await getOrCreateTrainerProfile();
+    const requests = await getPendingFriendRequests();
+    const req = requests.find((r) => r.id === requestId);
+
+    if (!req) {
+      return { success: false, error: 'Demande d’ami introuvable ou déjà traitée.' };
+    }
+
+    const newFriend: FriendEntry = {
+      friendId: req.senderId,
+      username: req.senderName,
+      friendCode: req.senderCode,
+      trainerTitle: req.senderTrainerTitle,
+      avatarPokemonEmoji: req.senderAvatarEmoji,
+      currentLeague: 'pierre',
+      totalXp: 0,
+      addedAt: new Date().toISOString(),
+    };
+
+    // Mettre à jour la liste locale d'amis
+    const existingFriends = await getFriendsList();
+    const updatedFriends = [
+      newFriend,
+      ...existingFriends.filter((f) => f.friendId !== newFriend.friendId),
+    ];
+    await AsyncStorage.setItem(STORAGE_KEY_FRIENDS, JSON.stringify(updatedFriends));
+
+    // Retirer de la liste des demandes en attente locales
+    const remainingRequests = requests.filter((r) => r.id !== requestId);
+    await AsyncStorage.setItem(STORAGE_KEY_FRIEND_REQUESTS, JSON.stringify(remainingRequests));
+
+    // Mettre à jour Supabase si configuré
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          // Marquer la demande comme acceptée
+          await supabase
+            .from('friend_requests')
+            .update({ status: 'accepted', updated_at: new Date().toISOString() })
+            .eq('id', requestId);
+
+          // Inscription réciproque dans friends
+          await supabase.from('friends').upsert([
+            {
+              id: `${profile.id}_${req.senderId}`,
+              user_id: profile.id,
+              friend_id: req.senderId,
+            },
+            {
+              id: `${req.senderId}_${profile.id}`,
+              user_id: req.senderId,
+              friend_id: profile.id,
+            },
+          ]);
+        } catch (err) {
+          console.warn('Erreur acceptation demande Supabase:', err);
+        }
+      }
+    }
+
+    return { success: true, friend: newFriend };
+  } catch (err: any) {
+    console.error('Erreur acceptFriendRequest:', err);
+    return { success: false, error: err?.message || 'Impossible d’accepter la demande.' };
+  }
+}
+
+/**
+ * Refuse une demande d'invitation d'ami reçue
+ */
+export async function declineFriendRequest(
+  requestId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const requests = await getPendingFriendRequests();
+    const remaining = requests.filter((r) => r.id !== requestId);
+    await AsyncStorage.setItem(STORAGE_KEY_FRIEND_REQUESTS, JSON.stringify(remaining));
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          await supabase
+            .from('friend_requests')
+            .update({ status: 'declined', updated_at: new Date().toISOString() })
+            .eq('id', requestId);
+        } catch (err) {
+          console.warn('Erreur refus demande Supabase:', err);
+        }
+      }
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Erreur declineFriendRequest:', err);
+    return { success: false, error: err?.message || 'Impossible de refuser la demande.' };
+  }
+}
+
+/**
+ * Crée une invitation d'ami de démonstration (pour tester et voir la notification en direct)
+ */
+export async function simulateFriendRequest(
+  senderName: string = 'Alexandre (Coach)',
+  senderCode: string = 'VTX-5491'
+): Promise<FriendRequest> {
+  const profile = await getOrCreateTrainerProfile();
+  const simulated: FriendRequest = {
+    id: `req_sim_${Date.now()}`,
+    senderId: `sim_trainer_${Date.now()}`,
+    senderName,
+    senderCode,
+    senderAvatarEmoji: '🥋',
+    senderTrainerTitle: 'Coach Sportif',
+    receiverId: profile.id,
+    receiverCode: profile.friendCode,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+
+  const current = await getPendingFriendRequests();
+  const updated = [simulated, ...current];
+  await AsyncStorage.setItem(STORAGE_KEY_FRIEND_REQUESTS, JSON.stringify(updated));
+  return simulated;
+}
+

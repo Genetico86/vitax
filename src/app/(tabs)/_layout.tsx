@@ -1,25 +1,16 @@
 import React from 'react';
-import { Text, View, StyleSheet, Platform } from 'react-native';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
+import { Text, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 
-function TabIcon({ icon, label, focused }: { icon: string; label: string; focused: boolean }) {
-  return (
-    <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-      <Text style={[styles.iconText, focused && styles.iconFocused]}>{icon}</Text>
-      <Text style={[styles.labelText, focused && styles.labelFocused]}>{label}</Text>
-    </View>
-  );
-}
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
 
-  // Dégagement inférieur robuste garantissant que les onglets ne chevauchent jamais
-  // les boutons de navigation système du téléphone (Retour / Accueil / Récents) ni la barre gestuelle
-  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 36 : 24);
-  const tabHeight = 58 + bottomPadding;
+  // Dégagement inférieur équilibré sans écraser le contenu
+  const safeBottom = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+  const tabHeight = 62 + safeBottom;
 
   return (
     <Tabs
@@ -35,11 +26,11 @@ export default function TabsLayout() {
           fontSize: 20,
         },
         tabBarStyle: {
-          backgroundColor: '#090E1A',
-          borderTopColor: '#1A2538',
+          backgroundColor: Colors.background,
+          borderTopColor: Colors.surfaceBorder,
           borderTopWidth: 1.5,
           height: tabHeight,
-          paddingBottom: bottomPadding,
+          paddingBottom: safeBottom,
           paddingTop: 8,
           elevation: 12,
           shadowColor: '#000',
@@ -47,7 +38,14 @@ export default function TabsLayout() {
           shadowOpacity: 0.35,
           shadowRadius: 8,
         },
-        tabBarShowLabel: false,
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '800',
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
@@ -56,17 +54,27 @@ export default function TabsLayout() {
           title: 'Programmes',
           headerTitle: 'VITAX MUSCULATION',
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="🏋️" label="Programmes" focused={focused} />
+            <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
+              🏋️
+            </Text>
           ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: 'Historique',
-          headerTitle: 'HISTORIQUE & PROGRÈS',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="📈" label="Historique" focused={focused} />
+          href: null,
+          title: 'Progression',
+          headerTitle: 'SUIVI DE PROGRESSION',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.navigate('/(tabs)')}
+              style={{ paddingHorizontal: 16 }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={{ fontSize: 16, color: Colors.primary, fontWeight: '800' }}>❮ Accueil</Text>
+            </TouchableOpacity>
           ),
         }}
       />
@@ -76,7 +84,9 @@ export default function TabsLayout() {
           title: 'Paramètres',
           headerTitle: 'PARAMÈTRES',
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="⚙️" label="Paramètres" focused={focused} />
+            <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
+              ⚙️
+            </Text>
           ),
         }}
       />
@@ -84,37 +94,5 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    minWidth: 82,
-  },
-  iconContainerFocused: {
-    backgroundColor: 'rgba(255, 90, 31, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 90, 31, 0.28)',
-  },
-  iconText: {
-    fontSize: 22,
-    opacity: 0.65,
-  },
-  iconFocused: {
-    opacity: 1,
-    transform: [{ scale: 1.08 }],
-  },
-  labelText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  labelFocused: {
-    color: Colors.primary,
-    fontWeight: '800',
-  },
-});
+
 

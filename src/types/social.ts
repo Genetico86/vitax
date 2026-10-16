@@ -13,7 +13,7 @@ export interface LeagueConfig {
 export interface TrainerProfile {
   id: string;
   username: string;
-  friendCode: string; // e.g. "VTX-7429"
+  friendCode: string; // e.g. "48219" (code unique à 5 chiffres)
   trainerTitle: string;
   avatarPokemonId: string;
   avatarPokemonEmoji: string;
@@ -75,7 +75,7 @@ export interface PokemonTradeOffer {
 export interface FriendEntry {
   friendId: string;
   username: string;
-  friendCode: string; // e.g. "VTX-7429"
+  friendCode: string; // e.g. "48219" (code à 5 chiffres)
   trainerTitle: string;
   avatarPokemonEmoji: string;
   currentLeague: LeagueTier;
@@ -121,5 +121,60 @@ export interface CoOpRaidBoss {
   rewardDescription: string;
   participants: RaidParticipant[];
   hasClaimedReward?: boolean;
+}
+
+export interface FriendChallenge {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  creatorAvatarEmoji: string;
+  targetFriendCode?: string; // Code ami ciblé ou 'all'
+  targetFriendName?: string;
+  type: 'exercise' | 'program';
+  title: string;
+  exerciseId?: string;
+  exerciseName?: string;
+  programId?: string;
+  programName?: string;
+  targetWeightKg?: number;
+  targetReps?: number;
+  targetDurationSeconds?: number;
+  targetVolumeKg?: number;
+  instructions: string;
+  rewardXp: number;
+  status: 'active' | 'completed' | 'beaten';
+  winnerName?: string;
+  createdAt: string;
+}
+
+export interface FriendRequest {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderCode: string;
+  senderAvatarEmoji: string;
+  senderTrainerTitle: string;
+  receiverId: string;
+  receiverCode: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+}
+
+export interface FriendGift {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatarEmoji: string;
+  receiverId: string;
+  receiverName: string;
+  receiverFriendCode: string;
+  giftName: string; // Nom du cadeau désigné par l'utilisateur
+  targetXpGain: number; // Quantité d'XP à obtenir pour déverrouiller
+  startXp: number; // XP de départ du destinataire
+  currentProgressXp: number; // Progression actuelle de l'XP
+  status: 'active' | 'unlocked' | 'claimed';
+  personalMessage?: string;
+  createdAt: string;
+  unlockedAt?: string;
 }
 

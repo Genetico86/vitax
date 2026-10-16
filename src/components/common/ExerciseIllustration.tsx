@@ -78,7 +78,7 @@ export const ExerciseIllustration: React.FC<ExerciseIllustrationProps> = ({
   const getColors = () => {
     switch (targetMuscle) {
       case 'Pectoraux':
-        return { start: '#FF5A1F', end: '#E11D48', bg: '#23141E', accent: '#FF5A1F' };
+        return { start: '#FF5500', end: '#E11D48', bg: '#23141E', accent: '#FF5500' };
       case 'Dos':
         return { start: '#06B6D4', end: '#3B82F6', bg: '#0F1E30', accent: '#06B6D4' };
       case 'Épaules':
@@ -94,7 +94,7 @@ export const ExerciseIllustration: React.FC<ExerciseIllustrationProps> = ({
       case 'Cardio':
         return { start: '#06B6D4', end: '#0284C7', bg: '#082F49', accent: '#38BDF8' };
       default:
-        return { start: '#FF5A1F', end: '#F97316', bg: '#201614', accent: '#FF5A1F' };
+        return { start: '#FF5500', end: '#F97316', bg: '#201614', accent: '#FF5500' };
     }
   };
 
@@ -107,8 +107,8 @@ export const ExerciseIllustration: React.FC<ExerciseIllustrationProps> = ({
   const renderMovementGraphic = (currentP: number) => {
     const id = exerciseId.toLowerCase();
 
-    // 0A. TAPIS DE COURSE (COURSE / MARCHE)
-    if (id.includes('treadmill') || id.includes('tapis') || id.includes('course')) {
+    // 0A. TAPIS DE COURSE & MARCHE (COURSE / MARCHE ACTIVE / MARCHE DU FERMIER)
+    if (id.includes('treadmill') || id.includes('tapis') || id.includes('course') || id.includes('walking') || id.includes('marche')) {
       const legSpread = (currentP - 0.5) * 32;
       const armSpread = -legSpread * 0.75;
       const bobY = Math.abs(Math.sin(currentP * Math.PI)) * 4;

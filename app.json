@@ -9,7 +9,8 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0D1117",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vitax.app"
     },
     "android": {
       "package": "com.vitax.app",
@@ -26,7 +27,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "name": "Vitax",
+      "shortName": "Vitax",
+      "themeColor": "#FF5500",
+      "backgroundColor": "#080C14",
+      "display": "standalone",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",
@@ -40,7 +48,9 @@
       "router": {},
       "eas": {
         "projectId": "c436d299-e9bd-4fae-a4e9-54fea42a8835"
-      }
+      },
+      "supabaseUrl": "https://ssotxhjqdoayzutvwbvy.supabase.co",
+      "supabaseAnonKey": "sb_publishable_dZztFWFSoawAVnJaRhdB7g_jk0-2bld"
     },
     "owner": "pymatth",
     "updates": {

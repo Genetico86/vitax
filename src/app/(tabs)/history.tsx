@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
@@ -14,6 +15,8 @@ import {
   getOverallStats,
   deleteWorkoutSession,
   getWorkoutSessionDetails,
+  getDailyWorkoutSummary,
+  DailyWorkoutSummary,
   OverallStats,
 } from '../../database/workoutRepository';
 import { getAllExercises, getExerciseProgression } from '../../database/exerciseRepository';
@@ -27,10 +30,20 @@ import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { ProgressChart } from '../../components/stats/ProgressChart';
 import { getExerciseUnitInfo } from '../../utils/exerciseUnits';
-import { getUserGamificationStats } from '../../services/gamificationService';
+import { getUserGamificationStats, PokemonBadgeTier, Achievement } from '../../services/gamificationService';
 import { UserLevelCard } from '../../components/stats/UserLevelCard';
 import { PokemonHub } from '../../components/pokemon/PokemonHub';
 import { WeightGoalsView } from '../../components/weight/WeightGoalsView';
+import {
+  getFavoriteExerciseIds,
+  toggleFavoriteExercise,
+} from '../../services/favoritesService';
+import {
+  formatWorkoutShareText,
+  formatDailyWorkoutShareText,
+  shareWorkoutContent,
+} from '../../services/workoutSharingService';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 export default function HistoryScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -38,6 +51,7 @@ export default function HistoryScreen() {
     'sessions' | 'weight_goals' | 'progression' | 'achievements' | 'pokemon'
   >('sessions');
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [stats, setStats] = useState<OverallStats>({
     totalWorkouts: 0,
     totalVolumeKg: 0,
@@ -51,6 +65,14 @@ export default function HistoryScreen() {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [expandedSessionDetails, setExpandedSessionDetails] =
     useState<WorkoutSessionWithSets | null>(null);
+  const userName = useSettingsStore((state) => state.user_name);
+  const [todaySummary, setTodaySummary] = useState<DailyWorkoutSummary | null>(null);
+
+  const handleToggleFavorite = async (exerciseId: string) => {
+    await toggleFavoriteExercise(exerciseId);
+    const updated = await getFavoriteExerciseIds();
+    setFavoriteIds(updated);
+  };
 
   // Pour l'onglet progression
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -62,17 +84,42 @@ export default function HistoryScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const sessList = await getAllWorkoutSessions();
-      setSessions(sessList);
+      const [gStatsRes, stRes, exListRes, favsRes, initialSessionsRes, tSummaryRes] =
+        await Promise.allSettled([
+          getUserGamificationStats(),
+          getOverallStats(),
+          getAllExercises(),
+          getFavoriteExerciseIds(),
+          getAllWorkoutSessions(),
+          getDailyWorkoutSummary(),
+        ]);
 
-      const st = await getOverallStats();
-      setStats(st);
+      if (gStatsRes.status === 'fulfilled') setGamificationStats(gStatsRes.value);
+      if (stRes.status === 'fulfilled') setStats(stRes.value);
+      if (favsRes.status === 'fulfilled') setFavoriteIds(favsRes.value);
+      if (tSummaryRes.status === 'fulfilled') setTodaySummary(tSummaryRes.value);
 
-      const gStats = await getUserGamificationStats();
-      setGamificationStats(gStats);
+      const initialSessions =
+        initialSessionsRes.status === 'fulfilled' ? initialSessionsRes.value : [];
+      setSessions(initialSessions);
 
-      const exList = await getAllExercises();
+      const exList = exListRes.status === 'fulfilled' ? exListRes.value : [];
       setExercises(exList);
+
+      if (initialSessions.length === 0) {
+        void (async () => {
+          try {
+            const { fullCloudSyncToLocal } = await import('../../services/cloudSyncService');
+            const syncRes = await fullCloudSyncToLocal();
+            if (syncRes.sessionsCount > 0) {
+              const updatedSess = await getAllWorkoutSessions();
+              setSessions(updatedSess);
+              const updatedGStats = await getUserGamificationStats();
+              setGamificationStats(updatedGStats);
+            }
+          } catch {}
+        })();
+      }
 
       if (exList.length > 0 && !selectedExerciseId) {
         // Sélectionner par défaut le développé couché ou le premier exercice
@@ -88,6 +135,50 @@ export default function HistoryScreen() {
       console.error('Erreur chargement historique:', err);
     }
   }, [selectedExerciseId]);
+
+  const handleLevelCardPress = () => {
+    if (!gamificationStats) return;
+    const { levelInfo, totalXp } = gamificationStats;
+    const remaining = Math.max(0, levelInfo.nextLevelXp - totalXp);
+    Alert.alert(
+      `${levelInfo.badgeEmoji} ${levelInfo.title} (Niv. ${levelInfo.level})`,
+      `🏛️ Arène : ${levelInfo.city} (${levelInfo.champion}) • ${levelInfo.type}\n\n` +
+      `⚡ XP Total accumulé : ${totalXp} XP\n` +
+      `📈 Progression du palier : ${levelInfo.progressPercent}%\n\n` +
+      (levelInfo.level >= 9
+        ? '👑 Titre Suprême de Maître de la Ligue conquis !'
+        : `Prochain badge : ${levelInfo.nextBadgeTitle} ${levelInfo.nextBadgeEmoji} dans ${remaining} XP !`),
+      [{ text: 'Super' }]
+    );
+  };
+
+  const handleBadgePress = (tier: PokemonBadgeTier, isUnlocked: boolean) => {
+    const totalXp = gamificationStats?.totalXp || 0;
+    const remaining = Math.max(0, tier.minXp - totalXp);
+    Alert.alert(
+      `${tier.emoji} ${tier.badgeName}`,
+      `${tier.description}\n\n` +
+      `🏛️ Arène : ${tier.city} (${tier.champion}) • ${tier.type}\n` +
+      `⚡ Palier : ${tier.minXp} XP (Actuel : ${totalXp} XP)\n\n` +
+      (isUnlocked
+        ? '✓ Badge débloqué et conquis avec honneur !'
+        : `🔒 Verrouillé : plus que ${remaining} XP d’entraînement pour le remporter !`),
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleAchievementPress = (ach: Achievement) => {
+    Alert.alert(
+      `${ach.icon} ${ach.title}`,
+      `${ach.description}\n\n` +
+      `⚡ Récompense : +${ach.rewardXp} XP\n` +
+      (ach.legendaryReward ? `⭐ Œuf Légendaire : ${ach.legendaryReward.name} ${ach.legendaryReward.emoji} (${ach.legendaryReward.type})\n\n` : '\n') +
+      (ach.unlocked
+        ? '✓ Trophée débloqué ! Bravo pour cet exploit athlétique !'
+        : `Progression : ${ach.progress} / ${ach.maxProgress} (${Math.round((ach.progress / ach.maxProgress) * 100)}%)`),
+      [{ text: 'Compris' }]
+    );
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +197,12 @@ export default function HistoryScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    try {
+      const { syncCloudAndLocal } = await import('../../services/cloudSyncService');
+      await syncCloudAndLocal();
+    } catch (e) {
+      console.warn('Erreur synchro cloud onRefresh:', e);
+    }
     await loadData();
     setRefreshing(false);
   };
@@ -142,6 +239,29 @@ export default function HistoryScreen() {
           },
         },
       ]
+    );
+  };
+
+  const handleShareSingleSession = async (sessionId: string) => {
+    const details = await getWorkoutSessionDetails(sessionId);
+    if (!details) {
+      Alert.alert('Erreur', 'Impossible de charger les détails de cette séance.');
+      return;
+    }
+    const text = formatWorkoutShareText(details, userName);
+    await shareWorkoutContent('Ma Séance Vitax Sport', text);
+  };
+
+  const handleShareDay = async (targetDateStr?: string) => {
+    const summary = await getDailyWorkoutSummary(targetDateStr);
+    if (!summary || summary.exercises.length === 0) {
+      Alert.alert('Aucun entraînement', 'Aucun exercice n’a été enregistré pour cette date.');
+      return;
+    }
+    const text = formatDailyWorkoutShareText(summary, userName);
+    await shareWorkoutContent(
+      `Bilan Sportif du Jour (${summary.sessionsCount} séance${summary.sessionsCount > 1 ? 's' : ''})`,
+      text
     );
   };
 
@@ -287,6 +407,34 @@ export default function HistoryScreen() {
           <View>
             <Text style={styles.sectionTitle}>Historique des Entraînements</Text>
 
+            {/* BANNIÈRE DE PARTAGE DU BILAN COMPLET DU JOUR */}
+            {todaySummary && todaySummary.sessionsCount > 0 && (
+              <Card style={styles.todayShareCard}>
+                <View style={styles.todayShareTopRow}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 18 }}>📅</Text>
+                      <Text style={styles.todayShareTitle}>
+                        Bilan du Jour ({todaySummary.sessionsCount} séance{todaySummary.sessionsCount > 1 ? 's' : ''})
+                      </Text>
+                    </View>
+                    <Text style={styles.todayShareSub}>
+                      {todaySummary.totalVolumeKg.toLocaleString()} kg soulevés • {todaySummary.totalSets} séries • {todaySummary.exercises.length} exercices
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.todayShareActionBtn}
+                    onPress={() => handleShareDay(todaySummary.date)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.todayShareActionBtnText}>
+                      📤 Partager le Jour
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Card>
+            )}
+
             {sessions.length === 0 ? (
               <Card style={styles.emptyCard}>
                 <Text style={styles.emptyIcon}>🏋️‍♂️</Text>
@@ -313,12 +461,22 @@ export default function HistoryScreen() {
                           </Text>
                           <Text style={styles.sessionDate}>{formatDate(s.date)}</Text>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteSession(s.id)}
-                          style={styles.deleteBtn}
-                        >
-                          <Text style={styles.deleteIcon}>🗑</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <TouchableOpacity
+                            onPress={() => handleShareSingleSession(s.id)}
+                            style={styles.shareSessionBtn}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={styles.shareSessionIcon}>📤</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSession(s.id)}
+                            style={styles.deleteBtn}
+                          >
+                            <Text style={styles.deleteIcon}>🗑</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
 
                       {/* Métriques clés de la séance */}
@@ -365,15 +523,51 @@ export default function HistoryScreen() {
                           });
                           return (
                             <View key={set.id || idx} style={styles.detailSetRow}>
-                              <Text style={styles.detailExerciseName}>
-                                {set.exercise_name}
-                              </Text>
-                              <Text style={styles.detailSetValues}>
-                                Série {set.set_order} : {unitInfo.formatSet(set.weight, set.reps)}
-                              </Text>
+                              <View style={{ flex: 1, marginRight: 8 }}>
+                                <Text style={styles.detailExerciseName}>
+                                  {set.exercise_name}
+                                </Text>
+                                <Text style={styles.detailSetValues}>
+                                  Série {set.set_order} : {unitInfo.formatSet(set.weight, set.reps)}
+                                </Text>
+                              </View>
+                              <TouchableOpacity
+                                onPress={() => handleToggleFavorite(set.exercise_id)}
+                                style={[
+                                  styles.favHistoryBtn,
+                                  favoriteIds.includes(set.exercise_id) && styles.favHistoryBtnActive,
+                                ]}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Text style={styles.favHistoryIcon}>
+                                  {favoriteIds.includes(set.exercise_id) ? '⭐' : '☆'}
+                                </Text>
+                              </TouchableOpacity>
                             </View>
                           );
                         })}
+
+                        {/* BOUTONS DE PARTAGE DANS LE DÉTAIL DÉPLIÉ */}
+                        <View style={styles.expandedShareButtonsRow}>
+                          <TouchableOpacity
+                            style={styles.expandedShareSingleBtn}
+                            onPress={() => handleShareSingleSession(s.id)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.expandedShareSingleBtnText}>
+                              📤 Partager cette séance
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.expandedShareDayBtn}
+                            onPress={() => handleShareDay(s.date)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.expandedShareDayBtnText}>
+                              📅 Bilan complet du {formatDate(s.date)}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     )}
                   </Card>
@@ -507,7 +701,10 @@ export default function HistoryScreen() {
               Gagnez des points d’expérience (XP) à chaque séance et charge pour décrocher les 8 Badges de Kanto et devenir Maître de la Ligue !
             </Text>
 
-            <UserLevelCard levelInfo={gamificationStats.levelInfo} />
+            <UserLevelCard
+              levelInfo={gamificationStats.levelInfo}
+              onPress={handleLevelCardPress}
+            />
 
             {/* Collection des 8 Badges de Kanto */}
             <Text style={[styles.sectionTitle, { marginTop: 14, marginBottom: 4 }]}>
@@ -523,49 +720,54 @@ export default function HistoryScreen() {
                 const isCurrent = gamificationStats.levelInfo.level === tier.level;
 
                 return (
-                  <Card
+                  <TouchableOpacity
                     key={tier.level}
-                    style={[
-                      styles.pokemonBadgeCard,
-                      isUnlocked && styles.pokemonBadgeCardUnlocked,
-                      isCurrent && styles.pokemonBadgeCardCurrent,
-                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => handleBadgePress(tier, isUnlocked)}
                   >
-                    <View style={styles.pokemonBadgeHeader}>
-                      <View
-                        style={[
-                          styles.pokemonBadgeIconBox,
-                          isUnlocked && styles.pokemonBadgeIconBoxUnlocked,
-                        ]}
-                      >
-                        <Text style={styles.pokemonBadgeEmoji}>{tier.emoji}</Text>
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <View style={styles.pokemonBadgeTitleRow}>
-                          <Text style={styles.pokemonBadgeTitle}>
-                            {tier.badgeName}
-                          </Text>
-                          {isUnlocked ? (
-                            <View style={styles.unlockedBadge}>
-                              <Text style={styles.unlockedBadgeText}>✓ OBTENU</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.tierLockBadge}>
-                              <Text style={styles.tierLockBadgeText}>
-                                {tier.minXp} XP requis
-                              </Text>
-                            </View>
-                          )}
+                    <Card
+                      style={[
+                        styles.pokemonBadgeCard,
+                        isUnlocked && styles.pokemonBadgeCardUnlocked,
+                        isCurrent && styles.pokemonBadgeCardCurrent,
+                      ]}
+                    >
+                      <View style={styles.pokemonBadgeHeader}>
+                        <View
+                          style={[
+                            styles.pokemonBadgeIconBox,
+                            isUnlocked && styles.pokemonBadgeIconBoxUnlocked,
+                          ]}
+                        >
+                          <Text style={styles.pokemonBadgeEmoji}>{tier.emoji}</Text>
                         </View>
-                        <Text style={styles.pokemonBadgeArena}>
-                          Arène d’{tier.city} ({tier.champion}) • {tier.type}
-                        </Text>
-                      </View>
-                    </View>
 
-                    <Text style={styles.pokemonBadgeDesc}>{tier.description}</Text>
-                  </Card>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.pokemonBadgeTitleRow}>
+                            <Text style={styles.pokemonBadgeTitle}>
+                              {tier.badgeName}
+                            </Text>
+                            {isUnlocked ? (
+                              <View style={styles.unlockedBadge}>
+                                <Text style={styles.unlockedBadgeText}>✓ OBTENU</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.tierLockBadge}>
+                                <Text style={styles.tierLockBadgeText}>
+                                  {tier.minXp} XP requis
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.pokemonBadgeArena}>
+                            Arène d’{tier.city} ({tier.champion}) • {tier.type}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.pokemonBadgeDesc}>{tier.description}</Text>
+                    </Card>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -585,90 +787,107 @@ export default function HistoryScreen() {
               );
 
               return (
-                <Card
+                <TouchableOpacity
                   key={ach.id}
-                  style={[
-                    styles.achievementCard,
-                    ach.unlocked && styles.achievementCardUnlocked,
-                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => handleAchievementPress(ach)}
                 >
-                  <View style={styles.achievementHeader}>
-                    <View
-                      style={[
-                        styles.achievementIconBox,
-                        ach.unlocked && styles.achievementIconBoxUnlocked,
-                      ]}
-                    >
-                      <Text style={styles.achievementIcon}>{ach.icon}</Text>
-                    </View>
+                  <Card
+                    style={[
+                      styles.achievementCard,
+                      ach.unlocked && styles.achievementCardUnlocked,
+                    ]}
+                  >
+                    <View style={styles.achievementHeader}>
+                      <View
+                        style={[
+                          styles.achievementIconBox,
+                          ach.unlocked && styles.achievementIconBoxUnlocked,
+                        ]}
+                      >
+                        <Text style={styles.achievementIcon}>{ach.icon}</Text>
+                      </View>
 
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.achievementTitleRow}>
-                        <Text style={styles.achievementTitle}>{ach.title}</Text>
-                        {ach.unlocked ? (
-                          <View style={styles.unlockedBadge}>
-                            <Text style={styles.unlockedBadgeText}>✓ DÉBLOQUÉ</Text>
-                          </View>
-                        ) : (
-                          <View style={styles.rewardBadge}>
-                            <Text style={styles.rewardBadgeText}>+{ach.rewardXp} XP</Text>
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.achievementTitleRow}>
+                          <Text style={styles.achievementTitle}>{ach.title}</Text>
+                          {ach.unlocked ? (
+                            <View style={styles.unlockedBadge}>
+                              <Text style={styles.unlockedBadgeText}>✓ DÉBLOQUÉ</Text>
+                            </View>
+                          ) : (
+                            <View style={styles.rewardBadge}>
+                              <Text style={styles.rewardBadgeText}>+{ach.rewardXp} XP</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.achievementDesc}>{ach.description}</Text>
+                        {ach.legendaryReward && (
+                          <View style={styles.legendaryRewardBadgeInline}>
+                            <Text style={styles.legendaryRewardBadgeText}>
+                              ⭐ Récompense : Œuf Légendaire de {ach.legendaryReward.name} {ach.legendaryReward.emoji}
+                            </Text>
                           </View>
                         )}
                       </View>
-                      <Text style={styles.achievementDesc}>{ach.description}</Text>
-                      {ach.legendaryReward && (
-                        <View style={styles.legendaryRewardBadgeInline}>
-                          <Text style={styles.legendaryRewardBadgeText}>
-                            ⭐ Récompense : Œuf Légendaire de {ach.legendaryReward.name} {ach.legendaryReward.emoji}
-                          </Text>
-                        </View>
-                      )}
                     </View>
-                  </View>
 
-                  {/* Barre de progression du trophée */}
-                  <View style={styles.achProgressSection}>
-                    <View style={styles.achProgressTrack}>
-                      <View
-                        style={[
-                          styles.achProgressBar,
-                          ach.unlocked && styles.achProgressBarUnlocked,
-                          { width: `${progressPct}%` },
-                        ]}
-                      />
+                    {/* Barre de progression du trophée */}
+                    <View style={styles.achProgressSection}>
+                      <View style={styles.achProgressTrack}>
+                        <View
+                          style={[
+                            styles.achProgressBar,
+                            ach.unlocked && styles.achProgressBarUnlocked,
+                            { width: `${progressPct}%` },
+                          ]}
+                        />
+                      </View>
+                      <View style={styles.achProgressLabels}>
+                        <Text style={styles.achProgressText}>
+                          {ach.unlocked
+                            ? 'Trophée débloqué !'
+                            : `Progression : ${ach.progress} / ${ach.maxProgress}`}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.achRewardLabel,
+                            ach.unlocked && styles.achRewardLabelUnlocked,
+                          ]}
+                        >
+                          {ach.unlocked ? `+${ach.rewardXp} XP acquis` : `${progressPct}%`}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.achProgressLabels}>
-                      <Text style={styles.achProgressText}>
-                        {ach.unlocked
-                          ? 'Trophée débloqué !'
-                          : `Progression : ${ach.progress} / ${ach.maxProgress}`}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.achRewardLabel,
-                          ach.unlocked && styles.achRewardLabelUnlocked,
-                        ]}
-                      >
-                        {ach.unlocked ? `+${ach.rewardXp} XP acquis` : `${progressPct}%`}
-                      </Text>
-                    </View>
-                  </View>
-                </Card>
+                  </Card>
+                </TouchableOpacity>
               );
             })}
           </View>
         )}
 
         {/* Onglet Pokémon (Espaces d’Incubation, Œufs & Pokédex) */}
-        {activeTab === 'pokemon' && gamificationStats && (
-          <PokemonHub
-            totalXp={gamificationStats.totalXp}
-            incubatorSlots={gamificationStats.incubatorSlots}
-            inventoryEggs={gamificationStats.inventoryEggs}
-            incubatingEggs={gamificationStats.incubatingEggs}
-            hatchedPokemon={gamificationStats.hatchedPokemon}
-            onRefreshData={loadData}
-          />
+        {activeTab === 'pokemon' && (
+          gamificationStats ? (
+            <PokemonHub
+              totalXp={gamificationStats.totalXp}
+              incubatorSlots={gamificationStats.incubatorSlots}
+              inventoryEggs={gamificationStats.inventoryEggs}
+              incubatingEggs={gamificationStats.incubatingEggs}
+              hatchedPokemon={gamificationStats.hatchedPokemon}
+              onRefreshData={loadData}
+            />
+          ) : (
+            <Card style={styles.loadingPokemonCard}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingPokemonTitle}>
+                Chargement des Pokémon & Incubateurs...
+              </Text>
+              <Text style={styles.loadingPokemonSub}>
+                Préparation de vos œufs et calcul de votre progression d’entraînement
+              </Text>
+            </Card>
+          )
         )}
       </ScrollView>
     </View>
@@ -866,6 +1085,24 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 13,
     fontWeight: '700',
+  },
+  favHistoryBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#24344E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  favHistoryBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderColor: 'rgba(245, 158, 11, 0.6)',
+  },
+  favHistoryIcon: {
+    fontSize: 13,
   },
   exerciseSelector: {
     gap: 8,
@@ -1123,5 +1360,110 @@ const styles = StyleSheet.create({
     color: '#FDE047',
     fontSize: 11,
     fontWeight: '800',
+  },
+  loadingPokemonCard: {
+    padding: 32,
+    alignItems: 'center',
+    marginVertical: 16,
+    borderRadius: 16,
+  },
+  loadingPokemonTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    marginTop: 14,
+    textAlign: 'center',
+  },
+  loadingPokemonSub: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  todayShareCard: {
+    backgroundColor: 'rgba(255, 90, 31, 0.1)',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#FF5A1F',
+    padding: 12,
+    marginBottom: 14,
+  },
+  todayShareTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  todayShareTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  todayShareSub: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 3,
+  },
+  todayShareActionBtn: {
+    backgroundColor: '#FF5A1F',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayShareActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  shareSessionBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#1E2C42',
+    borderWidth: 1,
+    borderColor: '#2D3F5C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareSessionIcon: {
+    fontSize: 14,
+  },
+  expandedShareButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1A2436',
+  },
+  expandedShareSingleBtn: {
+    flex: 1,
+    backgroundColor: '#1E2B40',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A3C58',
+  },
+  expandedShareSingleBtnText: {
+    color: '#93C5FD',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  expandedShareDayBtn: {
+    flex: 1.2,
+    backgroundColor: 'rgba(255, 90, 31, 0.15)',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.4)',
+  },
+  expandedShareDayBtnText: {
+    color: '#FF7A45',
+    fontSize: 11,
+    fontWeight: '900',
   },
 });

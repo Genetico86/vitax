@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getAllExercises, deleteCustomExercise } from '../../database/exerciseRepository';
 import { Exercise, MuscleGroup } from '../../types';
 import {
@@ -22,14 +22,86 @@ import { Badge } from '../../components/common/Badge';
 import { ExerciseIllustration } from '../../components/common/ExerciseIllustration';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { isExerciseCompatibleWithEquipment } from '../../utils/exerciseUnits';
+import {
+  getFavoriteExerciseIds,
+  toggleFavoriteExercise,
+} from '../../services/favoritesService';
+import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
+import { useWorkoutSessionStore } from '../../stores/workoutSessionStore';
 
 export default function ExercisesCatalogScreen() {
+  const params = useLocalSearchParams<{ filter?: string }>();
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState<boolean>(params.filter === 'favorites');
   const [selectedMuscle, setSelectedMuscle] = useState<string>('Tous');
   const [selectedPreciseMuscleId, setSelectedPreciseMuscleId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [guideModalVisible, setGuideModalVisible] = useState(false);
+  const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
 
   const { available_equipments, filter_by_available_equipment } = useSettingsStore();
+  const { isActive, startTargetedWorkout, addExerciseToWorkout } = useWorkoutSessionStore();
+
+  const handleStartSingleExercise = async (exercise: Exercise) => {
+    if (isActive) {
+      Alert.alert(
+        'Séance déjà en cours',
+        `Une séance est actuellement active. Voulez-vous ajouter "${exercise.name}" à votre séance en cours ou démarrer un entraînement seul ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Ajouter à la séance',
+            onPress: () => {
+              addExerciseToWorkout(exercise);
+              router.push('/workout/active');
+            },
+          },
+          {
+            text: 'Démarrer seul',
+            style: 'destructive',
+            onPress: async () => {
+              await startTargetedWorkout(exercise.name, [exercise]);
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    await startTargetedWorkout(exercise.name, [exercise]);
+    router.push('/workout/active');
+  };
+
+  const handleStartAllFavorites = async () => {
+    const favoriteExercises = exercises.filter((ex) => favoriteIds.includes(ex.id));
+    if (favoriteExercises.length === 0) {
+      Alert.alert('Aucun favori', 'Ajoutez d’abord des exercices à vos favoris en cliquant sur l’étoile ⭐.');
+      return;
+    }
+
+    if (isActive) {
+      Alert.alert(
+        'Séance déjà en cours',
+        `Une séance est actuellement active. Voulez-vous lancer une nouvelle séance avec vos ${favoriteExercises.length} favoris ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Lancer mes favoris',
+            onPress: async () => {
+              await startTargetedWorkout('Mes Favoris', favoriteExercises);
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    await startTargetedWorkout('Mes Favoris', favoriteExercises);
+    router.push('/workout/active');
+  };
 
   const isEquipmentFilterRestricting = useMemo(() => {
     return (
@@ -40,8 +112,12 @@ export default function ExercisesCatalogScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const list = await getAllExercises();
+      const [list, favs] = await Promise.all([
+        getAllExercises(),
+        getFavoriteExerciseIds(),
+      ]);
       setExercises(list);
+      setFavoriteIds(favs);
     } catch (err) {
       console.error('Erreur catalogue exercices:', err);
     }
@@ -50,7 +126,10 @@ export default function ExercisesCatalogScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+      if (params.filter === 'favorites') {
+        setShowOnlyFavorites(true);
+      }
+    }, [loadData, params.filter])
   );
 
   const handleSelectMuscle = (m: string) => {
@@ -76,21 +155,27 @@ export default function ExercisesCatalogScreen() {
     );
   };
 
-  // Filtrage selon le matériel disponible coché
-  const equipmentFiltered = useMemo(() => {
-    if (!filter_by_available_equipment) return exercises;
-    return exercises.filter((e) =>
-      isExerciseCompatibleWithEquipment(e, available_equipments)
-    );
-  }, [exercises, filter_by_available_equipment, available_equipments]);
+  // Filtrage selon les favoris et le matériel disponible coché
+  const baseFiltered = useMemo(() => {
+    let list = exercises;
+    if (showOnlyFavorites) {
+      list = list.filter((e) => favoriteIds.includes(e.id));
+    }
+    if (filter_by_available_equipment) {
+      list = list.filter((e) =>
+        isExerciseCompatibleWithEquipment(e, available_equipments)
+      );
+    }
+    return list;
+  }, [exercises, showOnlyFavorites, favoriteIds, filter_by_available_equipment, available_equipments]);
 
   const muscleFiltered = useMemo(() => {
     return filterExercisesByMuscleTarget(
-      equipmentFiltered,
+      baseFiltered,
       selectedMuscle,
       selectedPreciseMuscleId
     );
-  }, [equipmentFiltered, selectedMuscle, selectedPreciseMuscleId]);
+  }, [baseFiltered, selectedMuscle, selectedPreciseMuscleId]);
 
   const filtered = useMemo(() => {
     return muscleFiltered.filter(
@@ -125,25 +210,49 @@ export default function ExercisesCatalogScreen() {
         />
       </View>
 
-      {/* Onglets Filtres Muscles */}
+      {/* Onglets Filtres Muscles & Favoris */}
       <View style={styles.filtersWrapper}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersScroll}
         >
+          {/* Filtre Rapide : ⭐ Favoris */}
           <TouchableOpacity
             style={[
               styles.filterChip,
-              selectedMuscle === 'Tous' && styles.filterChipActive,
+              styles.filterChipFavorite,
+              showOnlyFavorites && styles.filterChipFavoriteActive,
             ]}
-            onPress={() => handleSelectMuscle('Tous')}
+            onPress={() => setShowOnlyFavorites((prev) => !prev)}
             activeOpacity={0.7}
           >
             <Text
               style={[
                 styles.filterChipText,
-                selectedMuscle === 'Tous' && styles.filterChipTextActive,
+                styles.filterChipFavoriteText,
+                showOnlyFavorites && styles.filterChipFavoriteTextActive,
+              ]}
+            >
+              ⭐ Favoris ({favoriteIds.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              !showOnlyFavorites && selectedMuscle === 'Tous' && styles.filterChipActive,
+            ]}
+            onPress={() => {
+              setShowOnlyFavorites(false);
+              handleSelectMuscle('Tous');
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                !showOnlyFavorites && selectedMuscle === 'Tous' && styles.filterChipTextActive,
               ]}
             >
               Tous
@@ -155,15 +264,18 @@ export default function ExercisesCatalogScreen() {
               key={m}
               style={[
                 styles.filterChip,
-                selectedMuscle === m && styles.filterChipActive,
+                !showOnlyFavorites && selectedMuscle === m && styles.filterChipActive,
               ]}
-              onPress={() => handleSelectMuscle(m)}
+              onPress={() => {
+                setShowOnlyFavorites(false);
+                handleSelectMuscle(m);
+              }}
               activeOpacity={0.7}
             >
               <Text
                 style={[
                   styles.filterChipText,
-                  selectedMuscle === m && styles.filterChipTextActive,
+                  !showOnlyFavorites && selectedMuscle === m && styles.filterChipTextActive,
                 ]}
               >
                 {m}
@@ -252,6 +364,28 @@ export default function ExercisesCatalogScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Bandeau d'action rapide pour lancer tous les favoris */}
+        {showOnlyFavorites && filtered.length > 0 && (
+          <TouchableOpacity
+            style={styles.startAllFavoritesBanner}
+            onPress={handleStartAllFavorites}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.startAllFavoritesIcon}>⭐</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.startAllFavoritesTitle}>
+                Lancer une séance avec mes favoris
+              </Text>
+              <Text style={styles.startAllFavoritesSub}>
+                {filtered.length} exercice{filtered.length > 1 ? 's' : ''} fétiche{filtered.length > 1 ? 's' : ''} • Démarrage direct
+              </Text>
+            </View>
+            <View style={styles.startAllFavoritesPill}>
+              <Text style={styles.startAllFavoritesPillText}>Lancer ▶</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.listHeaderRow}>
           <Text style={styles.resultCountText}>
             {filtered.length} exercices trouvés
@@ -289,7 +423,14 @@ export default function ExercisesCatalogScreen() {
           filtered.map((item) => (
             <Card key={item.id} style={styles.exerciseCard}>
               <View style={styles.cardHeader}>
-                <View style={styles.cardLeft}>
+                <TouchableOpacity
+                  style={styles.cardLeft}
+                  onPress={() => {
+                    setSelectedGuideExercise(item);
+                    setGuideModalVisible(true);
+                  }}
+                  activeOpacity={0.7}
+                >
                   <ExerciseIllustration
                     exerciseId={item.id}
                     targetMuscle={item.target_muscle}
@@ -319,25 +460,93 @@ export default function ExercisesCatalogScreen() {
                       )}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
 
-                {item.is_custom === 1 && (
+                <View style={styles.cardHeaderActions}>
                   <TouchableOpacity
-                    onPress={() => handleDeleteCustom(item.id)}
-                    style={styles.deleteBtn}
+                    onPress={() => {
+                      setSelectedGuideExercise(item);
+                      setGuideModalVisible(true);
+                    }}
+                    style={styles.guideCardBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.deleteBtnText}>🗑</Text>
+                    <Text style={styles.guideCardBtnIcon}>ℹ️</Text>
                   </TouchableOpacity>
-                )}
+
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await toggleFavoriteExercise(item.id);
+                      const updated = await getFavoriteExerciseIds();
+                      setFavoriteIds(updated);
+                    }}
+                    style={[
+                      styles.favoriteCardBtn,
+                      favoriteIds.includes(item.id) && styles.favoriteCardBtnActive,
+                    ]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.favoriteCardBtnIcon}>
+                      {favoriteIds.includes(item.id) ? '⭐' : '☆'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {item.is_custom === 1 && (
+                    <TouchableOpacity
+                      onPress={() => handleDeleteCustom(item.id)}
+                      style={styles.deleteBtn}
+                    >
+                      <Text style={styles.deleteBtnText}>🗑</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {item.description ? (
                 <Text style={styles.exerciseDesc}>{item.description}</Text>
               ) : null}
+
+              {/* Bouton pour lancer l'entraînement sur cet exercice */}
+              <TouchableOpacity
+                style={[
+                  styles.startExerciseCardBtn,
+                  favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtn,
+                ]}
+                onPress={() => handleStartSingleExercise(item)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.startExerciseCardBtnIcon,
+                    favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtnIcon,
+                  ]}
+                >
+                  ▶
+                </Text>
+                <Text
+                  style={[
+                    styles.startExerciseCardBtnText,
+                    favoriteIds.includes(item.id) && styles.startFavoriteExerciseCardBtnText,
+                  ]}
+                >
+                  {favoriteIds.includes(item.id)
+                    ? 'Lancer cet exercice favori'
+                    : 'S’entraîner sur cet exercice'}
+                </Text>
+              </TouchableOpacity>
             </Card>
           ))
         )}
       </ScrollView>
+
+      {/* Guide d'exécution technique */}
+      <ExerciseGuideModal
+        visible={guideModalVisible}
+        exercise={selectedGuideExercise}
+        onClose={() => setGuideModalVisible(false)}
+      />
     </View>
   );
 }
@@ -432,13 +641,29 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
+  filterChipFavorite: {
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+  },
+  filterChipFavoriteActive: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#F59E0B',
+  },
   filterChipText: {
     color: Colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
   },
+  filterChipFavoriteText: {
+    color: '#FBBF24',
+  },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: Colors.primaryText,
+    fontWeight: '800',
+  },
+  filterChipFavoriteTextActive: {
+    color: Colors.primaryText,
+    fontWeight: '800',
   },
   listContent: {
     padding: 16,
@@ -493,6 +718,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  cardHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  guideCardBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#22324A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guideCardBtnIcon: {
+    fontSize: 14,
+  },
+  favoriteCardBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#162235',
+    borderWidth: 1,
+    borderColor: '#22324A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favoriteCardBtnActive: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: 'rgba(245, 158, 11, 0.5)',
+  },
+  favoriteCardBtnIcon: {
+    fontSize: 16,
   },
   deleteBtn: {
     padding: 6,
@@ -577,5 +837,76 @@ const styles = StyleSheet.create({
     color: '#93C5FD',
     fontSize: 13,
     fontWeight: '700',
+  },
+  startAllFavoritesBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E190B',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
+    gap: 12,
+  },
+  startAllFavoritesIcon: {
+    fontSize: 26,
+  },
+  startAllFavoritesTitle: {
+    color: '#FBBF24',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  startAllFavoritesSub: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  startAllFavoritesPill: {
+    backgroundColor: Colors.gold,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  startAllFavoritesPillText: {
+    color: Colors.primaryText,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  startExerciseCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+    gap: 8,
+  },
+  startExerciseCardBtnIcon: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  startExerciseCardBtnText: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  startFavoriteExerciseCardBtn: {
+    backgroundColor: 'rgba(255, 85, 0, 0.12)',
+    borderColor: 'rgba(255, 85, 0, 0.45)',
+  },
+  startFavoriteExerciseCardBtnIcon: {
+    color: Colors.primary,
+  },
+  startFavoriteExerciseCardBtnText: {
+    color: Colors.primary,
+    fontWeight: '900',
   },
 });

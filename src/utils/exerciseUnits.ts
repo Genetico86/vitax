@@ -13,7 +13,7 @@ export interface ExerciseUnitInfo {
 
 /**
  * Détermine si un exercice est un exercice basé sur la durée (en minutes),
- * notamment le vélo, le tapis de course et le rameur.
+ * exclusivement les activités cardio continues : tapis de course, vélo elliptique, vélo stationnaire et rameur.
  */
 export function isDurationExercise(exercise?: {
   id?: string;
@@ -25,25 +25,50 @@ export function isDurationExercise(exercise?: {
   const name = (exercise.name || '').toLowerCase();
   const eq = (exercise.equipment_needed || '').toLowerCase();
 
-  return (
+  // Matériel purement cardio machine
+  if (
     eq === 'tapis de course' ||
     eq === 'vélo elliptique' ||
     eq === 'velo elliptique' ||
-    id.includes('treadmill') ||
-    id.includes('elliptical') ||
-    id.includes('rower') ||
-    name.includes('tapis') ||
-    name.includes('vélo') ||
-    name.includes('velo') ||
-    name.includes('rameur') ||
-    name.includes('elliptique')
-  );
+    eq === 'rameur'
+  ) {
+    return true;
+  }
+
+  // Identifiants connus d'exercices d'endurance / cardio continu
+  if (
+    id === 'ex_treadmill' ||
+    id === 'ex_walking_active' ||
+    id === 'ex_walking_incline' ||
+    id === 'ex_elliptical' ||
+    id === 'ex_rower'
+  ) {
+    return true;
+  }
+
+  // Recherche textuelle stricte avec limites de mots (\b) pour éviter les collisions
+  // (ex: "développé" contient "velo", mais \bvelo\b ne correspond pas à "développé")
+  if (/\b(tapis|rameur|elliptique|spinning|biking)\b/i.test(name)) {
+    return true;
+  }
+  if (/\b(v[ée]lo)\b/i.test(name)) {
+    return true;
+  }
+  if (/\b(marche active|marche rapide|marche inclin[ée]e|course [àa] pied)\b/i.test(name)) {
+    return true;
+  }
+  if (/\b(treadmill|elliptical|rower)\b/i.test(id)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
  * Fournit les unités et libellés adaptés au matériel utilisé.
  * En vélo, tapis de course et rameur : on parle en minutes pour la durée,
  * et en vitesse (km/h) ou résistance pour l'intensité.
+ * En musculation et renforcement : Charge (kg) et Répétitions (reps).
  */
 export function getExerciseUnitInfo(exercise?: {
   id?: string;
@@ -57,13 +82,23 @@ export function getExerciseUnitInfo(exercise?: {
     let loadUnit = 'résist.';
     let loadLabel = 'RÉSIST.';
 
-    if (id.includes('treadmill') || name.includes('tapis')) {
+    if (
+      id.includes('treadmill') ||
+      name.includes('tapis') ||
+      id === 'ex_walking_active' ||
+      id === 'ex_walking_incline' ||
+      /\b(marche active|marche rapide|marche inclin[ée]e|course [àa] pied)\b/i.test(name)
+    ) {
       loadUnit = 'km/h';
       loadLabel = 'VITESSE';
     } else if (id.includes('rower') || name.includes('rameur')) {
       loadUnit = 'allure';
       loadLabel = 'ALLURE';
-    } else if (id.includes('elliptical') || name.includes('velo') || name.includes('vélo')) {
+    } else if (
+      id.includes('elliptical') ||
+      /\b(v[ée]lo)\b/i.test(name) ||
+      name.includes('elliptique')
+    ) {
       loadUnit = 'résist.';
       loadLabel = 'RÉSIST.';
     }

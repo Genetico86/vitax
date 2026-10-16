@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   levelTag: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#FF5A1F',
+    color: Colors.primary,
     letterSpacing: 0.8,
   },
   xpText: {

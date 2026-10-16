@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,22 +8,37 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { restoreSessionSilently } from '../services/authService';
 import { Colors } from '../constants/colors';
 import * as Updates from 'expo-updates';
+import { FriendInviteNotificationBanner } from '../components/social/FriendInviteNotificationBanner';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
 
   useEffect(() => {
+    let isCancelled = false;
+
     async function setup() {
       try {
         await initDatabase();
         await loadSettings();
         await restoreSessionSilently();
-        setIsReady(true);
+
+        // Rapatriement transparent de la base de données centrale Supabase (partagée App & Web)
+        try {
+          const { syncCloudAndLocal } = await import('../services/cloudSyncService');
+          void syncCloudAndLocal();
+        } catch (syncErr) {
+          console.warn('Sync cloud initial:', syncErr);
+        }
+
+        if (!isCancelled) {
+          setIsReady(true);
+        }
 
         // Vérification automatique et transparente des mises à jour OTA en arrière-plan
-        if (Updates.isEnabled && !__DEV__) {
+        if (Platform.OS !== 'web' && Updates.isEnabled && !__DEV__) {
           try {
             const check = await Updates.checkForUpdateAsync();
             if (check.isAvailable) {
@@ -36,13 +51,19 @@ export default function RootLayout() {
         }
       } catch (err: any) {
         console.error('Erreur initialisation Vitax:', err);
-        setInitError(err.message || 'Erreur d’initialisation');
-        setIsReady(true);
+        if (!isCancelled) {
+          setInitError(err.message || 'Erreur d’initialisation');
+          setIsReady(true);
+        }
       }
     }
 
-    setup();
-  }, [loadSettings]);
+    void setup();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [loadSettings, retryKey]);
 
   if (!isReady) {
     return (
@@ -55,10 +76,38 @@ export default function RootLayout() {
   }
 
   if (initError) {
+    const isWebLockError =
+      initError.includes('NoModificationAllowed') ||
+      initError.includes('Access Handles') ||
+      initError.includes('createSyncAccessHandle');
+
     return (
       <View style={styles.loadingContainer}>
-        <Text style={[styles.loadingText, { color: Colors.danger }]}>Erreur d’initialisation</Text>
-        <Text style={styles.loadingSub}>{initError}</Text>
+        <Text style={{ fontSize: 44, marginBottom: 12 }}>⚠️</Text>
+        <Text style={[styles.loadingText, { color: Colors.danger, textAlign: 'center' }]}>
+          {isWebLockError ? 'Onglet Chrome déjà ouvert' : 'Erreur d’initialisation'}
+        </Text>
+        <Text style={[styles.loadingSub, { textAlign: 'center', marginHorizontal: 24, marginTop: 8, lineHeight: 22 }]}>
+          {isWebLockError
+            ? 'Vitax est déjà actif dans un autre onglet ou fenêtre de votre navigateur Chrome. Le stockage local sécurisé interdit les accès simultanés.\n\nFermez l’autre onglet Vitax dans Chrome, puis cliquez sur Réessayer ci-dessous.'
+            : initError}
+        </Text>
+
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            if (Platform.OS === 'web' && typeof window !== 'undefined') {
+              window.location.reload();
+            } else {
+              setIsReady(false);
+              setInitError(null);
+              setRetryKey((k) => k + 1);
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.retryButtonText}>🔄 Réessayer</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -139,6 +188,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
+      <FriendInviteNotificationBanner />
     </SafeAreaProvider>
   );
 }
@@ -162,5 +212,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: Colors.textSecondary,
     fontSize: 14,
+  },
+  retryButton: {
+    marginTop: 24,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  retryButtonText: {
+    color: Colors.primaryText,
+    fontWeight: '800',
+    fontSize: 16,
+    letterSpacing: 0.5,
   },
 });
