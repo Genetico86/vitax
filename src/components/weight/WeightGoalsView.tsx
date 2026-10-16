@@ -53,9 +53,47 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
 
   // Modales
   const [logModalVisible, setLogModalVisible] = useState(false);
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [weightInput, setWeightInput] = useState('');
+  const [dateInput, setDateInput] = useState(new Date().toISOString().slice(0, 10));
+  const [dateMode, setDateMode] = useState<'today' | 'yesterday' | 'custom'>('today');
   const [noteInput, setNoteInput] = useState('');
   const [bodyFatInput, setBodyFatInput] = useState('');
+
+  const getTodayString = () => new Date().toISOString().slice(0, 10);
+  const getYesterdayString = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const handleOpenAddLog = () => {
+    setEditingLogId(null);
+    setWeightInput(stats?.currentWeight ? `${stats.currentWeight}` : '');
+    setDateInput(getTodayString());
+    setDateMode('today');
+    setNoteInput('');
+    setBodyFatInput('');
+    setLogModalVisible(true);
+  };
+
+  const handleEditLog = (item: BodyWeightLog) => {
+    setEditingLogId(item.id);
+    setWeightInput(`${item.weight}`);
+    setDateInput(item.date);
+    const today = getTodayString();
+    const yesterday = getYesterdayString();
+    if (item.date === today) {
+      setDateMode('today');
+    } else if (item.date === yesterday) {
+      setDateMode('yesterday');
+    } else {
+      setDateMode('custom');
+    }
+    setNoteInput(item.note || '');
+    setBodyFatInput(item.body_fat_percentage ? `${item.body_fat_percentage}` : '');
+    setLogModalVisible(true);
+  };
 
   const [weightGoalModalVisible, setWeightGoalModalVisible] = useState(false);
   const [targetWeightInput, setTargetWeightInput] = useState('');
@@ -116,7 +154,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
     };
   }, [loadData]);
 
-  // Ajouter une pesée
+  // Ajouter ou modifier une pesée historisée
   const handleSaveLog = async () => {
     const val = parseFloat(weightInput.replace(',', '.'));
     if (isNaN(val) || val <= 20 || val >= 300) {
@@ -124,10 +162,25 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
       return;
     }
 
+    const trimmedDate = dateInput.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+      Alert.alert(
+        'Date invalide',
+        'Veuillez saisir une date au format AAAA-MM-JJ (ex: 2026-10-15).'
+      );
+      return;
+    }
+
     const bodyFat = bodyFatInput ? parseFloat(bodyFatInput.replace(',', '.')) : undefined;
 
-    await addWeightLog(val, undefined, noteInput, isNaN(bodyFat || NaN) ? undefined : bodyFat);
+    await addWeightLog(
+      val,
+      trimmedDate,
+      noteInput,
+      isNaN(bodyFat || NaN) ? undefined : bodyFat
+    );
     setLogModalVisible(false);
+    setEditingLogId(null);
     setWeightInput('');
     setNoteInput('');
     setBodyFatInput('');
@@ -263,10 +316,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
 
           <TouchableOpacity
             style={styles.addLogBtn}
-            onPress={() => {
-              setWeightInput(stats?.currentWeight ? `${stats.currentWeight}` : '');
-              setLogModalVisible(true);
-            }}
+            onPress={handleOpenAddLog}
             activeOpacity={0.8}
           >
             <Text style={styles.addLogBtnIcon}>⚖️</Text>
@@ -571,11 +621,22 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
           return (
             <Card key={item.id} style={styles.logItemCard}>
               <View style={styles.logItemRow}>
-                <View style={{ flex: 1 }}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => handleEditLog(item)}
+                  activeOpacity={0.7}
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text style={styles.logItemWeight}>
                       {item.weight} {weight_unit}
                     </Text>
+                    {item.body_fat_percentage && (
+                      <Badge
+                        label={`${item.body_fat_percentage}% MG`}
+                        color="rgba(6, 182, 212, 0.15)"
+                        textColor="#06B6D4"
+                      />
+                    )}
                     {delta !== null && delta !== 0 && (
                       <Badge
                         label={`${delta > 0 ? '+' : ''}${delta} kg`}
@@ -587,7 +648,15 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
                   <Text style={styles.logItemDate}>
                     {item.date} {item.note ? `• ${item.note}` : ''}
                   </Text>
-                </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleEditLog(item)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={[styles.deleteLogBtn, { marginRight: 6 }]}
+                >
+                  <Text style={styles.deleteLogIcon}>✏️</Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={() => handleDeleteLog(item.id, item.weight, item.date)}
@@ -602,7 +671,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
         })
       )}
 
-      {/* MODAL : NOUVELLE PESÉE */}
+      {/* MODAL : NOUVELLE PESÉE / MODIFICATION AVEC CHOIX DE DATE */}
       <Modal
         visible={logModalVisible}
         transparent
@@ -614,11 +683,71 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
           style={styles.modalOverlay}
         >
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>⚖️ Enregistrer votre poids</Text>
+            <Text style={styles.modalTitle}>
+              {editingLogId ? '✏️ Modifier la pesée' : '⚖️ Enregistrer votre poids'}
+            </Text>
             <Text style={styles.modalSubtitle}>
-              Ajoutez votre pesée du jour pour actualiser votre suivi et vos objectifs.
+              {editingLogId
+                ? 'Modifiez votre relevé pour cette date précise.'
+                : 'Chaque date saisie est historisée pour tracer l’évolution de votre poids.'}
             </Text>
 
+            {/* Sélecteur de date de pesée */}
+            <Text style={styles.inputLabel}>Date de la pesée *</Text>
+            <View style={styles.dateChipsRow}>
+              <TouchableOpacity
+                style={[styles.dateChip, dateMode === 'today' && styles.dateChipActive]}
+                onPress={() => {
+                  setDateMode('today');
+                  setDateInput(getTodayString());
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateChipText, dateMode === 'today' && styles.dateChipTextActive]}>
+                  {"Aujourd'hui"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.dateChip, dateMode === 'yesterday' && styles.dateChipActive]}
+                onPress={() => {
+                  setDateMode('yesterday');
+                  setDateInput(getYesterdayString());
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateChipText, dateMode === 'yesterday' && styles.dateChipTextActive]}>
+                  Hier
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.dateChip, dateMode === 'custom' && styles.dateChipActive]}
+                onPress={() => setDateMode('custom')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.dateChipText, dateMode === 'custom' && styles.dateChipTextActive]}>
+                  Autre date
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="AAAA-MM-JJ (ex: 2026-10-15)"
+              placeholderTextColor={Colors.textMuted}
+              value={dateInput}
+              onChangeText={(txt) => {
+                setDateInput(txt);
+                setDateMode('custom');
+              }}
+              maxLength={10}
+            />
+            <Text style={styles.dateHelperText}>
+              📅 Format : AAAA-MM-JJ. Les pesées à dates distinctes sont toutes conservées.
+            </Text>
+
+            {/* Poids corporel */}
             <Text style={styles.inputLabel}>Poids corporel ({weight_unit}) *</Text>
             <TextInput
               style={styles.modalInput}
@@ -627,9 +756,21 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
               keyboardType="decimal-pad"
               value={weightInput}
               onChangeText={setWeightInput}
-              autoFocus
+              autoFocus={!editingLogId}
             />
 
+            {/* Taux de masse grasse */}
+            <Text style={styles.inputLabel}>Masse grasse % (optionnel)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ex: 14.5"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="decimal-pad"
+              value={bodyFatInput}
+              onChangeText={setBodyFatInput}
+            />
+
+            {/* Note */}
             <Text style={styles.inputLabel}>Note (optionnel)</Text>
             <TextInput
               style={styles.modalInput}
@@ -649,7 +790,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
                 style={{ flex: 1, marginRight: 8 }}
               />
               <Button
-                title="Enregistrer"
+                title={editingLogId ? 'Mettre à jour' : 'Enregistrer'}
                 variant="primary"
                 size="md"
                 onPress={handleSaveLog}
@@ -1240,6 +1381,39 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     marginTop: 2,
+  },
+  dateChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  dateChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#0D1420',
+    borderWidth: 1,
+    borderColor: '#25354F',
+  },
+  dateChipActive: {
+    backgroundColor: 'rgba(255, 90, 31, 0.2)',
+    borderColor: Colors.primary,
+  },
+  dateChipText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  dateChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  dateHelperText: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: -8,
+    marginBottom: 12,
   },
   modalActions: {
     flexDirection: 'row',

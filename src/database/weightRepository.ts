@@ -49,9 +49,21 @@ export async function getRecentWeightLogs(limit = 30): Promise<BodyWeightLog[]> 
 
 export async function getLatestWeightLog(): Promise<BodyWeightLog | null> {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<BodyWeightLog>(
+  let row = await db.getFirstAsync<BodyWeightLog>(
     'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC LIMIT 1'
   );
+
+  if (!row) {
+    try {
+      const cloudWeights = await fetchBodyWeightsFromCloud();
+      if (cloudWeights.length > 0) {
+        row = await db.getFirstAsync<BodyWeightLog>(
+          'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC LIMIT 1'
+        );
+      }
+    } catch {}
+  }
+
   return row || null;
 }
 
@@ -62,49 +74,102 @@ export async function addWeightLog(
   bodyFatPercentage?: number
 ): Promise<BodyWeightLog> {
   const db = await getDatabase();
-  const logDate = date || new Date().toISOString().slice(0, 10);
+  const logDate = date && date.trim().length >= 10 ? date.trim().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const now = new Date().toISOString();
-  const id = `bw_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const roundedWeight = Math.round(weight * 10) / 10;
+  const roundedFat = bodyFatPercentage ? Math.round(bodyFatPercentage * 10) / 10 : undefined;
 
-  const newLog: BodyWeightLog = {
-    id,
-    weight: Math.round(weight * 10) / 10,
-    date: logDate,
-    note: note?.trim() || undefined,
-    body_fat_percentage: bodyFatPercentage ? Math.round(bodyFatPercentage * 10) / 10 : undefined,
-    created_at: now,
-  };
-
-  await db.runAsync(
-    `INSERT INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      newLog.id,
-      newLog.weight,
-      newLog.date,
-      newLog.note || null,
-      newLog.body_fat_percentage || null,
-      newLog.created_at,
-    ]
+  // Vérifier si une pesée existe déjà pour cette date précise
+  const existingForDate = await db.getFirstAsync<BodyWeightLog>(
+    'SELECT * FROM body_weights WHERE date = ?',
+    [logDate]
   );
 
-  // Synchronisation Cloud Supabase
-  void syncBodyWeightToCloud(newLog);
+  let resultLog: BodyWeightLog;
 
-  return newLog;
+  if (existingForDate) {
+    // Met à jour la pesée existante pour cette date (historisation par jour sans écraser les autres dates)
+    await db.runAsync(
+      `UPDATE body_weights 
+       SET weight = ?, note = ?, body_fat_percentage = ?, created_at = ?
+       WHERE id = ?`,
+      [
+        roundedWeight,
+        note?.trim() || null,
+        roundedFat || null,
+        now,
+        existingForDate.id,
+      ]
+    );
+
+    resultLog = {
+      id: existingForDate.id,
+      weight: roundedWeight,
+      date: logDate,
+      note: note?.trim() || undefined,
+      body_fat_percentage: roundedFat,
+      created_at: now,
+    };
+  } else {
+    // Insère une nouvelle pesée historisée pour cette nouvelle date
+    const id = `bw_${logDate}_${Date.now()}`;
+    resultLog = {
+      id,
+      weight: roundedWeight,
+      date: logDate,
+      note: note?.trim() || undefined,
+      body_fat_percentage: roundedFat,
+      created_at: now,
+    };
+
+    await db.runAsync(
+      `INSERT INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        resultLog.id,
+        resultLog.weight,
+        resultLog.date,
+        resultLog.note || null,
+        resultLog.body_fat_percentage || null,
+        resultLog.created_at,
+      ]
+    );
+  }
+
+  // Synchronisation Cloud Supabase complète de l'historique
+  void syncBodyWeightToCloud(resultLog);
+
+  return resultLog;
 }
 
 export async function deleteWeightLog(id: string): Promise<boolean> {
   const db = await getDatabase();
   const res = await db.runAsync('DELETE FROM body_weights WHERE id = ?', [id]);
+  if (res.changes > 0) {
+    // Mettre à jour la sauvegarde cloud après suppression
+    const { syncBodyWeightsToCloud } = await import('../services/cloudSyncService');
+    void syncBodyWeightsToCloud();
+  }
   return res.changes > 0;
 }
 
 export async function getWeightStats(heightCm?: number): Promise<WeightProgressStats> {
   const db = await getDatabase();
-  const logs = await db.getAllAsync<BodyWeightLog>(
+  let logs = await db.getAllAsync<BodyWeightLog>(
     'SELECT * FROM body_weights ORDER BY date ASC, created_at ASC'
   );
+
+  // Tentative de restauration cloud si la base locale est vide
+  if (logs.length === 0) {
+    try {
+      const cloudWeights = await fetchBodyWeightsFromCloud();
+      if (cloudWeights.length > 0) {
+        logs = await db.getAllAsync<BodyWeightLog>(
+          'SELECT * FROM body_weights ORDER BY date ASC, created_at ASC'
+        );
+      }
+    } catch {}
+  }
 
   if (logs.length === 0) {
     return {
@@ -156,4 +221,18 @@ export async function getWeightStats(heightCm?: number): Promise<WeightProgressS
     logsCount: logs.length,
     bmi,
   };
+}
+
+/**
+ * Récupère l'historique de poids entre deux dates (format YYYY-MM-DD)
+ */
+export async function getWeightLogsByDateRange(
+  startDate: string,
+  endDate: string
+): Promise<BodyWeightLog[]> {
+  const db = await getDatabase();
+  return db.getAllAsync<BodyWeightLog>(
+    'SELECT * FROM body_weights WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC',
+    [startDate, endDate]
+  );
 }

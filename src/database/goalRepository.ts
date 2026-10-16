@@ -224,12 +224,25 @@ export async function updateGoalProgress(id: string, currentValue: number): Prom
     [currentValue, isCompleted ? 1 : 0, completedAt, id]
   );
 
+  if (res.changes > 0) {
+    void syncFitnessGoalToCloud({
+      ...goal,
+      current_value: currentValue,
+      completed: isCompleted ? 1 : 0,
+      completed_at: completedAt || undefined,
+    });
+  }
+
   return res.changes > 0;
 }
 
 export async function deleteGoal(id: string): Promise<boolean> {
   const db = await getDatabase();
   const res = await db.runAsync('DELETE FROM fitness_goals WHERE id = ?', [id]);
+  if (res.changes > 0) {
+    const { syncFitnessGoalsToCloud } = await import('../services/cloudSyncService');
+    void syncFitnessGoalsToCloud();
+  }
   return res.changes > 0;
 }
 
