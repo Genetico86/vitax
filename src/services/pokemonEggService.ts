@@ -408,7 +408,7 @@ export async function getAllPokemonEggs(): Promise<PokemonEgg[]> {
   await ensureStarterEggInitialized();
   const db = await getDatabase();
   return await db.getAllAsync<PokemonEgg>(
-    'SELECT * FROM pokemon_eggs ORDER BY CASE status WHEN "incubating" THEN 1 WHEN "inventory" THEN 2 ELSE 3 END, obtained_at DESC'
+    "SELECT * FROM pokemon_eggs ORDER BY CASE status WHEN 'incubating' THEN 1 WHEN 'inventory' THEN 2 ELSE 3 END, obtained_at DESC"
   );
 }
 
@@ -420,7 +420,7 @@ export async function placeEggInSlot(eggId: string, slotNumber: number): Promise
 
   // Vérifier qu'aucun œuf n'est déjà dans ce slot
   const existingInSlot = await db.getFirstAsync<PokemonEgg>(
-    'SELECT * FROM pokemon_eggs WHERE incubator_slot = ? AND status = "incubating"',
+    "SELECT * FROM pokemon_eggs WHERE incubator_slot = ? AND status = 'incubating'",
     [slotNumber]
   );
   if (existingInSlot) {
@@ -428,7 +428,7 @@ export async function placeEggInSlot(eggId: string, slotNumber: number): Promise
   }
 
   await db.runAsync(
-    'UPDATE pokemon_eggs SET status = "incubating", incubator_slot = ? WHERE id = ?',
+    "UPDATE pokemon_eggs SET status = 'incubating', incubator_slot = ? WHERE id = ?",
     [slotNumber, eggId]
   );
   return true;
@@ -440,7 +440,7 @@ export async function placeEggInSlot(eggId: string, slotNumber: number): Promise
 export async function removeEggFromSlot(eggId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE pokemon_eggs SET status = "inventory", incubator_slot = NULL WHERE id = ?',
+    "UPDATE pokemon_eggs SET status = 'inventory', incubator_slot = NULL WHERE id = ?",
     [eggId]
   );
 }
@@ -517,7 +517,7 @@ export async function distributeWorkoutXpToIncubators(
   await ensureStarterEggInitialized();
   const db = await getDatabase();
   const incubatingEggs = await db.getAllAsync<PokemonEgg>(
-    'SELECT * FROM pokemon_eggs WHERE status = "incubating"'
+    "SELECT * FROM pokemon_eggs WHERE status = 'incubating'"
   );
 
   const newlyHatched: EggHatchResult[] = [];
@@ -551,7 +551,7 @@ export async function distributeWorkoutXpToIncubators(
 
       await db.runAsync(
         `UPDATE pokemon_eggs 
-         SET status = "hatched", 
+         SET status = 'hatched', 
              current_xp = ?, 
              incubator_slot = NULL, 
              hatched_at = ?,

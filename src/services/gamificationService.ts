@@ -260,11 +260,11 @@ export async function getUserGamificationStats(): Promise<{
   const db = await getDatabase();
 
   const sessions = await db.getAllAsync<WorkoutSession>(
-    'SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = "1" OR completed = true OR completed IS NULL)'
+    "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)"
   );
 
   const totalSetsRow = await db.getFirstAsync<{ setsCount: number }>(
-    'SELECT COUNT(id) as setsCount FROM workout_sets WHERE (completed = 1 OR completed = "1" OR completed = true OR completed IS NULL)'
+    "SELECT COUNT(id) as setsCount FROM workout_sets WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)"
   );
   const totalSetsCount = totalSetsRow?.setsCount || 0;
 

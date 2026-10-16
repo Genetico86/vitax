@@ -67,7 +67,7 @@ export async function saveWorkoutSession(
 export async function getAllWorkoutSessions(): Promise<WorkoutSession[]> {
   const db = await getDatabase();
   let localSessions = await db.getAllAsync<WorkoutSession>(
-    'SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = "1" OR completed = true OR completed IS NULL) ORDER BY date DESC'
+    "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL) ORDER BY date DESC"
   );
 
   // Synchronisation avec le cloud Supabase
@@ -98,7 +98,7 @@ export async function getAllWorkoutSessions(): Promise<WorkoutSession[]> {
 
       if (missingFromLocal.length > 0) {
         localSessions = await db.getAllAsync<WorkoutSession>(
-          'SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = "1" OR completed = true OR completed IS NULL) ORDER BY date DESC'
+          "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL) ORDER BY date DESC"
         );
       }
     }

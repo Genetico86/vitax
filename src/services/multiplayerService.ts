@@ -106,8 +106,13 @@ export function getCurrentWeekBounds(): { start: Date; end: Date; weekNumber: nu
 // -------------------------------------------------------------
 export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
-  // Ne synchroniser que les profils de comptes réels (pas les invités anonymes trainer_... ou default_trainer)
-  if (!profile.id || profile.id.startsWith('trainer_') || profile.id === 'default_trainer') {
+  // Ne synchroniser que les profils de comptes réels (pas les invités anonymes trainer_... ou vtx_... ou default_trainer)
+  if (
+    !profile.id ||
+    profile.id.startsWith('trainer_') ||
+    profile.id.startsWith('vtx_') ||
+    profile.id === 'default_trainer'
+  ) {
     return false;
   }
   // Ne JAMAIS écraser Supabase avec un code factice 10000 ou invalide
@@ -118,24 +123,29 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
   if (!supabase) return false;
 
   try {
-    const { error } = await supabase.from('profiles').upsert({
-      id: profile.id,
-      username: profile.username,
-      friend_code: profile.friendCode,
-      trainer_title: profile.trainerTitle,
-      avatar_pokemon_id: profile.avatarPokemonId,
-      avatar_pokemon_emoji: profile.avatarPokemonEmoji,
-      current_league: profile.currentLeague,
-      total_xp: profile.totalXp,
-      total_workouts: profile.totalWorkouts,
-    });
+    const { error } = await supabase.from('profiles').upsert(
+      {
+        id: profile.id,
+        username: profile.username,
+        friend_code: profile.friendCode,
+        trainer_title: profile.trainerTitle,
+        avatar_pokemon_id: profile.avatarPokemonId,
+        avatar_pokemon_emoji: profile.avatarPokemonEmoji,
+        current_league: profile.currentLeague,
+        total_xp: profile.totalXp,
+        total_workouts: profile.totalWorkouts,
+      },
+      { onConflict: 'id' }
+    );
     if (error) {
-      console.warn('Erreur Supabase upsert profil:', error.message);
+      // Ignorer les avertissements de doublons de nom d'utilisateur pour les comptes locaux
+      if (error.code !== '23505' && !error.message?.includes('unique constraint')) {
+        console.warn('Erreur Supabase upsert profil:', error.message);
+      }
       return false;
     }
     return true;
   } catch (e: any) {
-    console.warn('Exception Supabase upsert profil:', e?.message);
     return false;
   }
 }
@@ -1007,7 +1017,7 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
 export async function getTradablePokemon(): Promise<PokemonEgg[]> {
   const db = await getDatabase();
   const hatched = await db.getAllAsync<PokemonEgg>(
-    'SELECT * FROM pokemon_eggs WHERE status = "hatched" ORDER BY hatched_at DESC'
+    "SELECT * FROM pokemon_eggs WHERE status = 'hatched' ORDER BY hatched_at DESC"
   );
   return hatched;
 }
@@ -1084,7 +1094,7 @@ export async function createTradeOffer(params: {
   const db = await getDatabase();
 
   const egg = await db.getFirstAsync<PokemonEgg>(
-    'SELECT * FROM pokemon_eggs WHERE id = ? AND status = "hatched"',
+    "SELECT * FROM pokemon_eggs WHERE id = ? AND status = 'hatched'",
     [params.pokemonEggId]
   );
 
@@ -1165,7 +1175,7 @@ export async function executePokemonTrade(
   }
 
   const myEgg = await db.getFirstAsync<PokemonEgg>(
-    'SELECT * FROM pokemon_eggs WHERE id = ? AND status = "hatched"',
+    "SELECT * FROM pokemon_eggs WHERE id = ? AND status = 'hatched'",
     [myPokemonEggId]
   );
 
@@ -1564,8 +1574,14 @@ export async function getPendingFriendRequests(): Promise<FriendRequest[]> {
     console.warn('Erreur lecture local friend requests:', err);
   }
 
-  // 2. Synchronisation Supabase si connecté
-  if (isSupabaseConfigured()) {
+  // 2. Synchronisation Supabase si connecté avec un compte réel
+  if (
+    isSupabaseConfigured() &&
+    profile.id &&
+    !profile.id.startsWith('vtx_') &&
+    !profile.id.startsWith('trainer_') &&
+    profile.id !== 'default_trainer'
+  ) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
