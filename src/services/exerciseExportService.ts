@@ -202,7 +202,7 @@ export function enrichExerciseData(exercise: Exercise): EnrichedExerciseData {
 }
 
 /**
- * Génère la liste complète des 106 exercices de Vitax qualifiés à 100%.
+ * Génère la liste complète des 107 exercices de Vitax qualifiés à 100%.
  */
 export async function generateEnrichedExercises(): Promise<EnrichedExerciseData[]> {
   await loadCustomGuides();

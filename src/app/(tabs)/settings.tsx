@@ -275,7 +275,7 @@ export default function SettingsScreen() {
     if (res.success) {
       Alert.alert(
         'Exportation réussie ✅',
-        `Les ${res.total || 106} exercices du catalogue Vitax (avec fiches posturales, risques, charges adaptées et sous-muscles) ont été exportés dans le fichier :\n${res.fileName || 'vitax_exercices_qualifies.json'}`
+        `Les ${res.total || 107} exercices du catalogue Vitax (avec fiches posturales, risques, charges adaptées et sous-muscles) ont été exportés dans le fichier :\n${res.fileName || 'vitax_exercices_qualifies.json'}`
       );
     } else {
       Alert.alert('Erreur d’exportation', res.error || 'Impossible d’exporter les fiches d’exercices.');
@@ -742,13 +742,13 @@ export default function SettingsScreen() {
       <Card style={styles.card}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <Text style={styles.label}>Qualification & Fiches Techniques</Text>
-          <Badge label="106 Exercices" color="rgba(6, 182, 212, 0.2)" textColor="#06B6D4" />
+          <Badge label="107 Exercices" color="rgba(6, 182, 212, 0.2)" textColor="#06B6D4" />
         </View>
         <Text style={styles.sublabel}>
           Exportez l’intégralité des données d’exercices (anatomie détaillée, postures, objectifs, charges recommandées, consignes de sécurité et niveaux de risque) dans un fichier JSON pour les auditer et les retravailler sur ordinateur.
         </Text>
         <Button
-          title={exportingExercises ? 'Génération du catalogue...' : '📥 Exporter les 106 fiches d’exercices (JSON)'}
+          title={exportingExercises ? 'Génération du catalogue...' : '📥 Exporter les 107 fiches d’exercices (JSON)'}
           variant="outline"
           onPress={handleExportExercises}
           loading={exportingExercises}

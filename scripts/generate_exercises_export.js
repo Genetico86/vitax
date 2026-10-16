@@ -229,7 +229,7 @@ const exportPayload = {
   type: 'exercise_catalog',
   version: '1.0',
   description:
-    'Base de données exhaustive des 106 exercices de musculation et cardio de Vitax avec qualifications anatomiques complètes, fiches d’exécution techniques, charges recommandées, postures et consignes de sécurité.',
+    `Base de données exhaustive des ${enrichedExercises.length} exercices de musculation et cardio de Vitax avec qualifications anatomiques complètes, fiches d’exécution techniques, charges recommandées, postures et consignes de sécurité.`,
   exported_at: new Date().toISOString(),
   total_exercises: enrichedExercises.length,
   summary: {

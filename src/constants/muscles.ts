@@ -535,7 +535,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
         name: 'Tapis de course & Course',
         anatomicalFocus: 'Endurance aérobie, foulée et travail des mollets / cuisses',
         emoji: '🏃',
-        exerciseIds: ['ex_treadmill', 'ex_jump_rope', 'ex_burpees'],
+        exerciseIds: ['ex_running_outdoor', 'ex_treadmill', 'ex_jump_rope', 'ex_burpees'],
       },
       {
         id: 'elliptical_trainer',
@@ -549,7 +549,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
         name: 'HIIT & Fractionné Brûle-Graisses',
         anatomicalFocus: 'Explosivité métabolique, intervalles intenses et sudation',
         emoji: '🔥',
-        exerciseIds: ['ex_treadmill', 'ex_jump_rope', 'ex_burpees', 'ex_rower'],
+        exerciseIds: ['ex_running_outdoor', 'ex_treadmill', 'ex_jump_rope', 'ex_burpees', 'ex_rower'],
       },
       {
         id: 'walking_cardio',

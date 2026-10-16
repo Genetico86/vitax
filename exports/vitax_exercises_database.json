@@ -2,9 +2,9 @@
   "app": "Vitax",
   "type": "exercise_catalog",
   "version": "1.0",
-  "description": "Base de données exhaustive des 106 exercices de musculation et cardio de Vitax avec qualifications anatomiques complètes, fiches d’exécution techniques, charges recommandées, postures et consignes de sécurité.",
-  "exported_at": "2026-10-15T21:14:54.643Z",
-  "total_exercises": 106,
+  "description": "Base de données exhaustive des 107 exercices de musculation et cardio de Vitax avec qualifications anatomiques complètes, fiches d’exécution techniques, charges recommandées, postures et consignes de sécurité.",
+  "exported_at": "2026-10-16T19:51:21.837Z",
+  "total_exercises": 107,
   "summary": {
     "by_muscle": {
       "Pectoraux": 17,
@@ -14,12 +14,12 @@
       "Triceps": 9,
       "Jambes": 21,
       "Abdominaux": 10,
-      "Cardio": 8
+      "Cardio": 9
     },
     "by_risk_level": {
       "Élevé": 31,
       "Modéré": 44,
-      "Faible": 22,
+      "Faible": 23,
       "Très Élevé": 9
     }
   },
@@ -1308,6 +1308,52 @@
         "pointsAttention": [
           "Ne courez pas trop près de la console avant ni trop près de l’arrière.",
           "Respirez avec régularité (cycle 2-2 ou 3-3)."
+        ]
+      }
+    },
+    {
+      "id": "ex_running_outdoor",
+      "name": "Course à pied extérieure",
+      "description": "Course à pied en plein air sur route, piste ou sentier. Développe l'endurance aérobie, la capacité cardiovasculaire, la puissance des mollets et des cuisses tout en renforçant la densité osseuse.",
+      "target_muscle": "Cardio",
+      "equipment_needed": "Sans matériel",
+      "is_custom": 0,
+      "zone": "Cardio & Souffle",
+      "zone_id": "cardio",
+      "precise_muscles": [
+        {
+          "id": "treadmill_running",
+          "name": "Tapis de course & Course",
+          "anatomicalFocus": "Endurance aérobie, foulée et travail des mollets / cuisses",
+          "emoji": "🏃"
+        },
+        {
+          "id": "cardio_hiit_burn",
+          "name": "HIIT & Fractionné Brûle-Graisses",
+          "anatomicalFocus": "Explosivité métabolique, intervalles intenses et sudation",
+          "emoji": "🔥"
+        }
+      ],
+      "is_duration": true,
+      "load_label": "Vitesse (km/h)",
+      "value_label": "Durée (sec)",
+      "default_rest_seconds": 45,
+      "guide": {
+        "id": "ex_running_outdoor",
+        "name": "Course à pied extérieure",
+        "target_muscle": "Cardio",
+        "equipment_needed": "Sans matériel",
+        "objectif": "Développement de l’endurance aérobie fondamentale, de la VO2max, de la santé cardiovasculaire et du renforcement des membres inférieurs en extérieur.",
+        "chargeAdaptee": "Allure d’endurance fondamentale (Zone 2, allure permettant de converser sans essoufflement) ou séances au train / fartlek selon votre niveau.",
+        "position": "En plein air sur terrain régulier (piste d’athlétisme, parc ou route souple). Chaussures de running adaptées à votre foulée et amorti.",
+        "posture": "Buste très légèrement incliné vers l’avant depuis les chevilles (pas depuis la taille), regard à 15-20 mètres devant, épaules relâchées et bras fléchis à 90° avec balancement fluide.",
+        "completude": "Attaque médio-pied sous le centre de gravité pour réduire les impacts articulaires. Cadence régulière idéale autour de 170 à 180 pas par minute.",
+        "niveauRisque": "Faible",
+        "mentionRisque": "Risque d’entorse de la cheville sur terrain accidenté, périostite tibiale ou syndrome de l’essuie-glace (TFL) en cas d’augmentation trop brutale du volume kilométrique hebdomadaire.",
+        "pointsAttention": [
+          "Ne posez pas le talon loin devant le corps (freinage et impact excessif sur les genoux).",
+          "Augmentez votre volume kilométrique de manière progressive (+10% max par semaine).",
+          "Gardez les mains et les mâchoires détendues pendant la course."
         ]
       }
     },
