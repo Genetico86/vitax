@@ -271,12 +271,27 @@ export async function loginTrainer(
           );
           await useSettingsStore.getState().setUserName(trimmedName);
 
-          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris)
+          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris, Pokémon)
           try {
             const { fullCloudSyncToLocal } = await import('./cloudSyncService');
             await fullCloudSyncToLocal();
           } catch (syncErr) {
             console.warn('Erreur sync après login:', syncErr);
+          }
+
+          // Recalculer les stats et synchroniser l'expérience
+          try {
+            const { getUserGamificationStats } = await import('./gamificationService');
+            const gStats = await getUserGamificationStats();
+            if (gStats && gStats.totalXp > loadedProfile.totalXp) {
+              loadedProfile.totalXp = gStats.totalXp;
+            }
+            if (gStats && gStats.totalSessions > loadedProfile.totalWorkouts) {
+              loadedProfile.totalWorkouts = gStats.totalSessions;
+            }
+            await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(loadedProfile));
+          } catch (calcErr) {
+            console.warn('Erreur recalcul stats après login:', calcErr);
           }
 
           return { success: true, profile: loadedProfile };

@@ -825,6 +825,39 @@ export default function HomeScreen() {
           </View>
         </Card>
 
+        {/* Bannière de connexion et synchronisation cloud (si invité non identifié) */}
+        {!isUserLoggedIn && (
+          <TouchableOpacity
+            style={styles.guestSyncBanner}
+            onPress={async () => {
+              const session = await getPersistedSession();
+              const loggedIn = Boolean(session?.isLoggedIn);
+              setIsUserLoggedIn(loggedIn);
+              setNameInput(user_name || '');
+              setPasswordInput('');
+              setAuthError(null);
+              setIsLoginMode(true);
+              setNameModalVisible(true);
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={styles.guestSyncIconCircle}>
+              <Text style={{ fontSize: 18 }}>☁️</Text>
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <Text style={styles.guestSyncTitle}>
+                Retrouver mes stats & séances
+              </Text>
+              <Text style={styles.guestSyncSub}>
+                Connectez-vous pour synchroniser votre compte sur cet appareil.
+              </Text>
+            </View>
+            <View style={styles.guestSyncPill}>
+              <Text style={styles.guestSyncPillText}>Connexion ❯</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Bannière de séance active PRIORITAIRE (si en cours) */}
         {isActive && (
           <TouchableOpacity
@@ -1414,6 +1447,46 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 620,
     alignSelf: 'center',
+  },
+  guestSyncBanner: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: '#38BDF8',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  guestSyncIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestSyncTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  guestSyncSub: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  guestSyncPill: {
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  guestSyncPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
   topXpCard: {
     backgroundColor: '#0F1626',

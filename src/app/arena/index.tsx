@@ -396,8 +396,8 @@ export default function ArenaScreen() {
         setAuthPassword('');
         await loadData();
         Alert.alert(
-          'Compte Dresseur créé ! 🏆',
-          `Bienvenue ${authUsername} ! Vos scores et Pokémon sont désormais sauvegardés en permanence sur le réseau partagé.`
+          'Compte Athlète créé ! 🏆',
+          `Bienvenue ${authUsername} ! Vos séances, statistiques et Pokémon sont désormais sauvegardés en permanence sur le cloud.`
         );
       } else {
         Alert.alert('Erreur', res.error || 'Impossible de créer le compte.');
@@ -411,7 +411,7 @@ export default function ArenaScreen() {
         await loadData();
         Alert.alert(
           'Rebonjour ! ⚡',
-          `Ravi de vous revoir ${authUsername}. Vos statistiques d’entraînement ont été synchronisées.`
+          `Ravi de vous revoir ${authUsername}. Vos statistiques d’entraînement, séances et Pokémon ont été synchronisés avec succès.`
         );
       } else {
         Alert.alert('Erreur de connexion', res.error || 'Identifiants incorrects.');
@@ -422,7 +422,7 @@ export default function ArenaScreen() {
   const handleLogout = async () => {
     Alert.alert(
       'Déconnexion',
-      'Voulez-vous vraiment vous déconnecter de votre compte Dresseur ?',
+      'Voulez-vous vraiment vous déconnecter de votre compte Athlète ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -643,15 +643,16 @@ export default function ArenaScreen() {
               if (isLoggedIn) {
                 handleLogout();
               } else {
-                setAuthMode('register');
-                setAuthUsername(profile.username);
+                const isAutoName = !profile?.username || profile.username.startsWith('Athlète_') || profile.username.startsWith('Dresseur_');
+                setAuthMode('login');
+                setAuthUsername(isAutoName ? '' : profile.username);
                 setAuthModalVisible(true);
               }
             }}
             activeOpacity={0.7}
           >
             <Text style={styles.accountStatusBtnText}>
-              {isLoggedIn ? '🟢 Compte actif' : '⚡ Créer compte'}
+              {isLoggedIn ? '🟢 Compte actif' : '⚡ Connexion / Compte'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1814,12 +1815,12 @@ export default function ArenaScreen() {
                 <Text style={{ fontSize: 32 }}>🏆</Text>
               </View>
               <Text style={styles.modalTitle}>
-                {authMode === 'register' ? 'Créer mon Compte Dresseur' : 'Connexion Dresseur'}
+                {authMode === 'register' ? 'Créer mon Compte Athlète' : 'Connexion Compte Athlète'}
               </Text>
               <Text style={styles.modalSub}>
                 {authMode === 'register'
-                  ? 'Rejoignez le classement partagé et conservez vos Pokémon sur tous vos appareils.'
-                  : 'Retrouvez votre compte, vos Pokémon et votre place dans la ligue.'}
+                  ? 'Rejoignez le classement partagé et sauvegardez vos séances, statistiques et Pokémon sur le cloud.'
+                  : 'Retrouvez votre compte, vos séances, vos statistiques et vos Pokémon sur cet appareil.'}
               </Text>
             </View>
 
@@ -1884,7 +1885,7 @@ export default function ArenaScreen() {
               <Text style={styles.authToggleModeText}>
                 {authMode === 'register'
                   ? 'Vous avez déjà un compte ? Connectez-vous'
-                  : 'Nouveau dresseur ? Créez un compte'}
+                  : 'Nouvel athlète ? Créez un compte'}
               </Text>
             </TouchableOpacity>
           </View>

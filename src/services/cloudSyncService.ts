@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
-import { WorkoutSession, WorkoutSet, WorkoutSessionWithSets, BodyWeightLog, FitnessGoal } from '../types';
+import { WorkoutSession, WorkoutSet, WorkoutSessionWithSets, BodyWeightLog, FitnessGoal, PokemonEgg } from '../types';
 import { getPersistedSession } from './authService';
 import { getOrCreateTrainerProfile, syncTrainerProfileToSupabase } from './multiplayerService';
 import { getDatabase } from '../database/db';
@@ -389,13 +389,14 @@ export async function fullCloudSyncToLocal(): Promise<{
   weightsCount: number;
   goalsCount: number;
   favoritesCount: number;
+  eggsCount: number;
 }> {
   if (!isSupabaseConfigured()) {
-    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0 };
+    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0, eggsCount: 0 };
   }
   const supabase = getSupabaseClient();
   if (!supabase) {
-    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0 };
+    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0, eggsCount: 0 };
   }
 
   try {
@@ -541,15 +542,119 @@ export async function fullCloudSyncToLocal(): Promise<{
       }
     }
 
+    // 5. Récupérer les Pokémon et œufs du Cloud
+    const eggsCount = await fetchPokemonEggsFromCloud();
+
     return {
       sessionsCount,
       weightsCount,
       goalsCount,
       favoritesCount: cloudFavorites.length,
+      eggsCount,
     };
   } catch (err) {
     console.warn('Erreur fullCloudSyncToLocal:', err);
-    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0 };
+    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0, eggsCount: 0 };
+  }
+}
+
+/**
+ * Sauvegarde l'inventaire complet des œufs et Pokémon éclos dans le cloud
+ */
+export async function syncPokemonEggsToCloud(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    const db = await getDatabase();
+    const eggs = await db.getAllAsync<PokemonEgg>(
+      "SELECT * FROM pokemon_eggs ORDER BY obtained_at ASC"
+    );
+
+    if (!eggs || eggs.length === 0) return false;
+
+    const backupId = `pokemon_inventory_${session.userId}`;
+    const { error } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: session.userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: { eggs },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn('Erreur sauvegarde cloud Pokémon:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('Exception sauvegarde cloud Pokémon:', e);
+    return false;
+  }
+}
+
+/**
+ * Restaure l'inventaire des œufs et Pokémon éclos depuis le cloud vers SQLite local
+ */
+export async function fetchPokemonEggsFromCloud(): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+  const supabase = getSupabaseClient();
+  if (!supabase) return 0;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return 0;
+
+    const backupId = `pokemon_inventory_${session.userId}`;
+    const { data, error } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
+
+    if (error || !data || !data.offered_pokemon) return 0;
+
+    const eggs = (data.offered_pokemon as any)?.eggs as PokemonEgg[];
+    if (!Array.isArray(eggs) || eggs.length === 0) return 0;
+
+    const db = await getDatabase();
+    for (const egg of eggs) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO pokemon_eggs (
+          id, name, rarity, required_xp, current_xp, status, incubator_slot,
+          obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name,
+          pokemon_emoji, pokemon_type, pokemon_cp, is_legendary
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          egg.id,
+          egg.name,
+          egg.rarity,
+          egg.required_xp,
+          egg.current_xp,
+          egg.status,
+          egg.incubator_slot,
+          egg.obtained_from,
+          egg.obtained_at,
+          egg.hatched_at || null,
+          egg.pokemon_id || null,
+          egg.pokemon_name || null,
+          egg.pokemon_emoji || null,
+          egg.pokemon_type || null,
+          egg.pokemon_cp || null,
+          egg.is_legendary ? 1 : 0,
+        ]
+      );
+    }
+    return eggs.length;
+  } catch (e) {
+    console.warn('Exception restauration cloud Pokémon:', e);
+    return 0;
   }
 }
 
@@ -563,8 +668,8 @@ export async function pushLocalToCloud(): Promise<void> {
   if (!supabase) return;
 
   try {
-    const userId = await getActiveUserId();
-    if (!userId || userId === 'default_trainer' || userId.startsWith('trainer_')) {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) {
       return;
     }
 
@@ -572,15 +677,15 @@ export async function pushLocalToCloud(): Promise<void> {
 
     // 1. Envoyer les séances locales
     const localSessions = await db.getAllAsync<WorkoutSession>(
-      'SELECT * FROM workout_sessions WHERE completed = 1'
+      "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)"
     );
 
-    for (const session of localSessions) {
+    for (const s of localSessions) {
       const sets = await db.getAllAsync<WorkoutSet>(
         'SELECT * FROM workout_sets WHERE workout_session_id = ? ORDER BY set_order ASC',
-        [session.id]
+        [s.id]
       );
-      await syncWorkoutSessionToCloud(session, sets);
+      await syncWorkoutSessionToCloud(s, sets);
     }
 
     // 2. Envoyer les poids locaux
@@ -607,6 +712,9 @@ export async function pushLocalToCloud(): Promise<void> {
         await syncFavoritesToCloud(favIds);
       }
     }
+
+    // 5. Envoyer les Pokémon et œufs locaux
+    await syncPokemonEggsToCloud();
   } catch (err) {
     console.warn('Erreur pushLocalToCloud:', err);
   }
