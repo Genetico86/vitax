@@ -33,7 +33,7 @@ import {
 } from '../../services/gamificationService';
 import { getFavoriteExercises, getFavoriteExerciseIds } from '../../services/favoritesService';
 import { registerTrainer, loginTrainer, logoutTrainer, getPersistedSession } from '../../services/authService';
-import { getPendingFriendRequestsCount } from '../../services/multiplayerService';
+import { getPendingFriendRequestsCount, getOrCreateTrainerProfile } from '../../services/multiplayerService';
 import {
   getActiveBuddy,
   getActiveBuddyBuff,
@@ -670,7 +670,7 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [progsRes, gamificationRes, favsRes, favIdsRes, fitnessStatsRes, sessionRes, pendingInvitesRes] =
+      const [progsRes, gamificationRes, favsRes, favIdsRes, fitnessStatsRes, sessionRes, pendingInvitesRes, profileRes] =
         await Promise.allSettled([
           getAllPrograms(),
           getUserGamificationStats(),
@@ -679,12 +679,19 @@ export default function HomeScreen() {
           getWeeklyFitnessStats(),
           getPersistedSession(),
           getPendingFriendRequestsCount(),
+          getOrCreateTrainerProfile(),
         ]);
 
       if (progsRes.status === 'fulfilled') setPrograms(progsRes.value);
       if (gamificationRes.status === 'fulfilled') {
         const gamification = gamificationRes.value;
-        setLevelInfo(gamification.levelInfo);
+        let finalLevel = gamification.levelInfo;
+        if (profileRes.status === 'fulfilled' && profileRes.value?.totalXp) {
+          if (profileRes.value.totalXp > (gamification.totalXp || 0)) {
+            finalLevel = computeLevelInfoForXp(profileRes.value.totalXp);
+          }
+        }
+        setLevelInfo(finalLevel);
         const incubating = gamification.incubatingEggs;
         let closestRemaining: number | null = null;
         if (incubating.length > 0) {

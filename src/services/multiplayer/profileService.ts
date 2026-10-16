@@ -96,25 +96,62 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
   ) {
     return false;
   }
-  // Ne JAMAIS écraser Supabase avec un code factice 10000 ou invalide
-  if (!profile.friendCode || profile.friendCode === '10000' || !/^\d{5}$/.test(profile.friendCode)) {
-    return false;
-  }
   const supabase = getSupabaseClient();
   if (!supabase) return false;
 
   try {
+    const session = await getPersistedSession();
+    let friendCode = profile.friendCode;
+    if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
+      if (session?.friendCode && session.friendCode !== '10000' && /^\d{5}$/.test(session.friendCode)) {
+        friendCode = session.friendCode;
+        profile.friendCode = friendCode;
+      }
+    }
+
+    // Récupérer le profil Supabase existant pour garantir l'absence absolue de régression
+    const { data: cloudRow } = await supabase
+      .from('profiles')
+      .select('friend_code, total_xp, total_workouts, username, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league')
+      .eq('id', profile.id)
+      .maybeSingle();
+
+    if (cloudRow) {
+      if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
+        if (cloudRow.friend_code) {
+          friendCode = cloudRow.friend_code;
+          profile.friendCode = friendCode;
+        }
+      }
+      // Anti-régression absolue : toujours retenir le maximum d'XP et de séances entre Cloud et Local
+      profile.totalXp = Math.max(cloudRow.total_xp || 0, profile.totalXp || 0);
+      profile.totalWorkouts = Math.max(cloudRow.total_workouts || 0, profile.totalWorkouts || 0);
+      if (!profile.username && cloudRow.username) profile.username = cloudRow.username;
+      if (!profile.trainerTitle && cloudRow.trainer_title) profile.trainerTitle = cloudRow.trainer_title;
+      if (!profile.avatarPokemonId && cloudRow.avatar_pokemon_id) profile.avatarPokemonId = cloudRow.avatar_pokemon_id;
+      if (!profile.avatarPokemonEmoji && cloudRow.avatar_pokemon_emoji) profile.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
+    }
+
+    if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
+      friendCode = generateFriendCode();
+      profile.friendCode = friendCode;
+    }
+
+    // Mettre à jour l'AsyncStorage local avec les données consolidées
+    await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+
     const { error } = await supabase.from('profiles').upsert(
       {
         id: profile.id,
-        username: profile.username,
-        friend_code: profile.friendCode,
-        trainer_title: profile.trainerTitle,
-        avatar_pokemon_id: profile.avatarPokemonId,
-        avatar_pokemon_emoji: profile.avatarPokemonEmoji,
-        current_league: profile.currentLeague,
-        total_xp: profile.totalXp,
-        total_workouts: profile.totalWorkouts,
+        username: profile.username || 'Athlète Vitax',
+        friend_code: friendCode,
+        trainer_title: profile.trainerTitle || 'Athlète Vitax',
+        avatar_pokemon_id: profile.avatarPokemonId || 'pikachu',
+        avatar_pokemon_emoji: profile.avatarPokemonEmoji || '⚡',
+        current_league: profile.currentLeague || 'pierre',
+        total_xp: profile.totalXp || 0,
+        total_workouts: profile.totalWorkouts || 0,
+        updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }
     );
@@ -125,7 +162,8 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       return false;
     }
     return true;
-  } catch {
+  } catch (err) {
+    console.warn('Exception syncTrainerProfileToSupabase:', err);
     return false;
   }
 }
@@ -144,11 +182,11 @@ export async function updateTrainerProfileXpAndStats(
   profile.totalWorkouts = Math.max(1, (profile.totalWorkouts || 0) + 1);
 
   // Mise à jour de la ligue si l'XP dépasse le palier
-  if (profile.totalXp >= 10500) {
+  if (profile.totalXp >= 7000) {
     profile.currentLeague = 'maitre';
-  } else if (profile.totalXp >= 5200) {
+  } else if (profile.totalXp >= 3500) {
     profile.currentLeague = 'volcan';
-  } else if (profile.totalXp >= 2200) {
+  } else if (profile.totalXp >= 1500) {
     profile.currentLeague = 'foudre';
   } else if (profile.totalXp >= 500) {
     profile.currentLeague = 'cascade';
@@ -239,6 +277,12 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 if (cloudRow.avatar_pokemon_id) parsed.avatarPokemonId = cloudRow.avatar_pokemon_id;
                 if (cloudRow.avatar_pokemon_emoji) parsed.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
                 if (cloudRow.current_league) parsed.currentLeague = cloudRow.current_league;
+                if (cloudRow.total_xp && cloudRow.total_xp > (parsed.totalXp || 0)) {
+                  parsed.totalXp = cloudRow.total_xp;
+                }
+                if (cloudRow.total_workouts && cloudRow.total_workouts > (parsed.totalWorkouts || 0)) {
+                  parsed.totalWorkouts = cloudRow.total_workouts;
+                }
               }
             } catch (cloudErr) {
               console.warn('Erreur vérification profil cloud Supabase:', cloudErr);
@@ -292,6 +336,9 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
       else parsed.currentLeague = 'pierre';
 
       await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
+      if (session?.isLoggedIn && session.userId && !session.userId.startsWith('trainer_')) {
+        void syncTrainerProfileToSupabase(parsed);
+      }
       profileToReturn = parsed;
     } else {
       let fetchedFromCloud: TrainerProfile | null = null;
@@ -416,26 +463,6 @@ export async function updateTrainerProfile(updates: Partial<TrainerProfile>): Pr
   const current = await getOrCreateTrainerProfile();
   const updated = { ...current, ...updates };
   await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(updated));
-
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      try {
-        await supabase.from('profiles').upsert({
-          id: updated.id,
-          username: updated.username,
-          friend_code: updated.friendCode,
-          trainer_title: updated.trainerTitle,
-          avatar_pokemon_id: updated.avatarPokemonId,
-          avatar_pokemon_emoji: updated.avatarPokemonEmoji,
-          total_xp: updated.totalXp,
-          current_league: updated.currentLeague,
-        });
-      } catch (e) {
-        console.warn('Sync profil Supabase ignorée:', e);
-      }
-    }
-  }
-
+  void syncTrainerProfileToSupabase(updated);
   return updated;
 }
