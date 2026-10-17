@@ -51,6 +51,18 @@ export async function getActiveCoOpRaidBoss(): Promise<CoOpRaidBoss> {
           .neq('user_id', profile.id);
 
         if (!error && data) {
+          const participantIds = data.map((d: any) => d.user_id);
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', participantIds);
+          const avatarMap = new Map<string, string>();
+          if (profilesData) {
+            for (const pr of profilesData) {
+              if (pr.avatar_url) avatarMap.set(pr.id, pr.avatar_url);
+            }
+          }
+
           for (const d of data) {
             const val = d.contribution_value || 0;
             const pct = Math.round((val / targetValue) * 100);
@@ -58,6 +70,7 @@ export async function getActiveCoOpRaidBoss(): Promise<CoOpRaidBoss> {
               userId: d.user_id,
               username: d.username,
               avatarPokemonEmoji: d.avatar_pokemon_emoji || '⚡',
+              avatarUrl: avatarMap.get(d.user_id),
               contributionValue: val,
               percentage: pct,
             });
@@ -78,6 +91,7 @@ export async function getActiveCoOpRaidBoss(): Promise<CoOpRaidBoss> {
       userId: profile.id,
       username: profile.username || 'Vous',
       avatarPokemonEmoji: profile.avatarPokemonEmoji,
+      avatarUrl: profile.avatarUrl,
       contributionValue: myContribution,
       percentage: myPercentage,
       isCurrentUser: true,

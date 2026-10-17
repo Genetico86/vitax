@@ -75,6 +75,7 @@ export async function registerTrainer(
     trainerTitle: 'Athlète Vitax',
     avatarPokemonId: 'pikachu',
     avatarPokemonEmoji: '⚡',
+    avatarUrl: useSettingsStore.getState().avatar_url,
     currentLeague: 'pierre',
     totalXp: 0,
     totalWorkouts: 0,
@@ -100,7 +101,7 @@ export async function registerTrainer(
         }
 
         // Insérer le profil avec son mot de passe
-        const { error: insertErr } = await supabase.from('profiles').insert({
+        const insertPayload: any = {
           id: userId,
           username: trimmedName,
           password: password,
@@ -113,7 +114,17 @@ export async function registerTrainer(
           total_workouts: 0,
           created_at: initialProfile.createdAt,
           updated_at: initialProfile.createdAt,
-        });
+        };
+        if (initialProfile.avatarUrl) {
+          insertPayload.avatar_url = initialProfile.avatarUrl;
+        }
+
+        let { error: insertErr } = await supabase.from('profiles').insert(insertPayload);
+        if (insertErr && (insertErr.message?.includes('avatar_url') || insertErr.code === '42703')) {
+          delete insertPayload.avatar_url;
+          const retry = await supabase.from('profiles').insert(insertPayload);
+          insertErr = retry.error;
+        }
 
         if (insertErr) {
           if (
@@ -265,11 +276,16 @@ export async function loginTrainer(
             trainerTitle: userRecord.trainer_title || 'Athlète Vitax',
             avatarPokemonId: userRecord.avatar_pokemon_id || 'pikachu',
             avatarPokemonEmoji: userRecord.avatar_pokemon_emoji || '⚡',
+            avatarUrl: userRecord.avatar_url || useSettingsStore.getState().avatar_url,
             currentLeague: userRecord.current_league || 'pierre',
             totalXp: userRecord.total_xp || 0,
             totalWorkouts: userRecord.total_workouts || 0,
             createdAt: userRecord.created_at || new Date().toISOString(),
           };
+
+          if (userRecord.avatar_url) {
+            await useSettingsStore.getState().setAvatarUrl(userRecord.avatar_url);
+          }
 
           // Si un autre compte était connecté sur cet appareil, purger ses données locales avant de rapatrier le compte actuel
           try {

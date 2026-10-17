@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { Card } from '../../common/Card';
 import { Button } from '../../common/Button';
+import { UserAvatar } from '../../common/UserAvatar';
 import { FriendChallenge, CoOpRaidBoss } from '../../../types/social';
 import { isDurationExercise, getExerciseUnitInfo } from '../../../utils/exerciseUnits';
 import { arenaStyles as styles } from '../styles/arenaStyles';
@@ -327,7 +328,12 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
               ]}
             >
               <Text style={styles.participantRank}>#{idx + 1}</Text>
-              <Text style={{ fontSize: 20, marginRight: 10 }}>{p.avatarPokemonEmoji}</Text>
+              <UserAvatar
+                avatarUrl={p.avatarUrl}
+                fallbackEmoji={p.avatarPokemonEmoji || '⚡'}
+                size={32}
+                style={{ borderWidth: 0, marginRight: 10 }}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.participantName, p.isCurrentUser && { color: Colors.primary }]}>
                   {p.username} {p.isCurrentUser && '(Vous)'}

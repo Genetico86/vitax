@@ -112,7 +112,7 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
     // Récupérer le profil Supabase existant pour garantir l'absence absolue de régression
     const { data: cloudRow } = await supabase
       .from('profiles')
-      .select('friend_code, total_xp, total_workouts, username, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league')
+      .select('friend_code, total_xp, total_workouts, username, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, avatar_url, current_league')
       .eq('id', profile.id)
       .maybeSingle();
 
@@ -130,6 +130,7 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       if (!profile.trainerTitle && cloudRow.trainer_title) profile.trainerTitle = cloudRow.trainer_title;
       if (!profile.avatarPokemonId && cloudRow.avatar_pokemon_id) profile.avatarPokemonId = cloudRow.avatar_pokemon_id;
       if (!profile.avatarPokemonEmoji && cloudRow.avatar_pokemon_emoji) profile.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
+      if (!profile.avatarUrl && cloudRow.avatar_url) profile.avatarUrl = cloudRow.avatar_url;
     }
 
     if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
@@ -140,21 +141,29 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
     // Mettre à jour l'AsyncStorage local avec les données consolidées
     await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
 
-    const { error } = await supabase.from('profiles').upsert(
-      {
-        id: profile.id,
-        username: profile.username || 'Athlète Vitax',
-        friend_code: friendCode,
-        trainer_title: profile.trainerTitle || 'Athlète Vitax',
-        avatar_pokemon_id: profile.avatarPokemonId || 'pikachu',
-        avatar_pokemon_emoji: profile.avatarPokemonEmoji || '⚡',
-        current_league: profile.currentLeague || 'pierre',
-        total_xp: profile.totalXp || 0,
-        total_workouts: profile.totalWorkouts || 0,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    );
+    const profilePayload: any = {
+      id: profile.id,
+      username: profile.username || 'Athlète Vitax',
+      friend_code: friendCode,
+      trainer_title: profile.trainerTitle || 'Athlète Vitax',
+      avatar_pokemon_id: profile.avatarPokemonId || 'pikachu',
+      avatar_pokemon_emoji: profile.avatarPokemonEmoji || '⚡',
+      current_league: profile.currentLeague || 'pierre',
+      total_xp: profile.totalXp || 0,
+      total_workouts: profile.totalWorkouts || 0,
+      updated_at: new Date().toISOString(),
+    };
+    if (profile.avatarUrl) {
+      profilePayload.avatar_url = profile.avatarUrl;
+    }
+
+    let { error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+    if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
+      delete profilePayload.avatar_url;
+      const retry = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+      error = retry.error;
+    }
+
     if (error) {
       if (error.code !== '23505' && !error.message?.includes('unique constraint')) {
         console.warn('Erreur Supabase upsert profil:', error.message);
@@ -244,6 +253,11 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
 
     if (raw) {
       const parsed: TrainerProfile = JSON.parse(raw);
+      if (useSettingsStore.getState().avatar_url) {
+        parsed.avatarUrl = useSettingsStore.getState().avatar_url;
+      } else if (parsed.avatarUrl) {
+        void useSettingsStore.getState().setAvatarUrl(parsed.avatarUrl);
+      }
 
       // Si l'utilisateur a un compte actif, l'identifiant d'arène DOIT être strictement identique à l'identifiant de compte
       if (session?.isLoggedIn && session.userId) {
@@ -276,6 +290,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 if (cloudRow.trainer_title) parsed.trainerTitle = cloudRow.trainer_title;
                 if (cloudRow.avatar_pokemon_id) parsed.avatarPokemonId = cloudRow.avatar_pokemon_id;
                 if (cloudRow.avatar_pokemon_emoji) parsed.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
+                if (cloudRow.avatar_url) parsed.avatarUrl = cloudRow.avatar_url;
                 if (cloudRow.current_league) parsed.currentLeague = cloudRow.current_league;
                 if (cloudRow.total_xp && cloudRow.total_xp > (parsed.totalXp || 0)) {
                   parsed.totalXp = cloudRow.total_xp;
@@ -366,6 +381,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 trainerTitle: cloudRow.trainer_title || gamification.levelInfo.title,
                 avatarPokemonId: cloudRow.avatar_pokemon_id || 'pikachu',
                 avatarPokemonEmoji: cloudRow.avatar_pokemon_emoji || '⚡',
+                avatarUrl: cloudRow.avatar_url || useSettingsStore.getState().avatar_url,
                 currentLeague: cloudRow.current_league || 'pierre',
                 totalXp: Math.max(cloudRow.total_xp || 0, gamification.totalXp),
                 totalWorkouts: Math.max(cloudRow.total_workouts || 0, gamification.totalSessions),
@@ -400,6 +416,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 trainerTitle: matched.trainer_title || gamification.levelInfo.title,
                 avatarPokemonId: matched.avatar_pokemon_id || 'pikachu',
                 avatarPokemonEmoji: matched.avatar_pokemon_emoji || '⚡',
+                avatarUrl: matched.avatar_url || useSettingsStore.getState().avatar_url,
                 currentLeague: matched.current_league || 'pierre',
                 totalXp: Math.max(matched.total_xp || 0, gamification.totalXp),
                 totalWorkouts: Math.max(matched.total_workouts || 0, gamification.totalSessions),
@@ -429,6 +446,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           trainerTitle: gamification.levelInfo.title,
           avatarPokemonId: defaultAvatar,
           avatarPokemonEmoji: defaultEmoji,
+          avatarUrl: useSettingsStore.getState().avatar_url,
           currentLeague: 'pierre',
           totalXp: gamification.totalXp,
           totalWorkouts: gamification.totalSessions,

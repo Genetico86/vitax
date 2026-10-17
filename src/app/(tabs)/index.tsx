@@ -24,6 +24,8 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { Colors } from '../../constants/colors';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { UserAvatar } from '../../components/common/UserAvatar';
+import { AvatarPickerModal } from '../../components/common/AvatarPickerModal';
 import {
   getUserGamificationStats,
   LevelInfo,
@@ -40,7 +42,6 @@ import {
   ActiveBuddyBuffInfo,
 } from '../../services/pokemonEggService';
 import { isProgramCompatibleByEquipmentString } from '../../utils/exerciseUnits';
-import { WeightHomeWidget } from '../../components/weight/WeightHomeWidget';
 import { showAlert } from '../../utils/alert';
 
 export default function HomeScreen() {
@@ -58,144 +59,316 @@ export default function HomeScreen() {
       return {
         scrollContent: {
           paddingHorizontal: 12,
-          paddingTop: 8,
-          paddingBottom: 14,
+          paddingTop: 6,
+          paddingBottom: 8,
         },
         topXpCard: {
-          paddingVertical: 12,
-          paddingHorizontal: 14,
-          marginBottom: 8,
-          borderRadius: 16,
+          paddingVertical: 8,
+          paddingHorizontal: 10,
+          marginBottom: 6,
+          borderRadius: 12,
         },
         topUserHeader: {
-          marginBottom: 6,
+          marginBottom: 4,
         },
         userGreetingText: {
-          fontSize: 20,
+          fontSize: 16,
           fontWeight: '900' as const,
         },
         userSubDot: {
-          fontSize: 13,
+          fontSize: 11,
         },
         userSubText: {
-          fontSize: 14,
+          fontSize: 12,
           fontWeight: '800' as const,
         },
         athleteHeaderBadge: {
-          paddingHorizontal: 10,
-          paddingVertical: 4,
-          borderRadius: 9,
+          paddingHorizontal: 7,
+          paddingVertical: 2,
+          borderRadius: 7,
         },
         athleteHeaderBadgeText: {
-          fontSize: 13,
+          fontSize: 11,
           fontWeight: '900' as const,
         },
         xpTrack: {
-          height: 7,
-          borderRadius: 4,
-          marginBottom: 3,
+          height: 5,
+          borderRadius: 3,
+          marginBottom: 2,
         },
         xpNumbersText: {
-          fontSize: 12.5,
+          fontSize: 10.5,
           fontWeight: '700' as const,
         },
         xpPercentText: {
-          fontSize: 12.5,
+          fontSize: 10.5,
+          fontWeight: '900' as const,
+        },
+        activeBanner: {
+          paddingVertical: 6,
+          paddingHorizontal: 8,
+          marginBottom: 6,
+          minHeight: 40,
+          gap: 6,
+        },
+        prioritySection: {
+          marginBottom: 6,
+        },
+        heroCoachCard: {
+          paddingVertical: 8,
+          paddingHorizontal: 10,
+          marginBottom: 6,
+          minHeight: 64,
+          gap: 8,
+          borderRadius: 13,
+        },
+        heroCoachIconBox: {
+          width: 38,
+          height: 38,
+          borderRadius: 10,
+        },
+        heroCoachIconSize: 22,
+        heroCoachTitle: {
+          fontSize: 16,
+          fontWeight: '900' as const,
+        },
+        heroCoachTag: {
+          paddingHorizontal: 4,
+          paddingVertical: 1,
+        },
+        heroCoachTagText: {
+          fontSize: 9,
+          fontWeight: '900' as const,
+        },
+        heroCoachSubtitle: {
+          fontSize: 11.5,
+          marginTop: 1,
+        },
+        heroCoachActionPill: {
+          paddingHorizontal: 9,
+          paddingVertical: 5,
+          borderRadius: 8,
+        },
+        heroCoachActionText: {
+          fontSize: 12,
+          fontWeight: '900' as const,
+        },
+        rowSpacing: {
+          gap: 6,
+          marginBottom: 6,
+        },
+        cardRow: {
+          paddingVertical: 7,
+          paddingHorizontal: 8,
+          gap: 7,
+          minHeight: 58,
+          borderRadius: 13,
+        },
+        iconCircle: {
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+        },
+        cardIconSize: 18,
+        cardTitle: {
+          fontSize: 13.5,
+          fontWeight: '900' as const,
+          lineHeight: 16,
+        },
+        cardSub: {
+          fontSize: 10.5,
+          fontWeight: '700' as const,
+          marginTop: 1,
+        },
+        weeklyFitnessCard: {
+          paddingVertical: 8,
+          paddingHorizontal: 10,
+          marginBottom: 6,
+          borderRadius: 12,
+        },
+        weeklyFitnessHeader: {
+          marginBottom: 5,
+        },
+        weeklyTitleIconSize: 14,
+        weeklyFitnessTitle: {
+          fontSize: 15,
+          fontWeight: '900' as const,
+        },
+        weeklyFitnessBadge: {
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 6,
+        },
+        weeklyFitnessBadgeText: {
+          fontSize: 11,
+          fontWeight: '800' as const,
+        },
+        weeklyDaysRow: {
+          marginBottom: 2,
+        },
+        dayPill: {
+          width: 26,
+          height: 26,
+          borderRadius: 6,
+        },
+        dayPillText: {
+          fontSize: 10,
+          fontWeight: '800' as const,
+        },
+        showWeeklyFooter: false,
+        weeklyStatsSummaryText: {
+          fontSize: 11,
+          fontWeight: '700' as const,
+        },
+      };
+    }
+
+    // -------------------------------------------------------------
+    // TIER 2 : ÉCRANS STANDARDS (720 <= screenHeight < 820 dp)
+    // EX: PIXEL, GALAXY, IPHONE EN NAVIGATEUR MOBILE
+    // -------------------------------------------------------------
+    if (isMediumScreen) {
+      return {
+        scrollContent: {
+          paddingHorizontal: 14,
+          paddingTop: 8,
+          paddingBottom: 10,
+        },
+        topXpCard: {
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          marginBottom: 8,
+          borderRadius: 14,
+        },
+        topUserHeader: {
+          marginBottom: 5,
+        },
+        userGreetingText: {
+          fontSize: 18,
+          fontWeight: '900' as const,
+        },
+        userSubDot: {
+          fontSize: 12,
+        },
+        userSubText: {
+          fontSize: 13.5,
+          fontWeight: '800' as const,
+        },
+        athleteHeaderBadge: {
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 8,
+        },
+        athleteHeaderBadgeText: {
+          fontSize: 12,
+          fontWeight: '900' as const,
+        },
+        xpTrack: {
+          height: 6,
+          borderRadius: 3,
+          marginBottom: 2,
+        },
+        xpNumbersText: {
+          fontSize: 11.5,
+          fontWeight: '700' as const,
+        },
+        xpPercentText: {
+          fontSize: 11.5,
           fontWeight: '900' as const,
         },
         activeBanner: {
           paddingVertical: 8,
-          paddingHorizontal: 11,
+          paddingHorizontal: 10,
           marginBottom: 8,
-          minHeight: 50,
+          minHeight: 46,
           gap: 8,
         },
         prioritySection: {
           marginBottom: 8,
         },
         heroCoachCard: {
-          paddingVertical: 14,
-          paddingHorizontal: 15,
+          paddingVertical: 10,
+          paddingHorizontal: 12,
           marginBottom: 8,
-          minHeight: 112,
-          gap: 12,
-          borderRadius: 16,
+          minHeight: 74,
+          gap: 10,
+          borderRadius: 15,
         },
         heroCoachIconBox: {
-          width: 48,
-          height: 48,
-          borderRadius: 14,
+          width: 44,
+          height: 44,
+          borderRadius: 12,
         },
-        heroCoachIconSize: 28,
+        heroCoachIconSize: 26,
         heroCoachTitle: {
-          fontSize: 21,
+          fontSize: 18.5,
           fontWeight: '900' as const,
         },
         heroCoachTag: {
-          paddingHorizontal: 6,
-          paddingVertical: 2,
+          paddingHorizontal: 5,
+          paddingVertical: 1.5,
         },
         heroCoachTagText: {
           fontSize: 10,
           fontWeight: '900' as const,
         },
         heroCoachSubtitle: {
-          fontSize: 13.5,
-          marginTop: 2,
+          fontSize: 12.5,
+          marginTop: 1,
         },
         heroCoachActionPill: {
-          paddingHorizontal: 13,
-          paddingVertical: 8,
-          borderRadius: 10,
+          paddingHorizontal: 11,
+          paddingVertical: 6,
+          borderRadius: 9,
         },
         heroCoachActionText: {
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: '900' as const,
         },
         rowSpacing: {
-          gap: 8,
-          marginBottom: 8,
-        },
-        cardRow: {
-          paddingVertical: 13,
-          paddingHorizontal: 12,
-          gap: 10,
-          minHeight: 92,
-          borderRadius: 16,
-        },
-        iconCircle: {
-          width: 46,
-          height: 46,
-          borderRadius: 14,
-        },
-        cardIconSize: 26,
-        cardTitle: {
-          fontSize: 18.5,
-          fontWeight: '900' as const,
-          lineHeight: 22,
-        },
-        cardSub: {
-          fontSize: 13,
-          fontWeight: '700' as const,
-          marginTop: 2,
-        },
-        weeklyFitnessCard: {
-          paddingVertical: 12,
-          paddingHorizontal: 14,
-          marginBottom: 8,
-          borderRadius: 16,
-        },
-        weeklyFitnessHeader: {
+          gap: 7,
           marginBottom: 7,
         },
-        weeklyTitleIconSize: 16,
+        cardRow: {
+          paddingVertical: 9,
+          paddingHorizontal: 10,
+          gap: 8,
+          minHeight: 68,
+          borderRadius: 15,
+        },
+        iconCircle: {
+          width: 38,
+          height: 38,
+          borderRadius: 11,
+        },
+        cardIconSize: 20,
+        cardTitle: {
+          fontSize: 15,
+          fontWeight: '900' as const,
+          lineHeight: 18,
+        },
+        cardSub: {
+          fontSize: 11.5,
+          fontWeight: '700' as const,
+          marginTop: 1,
+        },
+        weeklyFitnessCard: {
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          marginBottom: 8,
+          borderRadius: 14,
+        },
+        weeklyFitnessHeader: {
+          marginBottom: 6,
+        },
+        weeklyTitleIconSize: 15,
         weeklyFitnessTitle: {
-          fontSize: 17,
+          fontSize: 16,
           fontWeight: '900' as const,
         },
         weeklyFitnessBadge: {
-          paddingHorizontal: 8,
-          paddingVertical: 3,
+          paddingHorizontal: 7,
+          paddingVertical: 2.5,
           borderRadius: 7,
         },
         weeklyFitnessBadgeText: {
@@ -206,189 +379,17 @@ export default function HomeScreen() {
           marginBottom: 3,
         },
         dayPill: {
-          width: 32,
-          height: 32,
-          borderRadius: 8,
+          width: 30,
+          height: 30,
+          borderRadius: 7,
         },
         dayPillText: {
-          fontSize: 12,
-          fontWeight: '800' as const,
-        },
-        showWeeklyFooter: false,
-        weeklyStatsSummaryText: {
-          fontSize: 12,
-          fontWeight: '700' as const,
-        },
-      };
-    }
-
-    // -------------------------------------------------------------
-    // TIER 2 : ÉCRANS STANDARDS (720 <= screenHeight < 820 dp)
-    // CORRESPOND PARFAITEMENT AU PIXEL 10A / PIXEL 8 SUR NAVIGATEUR AVEC BARRE D'ADRESSE
-    // -------------------------------------------------------------
-    if (isMediumScreen) {
-      return {
-        scrollContent: {
-          paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 18,
-        },
-        topXpCard: {
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-          marginBottom: 10,
-          borderRadius: 18,
-        },
-        topUserHeader: {
-          marginBottom: 7,
-        },
-        userGreetingText: {
-          fontSize: 22,
-          fontWeight: '900' as const,
-        },
-        userSubDot: {
-          fontSize: 14,
-        },
-        userSubText: {
-          fontSize: 15.5,
-          fontWeight: '800' as const,
-        },
-        athleteHeaderBadge: {
-          paddingHorizontal: 11,
-          paddingVertical: 5,
-          borderRadius: 10,
-        },
-        athleteHeaderBadgeText: {
-          fontSize: 14,
-          fontWeight: '900' as const,
-        },
-        xpTrack: {
-          height: 8,
-          borderRadius: 4,
-          marginBottom: 3,
-        },
-        xpNumbersText: {
-          fontSize: 13.5,
-          fontWeight: '700' as const,
-        },
-        xpPercentText: {
-          fontSize: 13.5,
-          fontWeight: '900' as const,
-        },
-        activeBanner: {
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          marginBottom: 10,
-          minHeight: 52,
-          gap: 10,
-        },
-        prioritySection: {
-          marginBottom: 10,
-        },
-        heroCoachCard: {
-          paddingVertical: 16,
-          paddingHorizontal: 16,
-          marginBottom: 10,
-          minHeight: 126,
-          gap: 14,
-          borderRadius: 18,
-        },
-        heroCoachIconBox: {
-          width: 52,
-          height: 52,
-          borderRadius: 16,
-        },
-        heroCoachIconSize: 32,
-        heroCoachTitle: {
-          fontSize: 23,
-          fontWeight: '900' as const,
-        },
-        heroCoachTag: {
-          paddingHorizontal: 7,
-          paddingVertical: 2.5,
-        },
-        heroCoachTagText: {
           fontSize: 11,
-          fontWeight: '900' as const,
-        },
-        heroCoachSubtitle: {
-          fontSize: 14.5,
-          marginTop: 2,
-        },
-        heroCoachActionPill: {
-          paddingHorizontal: 15,
-          paddingVertical: 10,
-          borderRadius: 12,
-        },
-        heroCoachActionText: {
-          fontSize: 15,
-          fontWeight: '900' as const,
-        },
-        rowSpacing: {
-          gap: 10,
-          marginBottom: 10,
-        },
-        cardRow: {
-          paddingVertical: 15,
-          paddingHorizontal: 14,
-          gap: 11,
-          minHeight: 106,
-          borderRadius: 18,
-        },
-        iconCircle: {
-          width: 52,
-          height: 52,
-          borderRadius: 15,
-        },
-        cardIconSize: 30,
-        cardTitle: {
-          fontSize: 20,
-          fontWeight: '900' as const,
-          lineHeight: 24,
-        },
-        cardSub: {
-          fontSize: 14,
-          fontWeight: '700' as const,
-          marginTop: 3,
-        },
-        weeklyFitnessCard: {
-          paddingVertical: 14,
-          paddingHorizontal: 16,
-          marginBottom: 10,
-          borderRadius: 18,
-        },
-        weeklyFitnessHeader: {
-          marginBottom: 8,
-        },
-        weeklyTitleIconSize: 18,
-        weeklyFitnessTitle: {
-          fontSize: 18.5,
-          fontWeight: '900' as const,
-        },
-        weeklyFitnessBadge: {
-          paddingHorizontal: 9,
-          paddingVertical: 3.5,
-          borderRadius: 8,
-        },
-        weeklyFitnessBadgeText: {
-          fontSize: 13,
-          fontWeight: '800' as const,
-        },
-        weeklyDaysRow: {
-          marginBottom: 4,
-        },
-        dayPill: {
-          width: 36,
-          height: 36,
-          borderRadius: 9,
-        },
-        dayPillText: {
-          fontSize: 13.5,
           fontWeight: '800' as const,
         },
         showWeeklyFooter: true,
         weeklyStatsSummaryText: {
-          fontSize: 13,
+          fontSize: 11.5,
           fontWeight: '700' as const,
         },
       };
@@ -396,171 +397,171 @@ export default function HomeScreen() {
 
     // -------------------------------------------------------------
     // TIER 3 : GRANDS SMARTPHONES MODERNES (screenHeight >= 820 dp)
-    // PIXEL 10A EN MODE PLEIN ÉCRAN / PWA / NATIVE, IPHONE MAX, GALAXY ULTRA
-    // REMPLISSAGE OPTIMAL DE L'ÉCRAN SANS VIDE ET LISIBILITÉ GYM MAXIMALE
+    // EX: PIXEL EN PLEIN ÉCRAN, IPHONE PRO/MAX, S24
+    // TOUT TIENT SANS AUCUN SCROLLING TOUT EN RESTANT TRÈS LISIBLE
     // -------------------------------------------------------------
     return {
       scrollContent: {
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        paddingBottom: 22,
+        paddingHorizontal: 15,
+        paddingTop: 10,
+        paddingBottom: 14,
       },
       topXpCard: {
-        paddingVertical: 16,
-        paddingHorizontal: 16,
-        marginBottom: 12,
-        borderRadius: 20,
-      },
-      topUserHeader: {
-        marginBottom: 8,
-      },
-      userGreetingText: {
-        fontSize: 24,
-        fontWeight: '900' as const,
-      },
-      userSubDot: {
-        fontSize: 15,
-      },
-      userSubText: {
-        fontSize: 16.5,
-        fontWeight: '800' as const,
-      },
-      athleteHeaderBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-      },
-      athleteHeaderBadgeText: {
-        fontSize: 14.5,
-        fontWeight: '900' as const,
-      },
-      xpTrack: {
-        height: 10,
-        borderRadius: 5,
-        marginBottom: 4,
-      },
-      xpNumbersText: {
-        fontSize: 14,
-        fontWeight: '700' as const,
-      },
-      xpPercentText: {
-        fontSize: 14,
-        fontWeight: '900' as const,
-      },
-      activeBanner: {
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        marginBottom: 12,
-        minHeight: 56,
-        gap: 12,
-      },
-      prioritySection: {
-        marginBottom: 12,
-      },
-      heroCoachCard: {
-        paddingVertical: 18,
-        paddingHorizontal: 18,
-        marginBottom: 12,
-        minHeight: 138,
-        gap: 15,
-        borderRadius: 20,
-      },
-      heroCoachIconBox: {
-        width: 58,
-        height: 58,
-        borderRadius: 18,
-      },
-      heroCoachIconSize: 34,
-      heroCoachTitle: {
-        fontSize: 24.5,
-        fontWeight: '900' as const,
-      },
-      heroCoachTag: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-      },
-      heroCoachTagText: {
-        fontSize: 11.5,
-        fontWeight: '900' as const,
-      },
-      heroCoachSubtitle: {
-        fontSize: 15.5,
-        marginTop: 3,
-      },
-      heroCoachActionPill: {
-        paddingHorizontal: 16,
         paddingVertical: 11,
-        borderRadius: 13,
-      },
-      heroCoachActionText: {
-        fontSize: 15.5,
-        fontWeight: '900' as const,
-      },
-      rowSpacing: {
-        gap: 12,
-        marginBottom: 12,
-      },
-      cardRow: {
-        paddingVertical: 16,
-        paddingHorizontal: 15,
-        gap: 12,
-        minHeight: 116,
-        borderRadius: 20,
-      },
-      iconCircle: {
-        width: 56,
-        height: 56,
+        paddingHorizontal: 14,
+        marginBottom: 8,
         borderRadius: 16,
       },
-      cardIconSize: 32,
-      cardTitle: {
-        fontSize: 21.5,
-        fontWeight: '900' as const,
-        lineHeight: 26,
+      topUserHeader: {
+        marginBottom: 6,
       },
-      cardSub: {
-        fontSize: 14.5,
-        fontWeight: '700' as const,
-        marginTop: 3,
-      },
-      weeklyFitnessCard: {
-        paddingVertical: 16,
-        paddingHorizontal: 18,
-        marginBottom: 12,
-        borderRadius: 20,
-      },
-      weeklyFitnessHeader: {
-        marginBottom: 10,
-      },
-      weeklyTitleIconSize: 20,
-      weeklyFitnessTitle: {
+      userGreetingText: {
         fontSize: 20,
         fontWeight: '900' as const,
       },
-      weeklyFitnessBadge: {
-        paddingHorizontal: 10,
+      userSubDot: {
+        fontSize: 13,
+      },
+      userSubText: {
+        fontSize: 14.5,
+        fontWeight: '800' as const,
+      },
+      athleteHeaderBadge: {
+        paddingHorizontal: 9,
         paddingVertical: 4,
+        borderRadius: 9,
+      },
+      athleteHeaderBadgeText: {
+        fontSize: 13,
+        fontWeight: '900' as const,
+      },
+      xpTrack: {
+        height: 7,
+        borderRadius: 4,
+        marginBottom: 3,
+      },
+      xpNumbersText: {
+        fontSize: 12,
+        fontWeight: '700' as const,
+      },
+      xpPercentText: {
+        fontSize: 12,
+        fontWeight: '900' as const,
+      },
+      activeBanner: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginBottom: 8,
+        minHeight: 48,
+        gap: 8,
+      },
+      prioritySection: {
+        marginBottom: 8,
+      },
+      heroCoachCard: {
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        marginBottom: 8,
+        minHeight: 82,
+        gap: 12,
+        borderRadius: 16,
+      },
+      heroCoachIconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+      },
+      heroCoachIconSize: 28,
+      heroCoachTitle: {
+        fontSize: 20,
+        fontWeight: '900' as const,
+      },
+      heroCoachTag: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+      },
+      heroCoachTagText: {
+        fontSize: 10.5,
+        fontWeight: '900' as const,
+      },
+      heroCoachSubtitle: {
+        fontSize: 13.5,
+        marginTop: 2,
+      },
+      heroCoachActionPill: {
+        paddingHorizontal: 13,
+        paddingVertical: 8,
         borderRadius: 10,
       },
-      weeklyFitnessBadgeText: {
+      heroCoachActionText: {
         fontSize: 13.5,
         fontWeight: '900' as const,
       },
-      weeklyDaysRow: {
+      rowSpacing: {
+        gap: 8,
         marginBottom: 8,
       },
+      cardRow: {
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        gap: 9,
+        minHeight: 74,
+        borderRadius: 16,
+      },
+      iconCircle: {
+        width: 42,
+        height: 42,
+        borderRadius: 13,
+      },
+      cardIconSize: 24,
+      cardTitle: {
+        fontSize: 16.5,
+        fontWeight: '900' as const,
+        lineHeight: 20,
+      },
+      cardSub: {
+        fontSize: 12.5,
+        fontWeight: '700' as const,
+        marginTop: 2,
+      },
+      weeklyFitnessCard: {
+        paddingVertical: 11,
+        paddingHorizontal: 14,
+        marginBottom: 8,
+        borderRadius: 16,
+      },
+      weeklyFitnessHeader: {
+        marginBottom: 7,
+      },
+      weeklyTitleIconSize: 16,
+      weeklyFitnessTitle: {
+        fontSize: 17.5,
+        fontWeight: '900' as const,
+      },
+      weeklyFitnessBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+      },
+      weeklyFitnessBadgeText: {
+        fontSize: 12.5,
+        fontWeight: '800' as const,
+      },
+      weeklyDaysRow: {
+        marginBottom: 5,
+      },
       dayPill: {
-        width: 40,
-        height: 40,
-        borderRadius: 11,
+        width: 32,
+        height: 32,
+        borderRadius: 8,
       },
       dayPillText: {
-        fontSize: 14.5,
-        fontWeight: '900' as const,
+        fontSize: 12,
+        fontWeight: '800' as const,
       },
       showWeeklyFooter: true,
       weeklyStatsSummaryText: {
-        fontSize: 14,
+        fontSize: 12.5,
         fontWeight: '700' as const,
       },
     };
@@ -592,8 +593,9 @@ export default function HomeScreen() {
 
   // Modal Badges & Pokémon Hub
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
-  const { user_name, available_equipments, filter_by_available_equipment } = useSettingsStore();
+  const { user_name, avatar_url, setAvatarUrl, available_equipments, filter_by_available_equipment } = useSettingsStore();
 
   const compatibleProgramsCount = useMemo(() => {
     if (!filter_by_available_equipment) return programs.length;
@@ -810,6 +812,12 @@ export default function HomeScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.userGreetingRow}>
+                <UserAvatar
+                  avatarUrl={avatar_url}
+                  fallbackEmoji={effectiveLevelInfo?.badgeEmoji || '👤'}
+                  size={32}
+                  style={{ borderWidth: 1, borderColor: '#38BDF8' }}
+                />
                 <Text style={[styles.userGreetingText, dynamic.userGreetingText]} numberOfLines={1}>
                   Bonjour {user_name ? user_name : 'l’athlète'} 👋
                 </Text>
@@ -1163,8 +1171,6 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-
-        <WeightHomeWidget />
       </ScrollView>
 
       {/* ======================================================== */}
@@ -1403,6 +1409,22 @@ export default function HomeScreen() {
             {isUserLoggedIn ? (
               <View>
                 <View style={styles.loggedInProfileBox}>
+                  <TouchableOpacity
+                    onPress={() => setAvatarPickerVisible(true)}
+                    activeOpacity={0.8}
+                    style={{ alignItems: 'center', marginBottom: 10 }}
+                    accessibilityLabel="Modifier ma photo de profil"
+                  >
+                    <UserAvatar
+                      avatarUrl={avatar_url}
+                      fallbackEmoji="👤"
+                      size={68}
+                      showEditBadge
+                    />
+                    <Text style={{ color: '#38BDF8', fontSize: 12.5, fontWeight: '700', marginTop: 6 }}>
+                      📷 Modifier la photo ❯
+                    </Text>
+                  </TouchableOpacity>
                   <Text style={styles.loggedInBadge}>✓ Compte Connecté</Text>
                   <Text style={styles.loggedInUsername}>{user_name}</Text>
                   <Text style={styles.loggedInSubtitle}>
@@ -1525,6 +1547,15 @@ export default function HomeScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <AvatarPickerModal
+        visible={avatarPickerVisible}
+        currentAvatarUrl={avatar_url}
+        onClose={() => setAvatarPickerVisible(false)}
+        onAvatarSelected={async (url) => {
+          await setAvatarUrl(url);
+        }}
+      />
     </View>
   );
 }

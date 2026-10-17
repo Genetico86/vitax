@@ -41,6 +41,7 @@ export async function createFriendGift(params: {
     senderId: profile.id,
     senderName: profile.username || 'Athlète Vitax',
     senderAvatarEmoji: profile.avatarPokemonEmoji || '⚡',
+    senderAvatarUrl: profile.avatarUrl,
     receiverId: params.receiverId,
     receiverName: params.receiverName,
     receiverFriendCode: params.receiverFriendCode,
@@ -126,11 +127,25 @@ export async function getFriendGifts(): Promise<{
           .order('created_at', { ascending: false });
 
         if (!error && data && Array.isArray(data)) {
+          const senderIds = data.map((d: any) => d.sender_id);
+          const { data: sendersProfiles } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', senderIds);
+
+          const senderAvatarMap = new Map<string, string>();
+          if (sendersProfiles) {
+            for (const sp of sendersProfiles) {
+              if (sp.avatar_url) senderAvatarMap.set(sp.id, sp.avatar_url);
+            }
+          }
+
           const cloudGifts: FriendGift[] = data.map((d: any) => ({
             id: d.id,
             senderId: d.sender_id,
             senderName: d.sender_name,
             senderAvatarEmoji: d.sender_avatar || '⚡',
+            senderAvatarUrl: d.sender_avatar_url || senderAvatarMap.get(d.sender_id),
             receiverId: d.receiver_id,
             receiverName: d.receiver_name,
             receiverFriendCode: d.receiver_code,

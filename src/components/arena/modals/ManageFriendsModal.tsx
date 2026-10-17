@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
 import { Button } from '../../common/Button';
+import { UserAvatar } from '../../common/UserAvatar';
 import { FriendEntry } from '../../../types/social';
 import { arenaStyles as styles } from '../styles/arenaStyles';
 
@@ -57,7 +58,12 @@ export const ManageFriendsModal: React.FC<ManageFriendsModalProps> = ({
               friendsList.map((f) => (
                 <View key={f.friendId} style={styles.friendManageRow}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                    <Text style={{ fontSize: 24 }}>{f.avatarPokemonEmoji || '⚡'}</Text>
+                    <UserAvatar
+                      avatarUrl={f.avatarUrl}
+                      fallbackEmoji={f.avatarPokemonEmoji || '⚡'}
+                      size={36}
+                      style={{ borderWidth: 0 }}
+                    />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.friendManageName}>{f.username}</Text>
                       <Text style={styles.friendManageCode}>{f.friendCode} • {f.trainerTitle}</Text>

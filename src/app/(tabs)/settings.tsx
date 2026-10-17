@@ -22,6 +22,8 @@ import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
+import { UserAvatar } from '../../components/common/UserAvatar';
+import { AvatarPickerModal } from '../../components/common/AvatarPickerModal';
 import { EQUIPMENT_CATALOG_METADATA } from '../../utils/exerciseUnits';
 import { EQUIPMENTS } from '../../constants/muscles';
 import { getOrCreateTrainerProfile, getFriendsList } from '../../services/multiplayerService';
@@ -32,6 +34,7 @@ import { isSupabaseConfigured } from '../../services/supabaseClient';
 export default function SettingsScreen() {
   const {
     user_name,
+    avatar_url,
     user_height_cm,
     available_equipments,
     filter_by_available_equipment,
@@ -39,6 +42,7 @@ export default function SettingsScreen() {
     haptic_enabled,
     weight_unit,
     setUserName,
+    setAvatarUrl,
     setUserHeight,
     setAvailableEquipments,
     toggleAvailableEquipment,
@@ -52,6 +56,7 @@ export default function SettingsScreen() {
   const [trainerProfile, setTrainerProfile] = useState<TrainerProfile | null>(null);
   const [friendsCount, setFriendsCount] = useState<number>(0);
   const [isTrainerLoggedIn, setIsTrainerLoggedIn] = useState(false);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
   const loadTrainerData = useCallback(async () => {
     try {
@@ -330,8 +335,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Badge Réseau & Synchronisation Athlètes */}
+    <View style={styles.container}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
+        {/* Badge Réseau & Synchronisation Athlètes */}
       <Card style={styles.offlineCard}>
         <View style={styles.offlineHeader}>
           <Text style={styles.offlineIcon}>🌐</Text>
@@ -351,10 +357,19 @@ export default function SettingsScreen() {
       {trainerProfile && (
         <Card style={styles.trainerCard}>
           <View style={styles.trainerHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-              <View style={styles.trainerAvatarCircle}>
-                <Text style={{ fontSize: 24 }}>{trainerProfile.avatarPokemonEmoji || '⚡'}</Text>
-              </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <TouchableOpacity
+                onPress={() => setAvatarPickerVisible(true)}
+                activeOpacity={0.8}
+                accessibilityLabel="Changer la photo de profil (Selfie ou Galerie)"
+              >
+                <UserAvatar
+                  avatarUrl={avatar_url || trainerProfile.avatarUrl}
+                  fallbackEmoji={trainerProfile.avatarPokemonEmoji || '⚡'}
+                  size={52}
+                  showEditBadge
+                />
+              </TouchableOpacity>
               <View style={{ flex: 1 }}>
                 <Text style={styles.trainerProfileTitle}>{trainerProfile.username}</Text>
                 <Text style={styles.trainerProfileSub}>
@@ -445,14 +460,32 @@ export default function SettingsScreen() {
 
       <Card style={styles.card}>
         <View style={styles.profileRow}>
-          <View style={styles.profileAvatarBox}>
-            <Text style={{ fontSize: 22 }}>👤</Text>
-          </View>
+          <TouchableOpacity
+            onPress={() => setAvatarPickerVisible(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Changer la photo de profil (Selfie ou Galerie)"
+          >
+            <UserAvatar
+              avatarUrl={avatar_url || trainerProfile?.avatarUrl}
+              fallbackEmoji="👤"
+              size={52}
+              showEditBadge
+            />
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Prénom de l’athlète</Text>
+            <Text style={styles.label}>Prénom & Photo de profil</Text>
             <Text style={styles.sublabel}>
-              Personnalise la salutation « Bonjour l’athlète » sur l’écran d’accueil
+              Personnalise votre identité athlète sur l’accueil et dans les classements
             </Text>
+            <TouchableOpacity
+              onPress={() => setAvatarPickerVisible(true)}
+              style={{ marginTop: 4 }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ color: '#38BDF8', fontSize: 12.5, fontWeight: '700' }}>
+                📷 {avatar_url ? 'Modifier ma photo' : 'Ajouter une photo (Selfie / Galerie)'} ❯
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -860,6 +893,19 @@ export default function SettingsScreen() {
         <Text style={styles.footerSub}>Conçu pour la performance et la rapidité d’exécution</Text>
       </View>
     </ScrollView>
+
+    <AvatarPickerModal
+      visible={avatarPickerVisible}
+      currentAvatarUrl={avatar_url || trainerProfile?.avatarUrl}
+      onClose={() => setAvatarPickerVisible(false)}
+      onAvatarSelected={async (url) => {
+        await setAvatarUrl(url);
+        if (trainerProfile) {
+          setTrainerProfile({ ...trainerProfile, avatarUrl: url });
+        }
+      }}
+    />
+  </View>
   );
 }
 
