@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, RefreshControl } from 'react-native';
+import { View, ScrollView, RefreshControl, ActivityIndicator, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { FriendGift } from '../../types/social';
@@ -37,6 +37,7 @@ export default function ArenaScreen() {
     setRaidsSubTab,
     profile,
     isLoggedIn,
+    loading,
     friendsList,
     leaderboardData,
     raidBoss,
@@ -134,27 +135,36 @@ export default function ArenaScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
         }
       >
-        {activeTab === 'leaderboard' && leaderboardData && (
-          <LeaderboardTab
-            leaderboardData={leaderboardData}
-            leaderboardFilter={leaderboardFilter}
-            onFilterChange={setLeaderboardFilter}
-            pendingRequests={pendingRequests}
-            friendGifts={friendGifts}
-            friendsList={friendsList}
-            profile={profile}
-            onAcceptRequest={handleAcceptRequest}
-            onDeclineRequest={handleDeclineRequest}
-            onShareWebInvite={handleShareWebInvite}
-            onShareFriendCode={handleShareFriendCode}
-            onOpenAddFriend={() => setAddFriendModalVisible(true)}
-            onOpenManageFriends={() => setManageFriendsModalVisible(true)}
-            onOpenCreateGift={() => handleOpenCreateGift()}
-            onSimulateGift={handleSimulateGift}
-            onClaimGift={onClaimGiftAndCelebrate}
-            onRemoveFriend={handleRemoveFriend}
-            onInviteAthlete={handleInviteAthlete}
-          />
+        {activeTab === 'leaderboard' && (
+          loading && !leaderboardData ? (
+            <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={{ marginTop: 14, color: Colors.textMuted, fontSize: 13, fontWeight: '600' }}>
+                Chargement des ligues et des athlètes...
+              </Text>
+            </View>
+          ) : leaderboardData ? (
+            <LeaderboardTab
+              leaderboardData={leaderboardData}
+              leaderboardFilter={leaderboardFilter}
+              onFilterChange={setLeaderboardFilter}
+              pendingRequests={pendingRequests}
+              friendGifts={friendGifts}
+              friendsList={friendsList}
+              profile={profile}
+              onAcceptRequest={handleAcceptRequest}
+              onDeclineRequest={handleDeclineRequest}
+              onShareWebInvite={handleShareWebInvite}
+              onShareFriendCode={handleShareFriendCode}
+              onOpenAddFriend={() => setAddFriendModalVisible(true)}
+              onOpenManageFriends={() => setManageFriendsModalVisible(true)}
+              onOpenCreateGift={() => handleOpenCreateGift()}
+              onSimulateGift={handleSimulateGift}
+              onClaimGift={onClaimGiftAndCelebrate}
+              onRemoveFriend={handleRemoveFriend}
+              onInviteAthlete={handleInviteAthlete}
+            />
+          ) : null
         )}
 
         {activeTab === 'raids' && (

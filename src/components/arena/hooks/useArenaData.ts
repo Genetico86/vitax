@@ -57,6 +57,7 @@ export function useArenaData(initialTab?: ArenaTab) {
 
   const [profile, setProfile] = useState<TrainerProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [friendsList, setFriendsList] = useState<FriendEntry[]>([]);
   const [leaderboardData, setLeaderboardData] = useState<{
     league: LeagueConfig;
@@ -92,40 +93,55 @@ export function useArenaData(initialTab?: ArenaTab) {
 
       const prof = await getOrCreateTrainerProfile();
       setProfile(prof);
-      await syncTrainerProfileToSupabase(prof);
 
-      const [
-        lb,
-        friends,
-        raid,
-        chlgList,
-        exList,
-        progList,
-        reqList,
-        giftsData,
-      ] = await Promise.all([
-        getLeagueLeaderboard(leaderboardFilter),
-        getFriendsList(),
-        getActiveCoOpRaidBoss(),
-        getFriendChallenges(),
-        getAllExercises(),
-        getAllPrograms(),
-        getPendingFriendRequests(),
-        getFriendGifts(),
+      // 1. Synchronisation profil en arrière-plan sans bloquer
+      void syncTrainerProfileToSupabase(prof);
+
+      // 2. Charger le classement en priorité absolue
+      const lbPromise = getLeagueLeaderboard(leaderboardFilter)
+        .then((lb) => {
+          setLeaderboardData(lb);
+          setLoading(false);
+          return lb;
+        })
+        .catch((err) => {
+          console.warn('Erreur chargement leaderboard:', err);
+          setLoading(false);
+          return null;
+        });
+
+      // 3. Charger les exercices et programmes en tâche de fond pour les modales
+      if (allExercises.length === 0) {
+        void Promise.all([
+          getAllExercises().catch(() => []),
+          getAllPrograms().catch(() => []),
+        ]).then(([exList, progList]) => {
+          setAllExercises(exList);
+          setAllPrograms(progList);
+        });
+      }
+
+      // 4. Charger les données sociales en arrière-plan avec isolation d'erreurs
+      const [friends, raid, chlgList, reqList, giftsData] = await Promise.all([
+        getFriendsList().catch(() => []),
+        getActiveCoOpRaidBoss().catch(() => null),
+        getFriendChallenges().catch(() => []),
+        getPendingFriendRequests().catch(() => []),
+        getFriendGifts().catch(() => ({ sent: [], received: [], unlockedUnclaimedCount: 0 })),
       ]);
 
-      setLeaderboardData(lb);
       setFriendsList(friends);
       setRaidBoss(raid);
       setFriendChallenges(chlgList);
-      setAllExercises(exList);
-      setAllPrograms(progList);
       setPendingRequests(reqList);
       setFriendGifts(giftsData);
+
+      await lbPromise;
     } catch (err) {
       console.error('Erreur chargement arène:', err);
+      setLoading(false);
     }
-  }, [leaderboardFilter]);
+  }, [leaderboardFilter, allExercises.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -502,6 +518,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     setRaidsSubTab,
     profile,
     isLoggedIn,
+    loading,
     friendsList,
     leaderboardData,
     raidBoss,
