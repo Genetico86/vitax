@@ -156,8 +156,8 @@ export async function registerTrainer(
         if (insertErr) {
           if (
             insertErr.code === '23505' ||
-            insertErr.message.includes('unique') ||
-            insertErr.message.includes('duplicate')
+            insertErr.message?.includes('unique') ||
+            insertErr.message?.includes('duplicate')
           ) {
             return {
               success: false,
@@ -165,9 +165,17 @@ export async function registerTrainer(
             };
           }
 
+          if (insertErr.code === '42501') {
+            return {
+              success: false,
+              error:
+                'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
+            };
+          }
+
           console.warn('Erreur insertion profil Supabase:', insertErr.message);
           // Si la colonne password n'existe pas encore dans Supabase, tenter sans bloquer
-          if (insertErr.message.includes('password')) {
+          if (insertErr.message?.includes('password')) {
             const { error: fallbackErr } = await supabase.from('profiles').insert({
               id: userId,
               username: trimmedName,
@@ -180,16 +188,38 @@ export async function registerTrainer(
               total_workouts: 0,
             });
 
-            if (fallbackErr && (fallbackErr.code === '23505' || fallbackErr.message.includes('unique'))) {
+            if (fallbackErr && (fallbackErr.code === '23505' || fallbackErr.message?.includes('unique'))) {
               return {
                 success: false,
                 error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
               };
             }
+            if (fallbackErr && fallbackErr.code === '42501') {
+              return {
+                success: false,
+                error:
+                  'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
+              };
+            }
+            if (fallbackErr) {
+              return {
+                success: false,
+                error: `Impossible d'enregistrer le profil dans Supabase : ${fallbackErr.message}`,
+              };
+            }
+          } else {
+            return {
+              success: false,
+              error: `Impossible d'enregistrer le compte dans la base de données : ${insertErr.message}`,
+            };
           }
         }
       } catch (err: any) {
         console.warn('Exception inscription Supabase:', err?.message);
+        return {
+          success: false,
+          error: `Erreur de connexion à la base de données : ${err?.message || 'Inconnue'}`,
+        };
       }
     }
   }
@@ -263,7 +293,22 @@ export async function loginTrainer(
           .select('*')
           .ilike('username', trimmedName);
 
-        if (!error && rows && rows.length > 0) {
+        if (error) {
+          console.warn('Erreur connexion Supabase profiles:', error.message);
+          if (error.code === '42501') {
+            return {
+              success: false,
+              error:
+                'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
+            };
+          }
+          return {
+            success: false,
+            error: `Erreur de connexion à la base de données : ${error.message}`,
+          };
+        }
+
+        if (rows && rows.length > 0) {
           const userRecord = rows[0];
 
           // Si un mot de passe est enregistré dans Supabase, le vérifier
@@ -369,7 +414,26 @@ export async function loginTrainer(
           }
 
           return { success: true, profile: loadedProfile };
-        } else if (!error && (!rows || rows.length === 0)) {
+        } else {
+          // Si aucun profil trouvé, vérifier si la sécurité RLS bloque les requêtes
+          try {
+            const { error: probeErr } = await supabase.from('profiles').insert({
+              id: '__vtx_rls_probe__',
+              username: '__probe__',
+              friend_code: '__probe__',
+            });
+            if (probeErr && probeErr.code === '42501') {
+              return {
+                success: false,
+                error:
+                  'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
+              };
+            }
+            if (!probeErr) {
+              await supabase.from('profiles').delete().eq('id', '__vtx_rls_probe__');
+            }
+          } catch {}
+
           return {
             success: false,
             error: 'Compte introuvable. Veuillez vérifier le nom d’utilisateur ou appuyer sur "Créer un compte".',

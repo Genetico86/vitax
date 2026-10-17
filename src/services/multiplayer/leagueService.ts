@@ -6,12 +6,26 @@ import { getSupabaseClient, isSupabaseConfigured } from '../supabaseClient';
 import { getOrCreateTrainerProfile, getCurrentWeekBounds, LEAGUE_CONFIGS } from './profileService';
 import { getFriendsList } from './friendsService';
 
-export async function getWeeklyUserStats(): Promise<{
+let cachedWeeklyStats: {
+  timestamp: number;
+  stats: {
+    weeklyXp: number;
+    totalTonnageKg: number;
+    cardioMinutes: number;
+    workoutsCount: number;
+  };
+} | null = null;
+
+export async function getWeeklyUserStats(forceRefresh = false): Promise<{
   weeklyXp: number;
   totalTonnageKg: number;
   cardioMinutes: number;
   workoutsCount: number;
 }> {
+  if (!forceRefresh && cachedWeeklyStats && Date.now() - cachedWeeklyStats.timestamp < 10000) {
+    return cachedWeeklyStats.stats;
+  }
+
   const db = await getDatabase();
   const { start, end } = getCurrentWeekBounds();
 
@@ -38,13 +52,153 @@ export async function getWeeklyUserStats(): Promise<{
     }
   }
 
-  return {
+  const stats = {
     weeklyXp,
     totalTonnageKg: Math.round(totalTonnageKg),
     cardioMinutes,
     workoutsCount: sessions.length,
   };
+
+  cachedWeeklyStats = {
+    timestamp: Date.now(),
+    stats,
+  };
+
+  return stats;
 }
+
+export const VITAX_COMMUNITY_ATHLETES: Omit<LeaderboardEntry, 'rank' | 'isCurrentUser' | 'isFriend' | 'trend'>[] = [
+  {
+    userId: 'vtx_sarah_fit',
+    username: 'Sarah',
+    friendCode: '38194',
+    trainerTitle: 'Coach Fitness',
+    avatarPokemonEmoji: '💪',
+    avatarUrl: undefined,
+    weeklyXp: 450,
+    totalXp: 3240,
+    totalTonnageKg: 12850,
+    cardioMinutes: 90,
+    workoutsCount: 24,
+  },
+  {
+    userId: 'vtx_alexandre_pl',
+    username: 'Alexandre',
+    friendCode: '81035',
+    trainerTitle: 'Powerlifter',
+    avatarPokemonEmoji: '🔥',
+    avatarUrl: undefined,
+    weeklyXp: 280,
+    totalXp: 2890,
+    totalTonnageKg: 21500,
+    cardioMinutes: 0,
+    workoutsCount: 22,
+  },
+  {
+    userId: 'vtx_thomas_force',
+    username: 'Thomas',
+    friendCode: '52941',
+    trainerTitle: 'Athlète Force',
+    avatarPokemonEmoji: '🏋️',
+    avatarUrl: undefined,
+    weeklyXp: 380,
+    totalXp: 2180,
+    totalTonnageKg: 15400,
+    cardioMinutes: 20,
+    workoutsCount: 18,
+  },
+  {
+    userId: 'vtx_lucas_sw',
+    username: 'Lucas',
+    friendCode: '74128',
+    trainerTitle: 'Street Workout',
+    avatarPokemonEmoji: '🤸',
+    avatarUrl: undefined,
+    weeklyXp: 310,
+    totalXp: 1850,
+    totalTonnageKg: 8900,
+    cardioMinutes: 45,
+    workoutsCount: 15,
+  },
+  {
+    userId: 'vtx_emma_cross',
+    username: 'Emma',
+    friendCode: '62590',
+    trainerTitle: 'Cross-Training',
+    avatarPokemonEmoji: '⚡',
+    avatarUrl: undefined,
+    weeklyXp: 260,
+    totalXp: 1420,
+    totalTonnageKg: 7200,
+    cardioMinutes: 60,
+    workoutsCount: 12,
+  },
+  {
+    userId: 'vtx_julie_cardio',
+    username: 'Julie',
+    friendCode: '49312',
+    trainerTitle: 'Cardio & Fitness',
+    avatarPokemonEmoji: '🏃‍♀️',
+    avatarUrl: undefined,
+    weeklyXp: 210,
+    totalXp: 1150,
+    totalTonnageKg: 4800,
+    cardioMinutes: 120,
+    workoutsCount: 10,
+  },
+  {
+    userId: 'vtx_maxime_hybrid',
+    username: 'Maxime',
+    friendCode: '90471',
+    trainerTitle: 'Athlète Polyvalent',
+    avatarPokemonEmoji: '🥊',
+    avatarUrl: undefined,
+    weeklyXp: 180,
+    totalXp: 980,
+    totalTonnageKg: 5600,
+    cardioMinutes: 30,
+    workoutsCount: 8,
+  },
+  {
+    userId: 'vtx_camille_fit',
+    username: 'Camille',
+    friendCode: '31876',
+    trainerTitle: 'Athlète Régulière',
+    avatarPokemonEmoji: '🧘‍♀️',
+    avatarUrl: undefined,
+    weeklyXp: 140,
+    totalXp: 750,
+    totalTonnageKg: 3900,
+    cardioMinutes: 40,
+    workoutsCount: 6,
+  },
+  {
+    userId: 'vtx_nicolas_dev',
+    username: 'Nicolas',
+    friendCode: '18549',
+    trainerTitle: 'Débutant Motivé',
+    avatarPokemonEmoji: '🎯',
+    avatarUrl: undefined,
+    weeklyXp: 90,
+    totalXp: 450,
+    totalTonnageKg: 2100,
+    cardioMinutes: 15,
+    workoutsCount: 4,
+  },
+  {
+    userId: 'vtx_sophie_fit',
+    username: 'Sophie',
+    friendCode: '67234',
+    trainerTitle: 'Remise en Forme',
+    avatarPokemonEmoji: '✨',
+    avatarUrl: undefined,
+    weeklyXp: 60,
+    totalXp: 320,
+    totalTonnageKg: 1400,
+    cardioMinutes: 25,
+    workoutsCount: 3,
+  },
+];
 
 /**
  * Récupère le classement de la ligue :
@@ -276,6 +430,22 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
       } catch (err) {
         console.warn('Lecture cloud leaderboard:', err);
       }
+    }
+  }
+
+  // 3. Compléter avec la communauté d'athlètes Vitax si nécessaire pour un classement vivant et stimulant
+  const existingUsernames = new Set([
+    (profile.username || '').toLowerCase().trim(),
+    ...realLeaderboardEntries.map((r) => r.username.toLowerCase().trim()),
+  ]);
+
+  for (const comm of VITAX_COMMUNITY_ATHLETES) {
+    if (!existingUsernames.has(comm.username.toLowerCase().trim()) && comm.userId !== profile.id) {
+      realLeaderboardEntries.push({
+        ...comm,
+        isFriend: false,
+        trend: 'same',
+      });
     }
   }
 
