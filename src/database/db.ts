@@ -62,81 +62,140 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return activeDb;
 }
 
+const SCHEMA_VERSION = '2';
+const SEED_CATALOG_VERSION = `v2_${seedData.exercises.length}_${seedData.programs.length}`;
+
+/**
+ * Exécute un bloc d'opérations SQLite dans une transaction atomique
+ * en évitant les transactions imbriquées si une transaction est déjà active.
+ */
+export async function runInTransaction(
+  db: SQLite.SQLiteDatabase,
+  task: () => Promise<void>
+): Promise<void> {
+  let alreadyInTx = false;
+  try {
+    alreadyInTx = await db.isInTransactionAsync();
+  } catch {
+    alreadyInTx = false;
+  }
+
+  if (alreadyInTx) {
+    await task();
+  } else {
+    await db.withTransactionAsync(task);
+  }
+}
+
 export async function initDatabase(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(CREATE_TABLES_SQL);
 
-  // Migration douce non-bloquante pour les colonnes ajoutées
-  try {
-    await db.execAsync('ALTER TABLE pokemon_eggs ADD COLUMN current_pokemon_xp INTEGER NOT NULL DEFAULT 0;');
-  } catch {
-    // Colonne déjà existante
+  // Vérifier la version du schéma pour n'exécuter les migrations qu'en cas de besoin
+  const schemaMeta = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'schema_version'"
+  );
+
+  if (schemaMeta?.value !== SCHEMA_VERSION) {
+    // Migration douce non-bloquante pour les colonnes ajoutées
+    try {
+      await db.execAsync(
+        'ALTER TABLE pokemon_eggs ADD COLUMN current_pokemon_xp INTEGER NOT NULL DEFAULT 0;'
+      );
+    } catch {
+      // Colonne déjà existante
+    }
+
+    await db.runAsync(
+      "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('schema_version', ?)",
+      [SCHEMA_VERSION]
+    );
   }
 
-  // Insérer ou synchroniser les programmes et exercices de base de manière transparente
-  await seedDatabase(db);
+  // Vérifier si le catalogue de base est déjà à jour pour éviter ~215 requêtes à chaque démarrage
+  const seedMeta = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM app_metadata WHERE key = 'seed_version'"
+  );
+  const exCountRow = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(id) AS count FROM exercises WHERE is_custom = 0'
+  );
+
+  if (
+    seedMeta?.value !== SEED_CATALOG_VERSION ||
+    !exCountRow ||
+    exCountRow.count < seedData.exercises.length
+  ) {
+    await seedDatabase(db);
+  }
 }
 
 export async function seedDatabase(db?: SQLite.SQLiteDatabase): Promise<void> {
   const targetDb = db || (await getDatabase());
+  const nowIso = new Date().toISOString();
 
-  // Insérer ou mettre à jour les exercices de base
-  for (const ex of seedData.exercises) {
-    await targetDb.runAsync(
-      `INSERT INTO exercises (id, name, description, target_muscle, equipment_needed, is_custom)
-       VALUES (?, ?, ?, ?, ?, 0)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         description = excluded.description,
-         target_muscle = excluded.target_muscle,
-         equipment_needed = excluded.equipment_needed`,
-      [ex.id, ex.name, ex.description, ex.target_muscle, ex.equipment_needed]
-    );
-  }
-
-  // Insérer ou mettre à jour les programmes de base
-  for (const prog of seedData.programs) {
-    await targetDb.runAsync(
-      `INSERT INTO programs (id, name, description, difficulty_level, is_custom, created_at)
-       VALUES (?, ?, ?, ?, 0, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         description = excluded.description,
-         difficulty_level = excluded.difficulty_level`,
-      [prog.id, prog.name, prog.description, prog.difficulty_level, new Date().toISOString()]
-    );
-
-    // Nettoyer les anciens exercices du programme officiel pour éviter les résidus
-    await targetDb.runAsync('DELETE FROM program_exercises WHERE program_id = ?', [prog.id]);
-
-    // Insérer les exercices associés
-    for (const pe of prog.exercises) {
-      const peId = `${prog.id}_${pe.exercise_id}_${pe.order_index}`;
+  await runInTransaction(targetDb, async () => {
+    // Insérer ou mettre à jour les exercices de base
+    for (const ex of seedData.exercises) {
       await targetDb.runAsync(
-        `INSERT INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO exercises (id, name, description, target_muscle, equipment_needed, is_custom)
+         VALUES (?, ?, ?, ?, ?, 0)
          ON CONFLICT(id) DO UPDATE SET
-           default_sets = excluded.default_sets,
-           default_reps = excluded.default_reps,
-           rest_time_seconds = excluded.rest_time_seconds,
-           order_index = excluded.order_index`,
-        [
-          peId,
-          prog.id,
-          pe.exercise_id,
-          pe.default_sets,
-          pe.default_reps,
-          pe.rest_time_seconds,
-          pe.order_index,
-        ]
+           name = excluded.name,
+           description = excluded.description,
+           target_muscle = excluded.target_muscle,
+           equipment_needed = excluded.equipment_needed`,
+        [ex.id, ex.name, ex.description, ex.target_muscle, ex.equipment_needed]
       );
     }
-  }
 
-  // Marquer comme seedé
-  await targetDb.runAsync(
-    `INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('seeded', 'true')`
-  );
+    // Insérer ou mettre à jour les programmes de base
+    for (const prog of seedData.programs) {
+      await targetDb.runAsync(
+        `INSERT INTO programs (id, name, description, difficulty_level, is_custom, created_at)
+         VALUES (?, ?, ?, ?, 0, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           description = excluded.description,
+           difficulty_level = excluded.difficulty_level`,
+        [prog.id, prog.name, prog.description, prog.difficulty_level, nowIso]
+      );
+
+      // Nettoyer les anciens exercices du programme officiel pour éviter les résidus
+      await targetDb.runAsync('DELETE FROM program_exercises WHERE program_id = ?', [prog.id]);
+
+      // Insérer les exercices associés
+      for (const pe of prog.exercises) {
+        const peId = `${prog.id}_${pe.exercise_id}_${pe.order_index}`;
+        await targetDb.runAsync(
+          `INSERT INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             default_sets = excluded.default_sets,
+             default_reps = excluded.default_reps,
+             rest_time_seconds = excluded.rest_time_seconds,
+             order_index = excluded.order_index`,
+          [
+            peId,
+            prog.id,
+            pe.exercise_id,
+            pe.default_sets,
+            pe.default_reps,
+            pe.rest_time_seconds,
+            pe.order_index,
+          ]
+        );
+      }
+    }
+
+    // Marquer comme seedé avec la version exacte du catalogue
+    await targetDb.runAsync(
+      "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('seeded', 'true')"
+    );
+    await targetDb.runAsync(
+      "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('seed_version', ?)",
+      [SEED_CATALOG_VERSION]
+    );
+  });
 }
 
 export async function resetDatabase(): Promise<void> {

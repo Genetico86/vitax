@@ -1,4 +1,4 @@
-import { getDatabase } from './db';
+import { getDatabase, runInTransaction } from './db';
 import { WorkoutSession, WorkoutSet, WorkoutSessionWithSets, WorkoutSetDetail } from '../types';
 import {
   syncWorkoutSessionToCloud,
@@ -24,46 +24,48 @@ export async function saveWorkoutSession(
       : fallbackVolume;
 
   const completedSetsCount = sets.filter((s) => s.completed === 1).length;
-
-  await db.runAsync(
-    `INSERT OR REPLACE INTO workout_sessions (
-       id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      session.id,
-      session.program_id,
-      session.program_name,
-      session.date,
-      session.duration_seconds,
-      session.notes,
-      totalVolume,
-      completedSetsCount,
-      session.completed,
-    ]
-  );
-
-  // Supprimer les séries précédentes s'il s'agit d'une mise à jour
-  await db.runAsync('DELETE FROM workout_sets WHERE workout_session_id = ?', [session.id]);
-
-  // Insérer chaque série
   const now = new Date().toISOString();
-  for (const s of sets) {
+
+  await runInTransaction(db, async () => {
     await db.runAsync(
-      `INSERT INTO workout_sets (
-         id, workout_session_id, exercise_id, set_order, weight, reps, completed, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO workout_sessions (
+         id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        s.id,
         session.id,
-        s.exercise_id,
-        s.set_order,
-        s.weight,
-        s.reps,
-        s.completed,
-        s.created_at || now,
+        session.program_id,
+        session.program_name,
+        session.date,
+        session.duration_seconds,
+        session.notes,
+        totalVolume,
+        completedSetsCount,
+        session.completed,
       ]
     );
-  }
+
+    // Supprimer les séries précédentes s'il s'agit d'une mise à jour
+    await db.runAsync('DELETE FROM workout_sets WHERE workout_session_id = ?', [session.id]);
+
+    // Insérer chaque série de manière atomique
+    for (const s of sets) {
+      await db.runAsync(
+        `INSERT INTO workout_sets (
+           id, workout_session_id, exercise_id, set_order, weight, reps, completed, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          s.id,
+          session.id,
+          s.exercise_id,
+          s.set_order,
+          s.weight,
+          s.reps,
+          s.completed,
+          s.created_at || now,
+        ]
+      );
+    }
+  });
 
   // Synchronisation Cloud Supabase automatique
   void syncWorkoutSessionToCloud(session, sets);
@@ -82,26 +84,28 @@ export async function getAllWorkoutSessions(): Promise<WorkoutSession[]> {
       const localIds = new Set(localSessions.map((s) => s.id));
       const missingFromLocal = cloudSessions.filter((cs) => !localIds.has(cs.id));
 
-      for (const s of missingFromLocal) {
-        await db.runAsync(
-          `INSERT OR REPLACE INTO workout_sessions (
-             id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            s.id,
-            s.program_id,
-            s.program_name,
-            s.date,
-            s.duration_seconds || 0,
-            s.notes || null,
-            s.total_volume || 0,
-            s.total_sets || 0,
-            1,
-          ]
-        );
-      }
-
       if (missingFromLocal.length > 0) {
+        await runInTransaction(db, async () => {
+          for (const s of missingFromLocal) {
+            await db.runAsync(
+              `INSERT OR REPLACE INTO workout_sessions (
+                 id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                s.id,
+                s.program_id,
+                s.program_name,
+                s.date,
+                s.duration_seconds || 0,
+                s.notes || null,
+                s.total_volume || 0,
+                s.total_sets || 0,
+                1,
+              ]
+            );
+          }
+        });
+
         localSessions = await db.getAllAsync<WorkoutSession>(
           "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL) ORDER BY date DESC"
         );
@@ -233,12 +237,17 @@ export async function getWeeklyFitnessStats(): Promise<WeeklyFitnessStats> {
   const sundayTime = sunday.getTime();
   const currentDayIndex = currentDay === 0 ? 6 : currentDay - 1;
 
-  // Récupérer toutes les séances complétées (filtrage temporel en JS pour immunité aux fuseaux/formats SQLite)
+  // Marge de 24h en amont pour garantir l'immunité aux fuseaux horaires tout en exploitant l'index idx_workout_sessions_date
+  const safeLowerBoundIso = new Date(mondayTime - 24 * 60 * 60 * 1000).toISOString();
+
+  // Récupérer uniquement les séances récentes complétées
   const allSessions = await db.getAllAsync<{ id: string; date: string; total_sets: number; total_volume: number }>(
     `SELECT id, date, total_sets, total_volume
      FROM workout_sessions
-     WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)
-     ORDER BY date ASC`
+     WHERE date >= ?
+       AND (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)
+     ORDER BY date ASC`,
+    [safeLowerBoundIso]
   );
 
   const weekSessions: typeof allSessions = [];

@@ -14,7 +14,7 @@ import {
 } from '../types';
 import { getPersistedSession } from './authService';
 import { getOrCreateTrainerProfile, syncTrainerProfileToSupabase } from './multiplayerService';
-import { getDatabase } from '../database/db';
+import { getDatabase, runInTransaction } from '../database/db';
 import seedData from '../database/seedData.json';
 import { getUserGamificationStats } from './gamificationService';
 import { STORAGE_KEY_DAILY_BONUS } from './exerciseWeightingService';
@@ -414,17 +414,19 @@ export async function syncBodyWeightsToCloud(): Promise<boolean> {
       console.warn('Erreur sauvegarde cloud poids (backup):', backupErr.message);
     }
 
-    // 2. Tentative vers la table native body_weights
-    for (const w of weights) {
+    // 2. Écriture groupée (batch upsert) vers la table native body_weights
+    if (weights.length > 0) {
+      const nowIso = new Date().toISOString();
+      const rows = weights.map((w) => ({
+        id: w.id,
+        user_id: userId,
+        weight: w.weight,
+        date: w.date,
+        notes: w.note || '',
+        created_at: w.created_at || nowIso,
+      }));
       try {
-        await supabase.from('body_weights').upsert({
-          id: w.id,
-          user_id: userId,
-          weight: w.weight,
-          date: w.date,
-          notes: w.note || '',
-          created_at: w.created_at || new Date().toISOString(),
-        });
+        await supabase.from('body_weights').upsert(rows);
       } catch {}
     }
 
@@ -523,26 +525,29 @@ export async function fetchBodyWeightsFromCloud(): Promise<BodyWeightLog[]> {
 
     recoveredWeights = recoveredWeights.filter((w) => w && w.id && !deletedIds.has(w.id));
 
-    // Restaurer dans SQLite local
+    // Restaurer dans SQLite local dans une transaction unique
     if (recoveredWeights.length > 0) {
-      for (const w of recoveredWeights) {
-        await db.runAsync(
-          `INSERT INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             weight = excluded.weight,
-             note = COALESCE(excluded.note, body_weights.note),
-             body_fat_percentage = COALESCE(excluded.body_fat_percentage, body_weights.body_fat_percentage)`,
-          [
-            w.id,
-            w.weight,
-            w.date,
-            w.note || null,
-            w.body_fat_percentage || null,
-            w.created_at || new Date().toISOString(),
-          ]
-        );
-      }
+      const nowIso = new Date().toISOString();
+      await runInTransaction(db, async () => {
+        for (const w of recoveredWeights) {
+          await db.runAsync(
+            `INSERT INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               weight = excluded.weight,
+               note = COALESCE(excluded.note, body_weights.note),
+               body_fat_percentage = COALESCE(excluded.body_fat_percentage, body_weights.body_fat_percentage)`,
+            [
+              w.id,
+              w.weight,
+              w.date,
+              w.note || null,
+              w.body_fat_percentage || null,
+              w.created_at || nowIso,
+            ]
+          );
+        }
+      });
     }
 
     return recoveredWeights;
@@ -586,19 +591,21 @@ export async function syncFitnessGoalsToCloud(): Promise<boolean> {
       console.warn('Erreur sauvegarde cloud objectifs (backup):', backupErr.message);
     }
 
-    // 2. Tentative vers la table native fitness_goals
-    for (const g of goals) {
+    // 2. Écriture groupée (batch upsert) vers la table native fitness_goals
+    if (goals.length > 0) {
+      const nowIso = new Date().toISOString();
+      const rows = goals.map((g) => ({
+        id: g.id,
+        user_id: userId,
+        type: g.category,
+        target_value: g.target_value,
+        current_value: g.current_value,
+        deadline: g.target_date,
+        completed: g.completed,
+        created_at: g.created_at || nowIso,
+      }));
       try {
-        await supabase.from('fitness_goals').upsert({
-          id: g.id,
-          user_id: userId,
-          type: g.category,
-          target_value: g.target_value,
-          current_value: g.current_value,
-          deadline: g.target_date,
-          completed: g.completed,
-          created_at: g.created_at || new Date().toISOString(),
-        });
+        await supabase.from('fitness_goals').upsert(rows);
       } catch {}
     }
 
@@ -700,34 +707,37 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
 
     recoveredGoals = recoveredGoals.filter((g) => g && g.id && !deletedIds.has(g.id));
 
-    // Restaurer dans SQLite local
+    // Restaurer dans SQLite local dans une transaction atomique
     if (recoveredGoals.length > 0) {
-      for (const g of recoveredGoals) {
-        await db.runAsync(
-          `INSERT INTO fitness_goals (
-             id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             target_value = excluded.target_value,
-             completed = MAX(fitness_goals.completed, excluded.completed),
-             completed_at = COALESCE(fitness_goals.completed_at, excluded.completed_at),
-             current_value = excluded.current_value`,
-          [
-            g.id,
-            g.title,
-            g.category,
-            g.target_value,
-            g.starting_value || 0,
-            g.current_value,
-            g.unit || 'kg',
-            g.target_date || null,
-            g.exercise_id || null,
-            g.completed ? 1 : 0,
-            g.completed_at || null,
-            g.created_at || new Date().toISOString(),
-          ]
-        );
-      }
+      const nowIso = new Date().toISOString();
+      await runInTransaction(db, async () => {
+        for (const g of recoveredGoals) {
+          await db.runAsync(
+            `INSERT INTO fitness_goals (
+               id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               target_value = excluded.target_value,
+               completed = MAX(fitness_goals.completed, excluded.completed),
+               completed_at = COALESCE(fitness_goals.completed_at, excluded.completed_at),
+               current_value = excluded.current_value`,
+            [
+              g.id,
+              g.title,
+              g.category,
+              g.target_value,
+              g.starting_value || 0,
+              g.current_value,
+              g.unit || 'kg',
+              g.target_date || null,
+              g.exercise_id || null,
+              g.completed ? 1 : 0,
+              g.completed_at || null,
+              g.created_at || nowIso,
+            ]
+          );
+        }
+      });
     }
 
     return recoveredGoals;
@@ -770,6 +780,24 @@ export async function syncRunningSessionsToCloud(): Promise<boolean> {
       created_at: new Date().toISOString(),
     });
 
+    if (runs.length > 0) {
+      const nowIso = new Date().toISOString();
+      const rows = runs.map((r) => ({
+        id: r.id,
+        user_id: userId,
+        date: r.date,
+        distance_km: r.distance_km,
+        duration_seconds: r.duration_seconds,
+        pace_seconds_per_km: r.pace_seconds_per_km,
+        notes: r.notes || null,
+        calories: r.calories || Math.round(r.distance_km * 65),
+        created_at: r.created_at || nowIso,
+      }));
+      try {
+        await supabase.from('running_sessions').upsert(rows);
+      } catch {}
+    }
+
     if (error) {
       console.warn('Erreur sauvegarde cloud running_sessions:', error.message);
       return false;
@@ -783,6 +811,14 @@ export async function syncRunningSessionsToCloud(): Promise<boolean> {
 
 export async function deleteRunningSessionFromCloud(id: string): Promise<void> {
   await markIdAsDeleted(id);
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('running_sessions').delete().eq('id', id);
+      } catch {}
+    }
+  }
   await syncRunningSessionsToCloud();
 }
 
@@ -795,6 +831,7 @@ export async function fetchRunningSessionsFromCloud(): Promise<RunningSession[]>
     const userId = await getActiveUserId();
     const db = await getDatabase();
     const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
+    let rawRuns: RunningSession[] = [];
 
     const backupId = `running_sessions_${userId}`;
     const { data, error } = await supabase
@@ -803,31 +840,62 @@ export async function fetchRunningSessionsFromCloud(): Promise<RunningSession[]>
       .eq('id', backupId)
       .maybeSingle();
 
-    if (error || !data?.offered_pokemon) return [];
-    const rawRuns = (data.offered_pokemon as any)?.running_sessions as RunningSession[];
-    if (!Array.isArray(rawRuns)) return [];
+    if (!error && data?.offered_pokemon) {
+      const backupRuns = (data.offered_pokemon as any)?.running_sessions as RunningSession[];
+      if (Array.isArray(backupRuns)) {
+        rawRuns = backupRuns;
+      }
+    }
+
+    if (rawRuns.length === 0) {
+      try {
+        const { data: nativeRuns } = await supabase
+          .from('running_sessions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false })
+          .limit(500);
+        if (nativeRuns && nativeRuns.length > 0) {
+          rawRuns = nativeRuns.map((r: any) => ({
+            id: r.id,
+            date: r.date,
+            distance_km: r.distance_km,
+            duration_seconds: r.duration_seconds,
+            pace_seconds_per_km: r.pace_seconds_per_km,
+            notes: r.notes,
+            calories: r.calories,
+            created_at: r.created_at,
+          }));
+        }
+      } catch {}
+    }
 
     const runs = rawRuns.filter((r) => r && r.id && !deletedIds.has(r.id));
-    for (const r of runs) {
-      await db.runAsync(
-        `INSERT INTO running_sessions (
-           id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, calories, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           distance_km = MAX(running_sessions.distance_km, excluded.distance_km),
-           duration_seconds = MAX(running_sessions.duration_seconds, excluded.duration_seconds),
-           notes = COALESCE(excluded.notes, running_sessions.notes)`,
-        [
-          r.id,
-          r.date,
-          r.distance_km,
-          r.duration_seconds,
-          r.pace_seconds_per_km,
-          r.notes || null,
-          r.calories || Math.round(r.distance_km * 65),
-          r.created_at || new Date().toISOString(),
-        ]
-      );
+    if (runs.length > 0) {
+      const nowIso = new Date().toISOString();
+      await runInTransaction(db, async () => {
+        for (const r of runs) {
+          await db.runAsync(
+            `INSERT INTO running_sessions (
+               id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, calories, created_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET
+               distance_km = MAX(running_sessions.distance_km, excluded.distance_km),
+               duration_seconds = MAX(running_sessions.duration_seconds, excluded.duration_seconds),
+               notes = COALESCE(excluded.notes, running_sessions.notes)`,
+            [
+              r.id,
+              r.date,
+              r.distance_km,
+              r.duration_seconds,
+              r.pace_seconds_per_km,
+              r.notes || null,
+              r.calories || Math.round(r.distance_km * 65),
+              r.created_at || nowIso,
+            ]
+          );
+        }
+      });
     }
 
     return runs;
@@ -927,43 +995,54 @@ export async function fetchCustomCatalogFromCloud(): Promise<void> {
         )
       : [];
 
-    for (const ex of customExercises) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO exercises (id, name, description, target_muscle, equipment_needed, is_custom)
-         VALUES (?, ?, ?, ?, ?, 1)`,
-        [ex.id, ex.name, ex.description || '', ex.target_muscle, ex.equipment_needed]
-      );
+    if (
+      customExercises.length === 0 &&
+      customPrograms.length === 0 &&
+      customProgramExercises.length === 0
+    ) {
+      return;
     }
 
-    for (const prog of customPrograms) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO programs (id, name, description, difficulty_level, is_custom, created_at)
-         VALUES (?, ?, ?, ?, 1, ?)`,
-        [
-          prog.id,
-          prog.name,
-          prog.description || '',
-          prog.difficulty_level || 'Intermédiaire',
-          prog.created_at || new Date().toISOString(),
-        ]
-      );
-    }
+    const nowIso = new Date().toISOString();
+    await runInTransaction(db, async () => {
+      for (const ex of customExercises) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO exercises (id, name, description, target_muscle, equipment_needed, is_custom)
+           VALUES (?, ?, ?, ?, ?, 1)`,
+          [ex.id, ex.name, ex.description || '', ex.target_muscle, ex.equipment_needed]
+        );
+      }
 
-    for (const pe of customProgramExercises) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          pe.id,
-          pe.program_id,
-          pe.exercise_id,
-          pe.default_sets || 3,
-          pe.default_reps || 10,
-          pe.rest_time_seconds || 90,
-          pe.order_index || 0,
-        ]
-      );
-    }
+      for (const prog of customPrograms) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO programs (id, name, description, difficulty_level, is_custom, created_at)
+           VALUES (?, ?, ?, ?, 1, ?)`,
+          [
+            prog.id,
+            prog.name,
+            prog.description || '',
+            prog.difficulty_level || 'Intermédiaire',
+            prog.created_at || nowIso,
+          ]
+        );
+      }
+
+      for (const pe of customProgramExercises) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            pe.id,
+            pe.program_id,
+            pe.exercise_id,
+            pe.default_sets || 3,
+            pe.default_reps || 10,
+            pe.rest_time_seconds || 90,
+            pe.order_index || 0,
+          ]
+        );
+      }
+    });
   } catch (err) {
     console.warn('Erreur fetchCustomCatalogFromCloud:', err);
   }
@@ -1142,12 +1221,14 @@ export async function fullCloudSyncToLocal(): Promise<{
     // 0. Synchroniser les identifiants supprimés (tombstones) et purger localement
     const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
     if (deletedIds.size > 0) {
-      for (const delId of deletedIds) {
-        await db.runAsync('DELETE FROM workout_sessions WHERE id = ?', [delId]).catch(() => {});
-        await db.runAsync('DELETE FROM body_weights WHERE id = ?', [delId]).catch(() => {});
-        await db.runAsync('DELETE FROM fitness_goals WHERE id = ?', [delId]).catch(() => {});
-        await db.runAsync('DELETE FROM running_sessions WHERE id = ?', [delId]).catch(() => {});
-      }
+      await runInTransaction(db, async () => {
+        for (const delId of deletedIds) {
+          await db.runAsync('DELETE FROM workout_sessions WHERE id = ?', [delId]).catch(() => {});
+          await db.runAsync('DELETE FROM body_weights WHERE id = ?', [delId]).catch(() => {});
+          await db.runAsync('DELETE FROM fitness_goals WHERE id = ?', [delId]).catch(() => {});
+          await db.runAsync('DELETE FROM running_sessions WHERE id = ?', [delId]).catch(() => {});
+        }
+      });
     }
 
     // 1. Récupérer le catalogue personnalisé (exercices et programmes perso) avant les séances
@@ -1179,29 +1260,31 @@ export async function fullCloudSyncToLocal(): Promise<{
     let sessionsCount = 0;
     if (filteredSessions.length > 0) {
       sessionsCount = filteredSessions.length;
-      for (const s of filteredSessions) {
-        await db.runAsync(
-          `INSERT INTO workout_sessions (
-             id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-           ON CONFLICT(id) DO UPDATE SET
-             duration_seconds = MAX(workout_sessions.duration_seconds, excluded.duration_seconds),
-             total_volume = MAX(workout_sessions.total_volume, excluded.total_volume),
-             total_sets = MAX(workout_sessions.total_sets, excluded.total_sets),
-             notes = COALESCE(workout_sessions.notes, excluded.notes),
-             completed = 1`,
-          [
-            s.id,
-            s.program_id,
-            s.program_name,
-            s.date,
-            s.duration_seconds || 0,
-            s.notes || null,
-            s.total_volume || 0,
-            s.total_sets || 0,
-          ]
-        );
-      }
+      await runInTransaction(db, async () => {
+        for (const s of filteredSessions) {
+          await db.runAsync(
+            `INSERT INTO workout_sessions (
+               id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+             ON CONFLICT(id) DO UPDATE SET
+               duration_seconds = MAX(workout_sessions.duration_seconds, excluded.duration_seconds),
+               total_volume = MAX(workout_sessions.total_volume, excluded.total_volume),
+               total_sets = MAX(workout_sessions.total_sets, excluded.total_sets),
+               notes = COALESCE(workout_sessions.notes, excluded.notes),
+               completed = 1`,
+            [
+              s.id,
+              s.program_id,
+              s.program_name,
+              s.date,
+              s.duration_seconds || 0,
+              s.notes || null,
+              s.total_volume || 0,
+              s.total_sets || 0,
+            ]
+          );
+        }
+      });
 
       // Récupérer toutes les séries de cet utilisateur (jusqu'à 10000)
       const { data: cloudSets, error: setsErr } = await supabase
@@ -1215,35 +1298,37 @@ export async function fullCloudSyncToLocal(): Promise<{
       }
 
       if (cloudSets && cloudSets.length > 0) {
-        for (const set of cloudSets) {
-          if (deletedIds.has(set.workout_session_id)) continue;
-          const isSetDone =
-            set.completed === 1 ||
-            set.completed === true ||
-            set.completed === '1' ||
-            set.completed === undefined ||
-            set.completed === null;
+        await runInTransaction(db, async () => {
+          for (const set of cloudSets) {
+            if (deletedIds.has(set.workout_session_id)) continue;
+            const isSetDone =
+              set.completed === 1 ||
+              set.completed === true ||
+              set.completed === '1' ||
+              set.completed === undefined ||
+              set.completed === null;
 
-          await db.runAsync(
-            `INSERT INTO workout_sets (
-               id, workout_session_id, exercise_id, set_order, weight, reps, completed, created_at
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT(id) DO UPDATE SET
-               weight = MAX(workout_sets.weight, excluded.weight),
-               reps = MAX(workout_sets.reps, excluded.reps),
-               completed = MAX(workout_sets.completed, excluded.completed)`,
-            [
-              set.id,
-              set.workout_session_id,
-              set.exercise_id,
-              set.set_order,
-              set.weight || 0,
-              set.reps || 0,
-              isSetDone ? 1 : 0,
-              set.created_at || new Date().toISOString(),
-            ]
-          );
-        }
+            await db.runAsync(
+              `INSERT INTO workout_sets (
+                 id, workout_session_id, exercise_id, set_order, weight, reps, completed, created_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+                 weight = MAX(workout_sets.weight, excluded.weight),
+                 reps = MAX(workout_sets.reps, excluded.reps),
+                 completed = MAX(workout_sets.completed, excluded.completed)`,
+              [
+                set.id,
+                set.workout_session_id,
+                set.exercise_id,
+                set.set_order,
+                set.weight || 0,
+                set.reps || 0,
+                isSetDone ? 1 : 0,
+                set.created_at || new Date().toISOString(),
+              ]
+            );
+          }
+        });
       }
     }
 
@@ -1253,12 +1338,14 @@ export async function fullCloudSyncToLocal(): Promise<{
       await AsyncStorage.setItem('@vitax_favorite_exercise_ids', JSON.stringify(cloudFavorites));
       try {
         const now = new Date().toISOString();
-        for (const exId of cloudFavorites) {
-          await db.runAsync(
-            'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
-            [exId, now]
-          );
-        }
+        await runInTransaction(db, async () => {
+          for (const exId of cloudFavorites) {
+            await db.runAsync(
+              'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
+              [exId, now]
+            );
+          }
+        });
       } catch {}
     }
 
@@ -1374,6 +1461,32 @@ export async function syncPokemonEggsToCloud(): Promise<boolean> {
 
     if (!eggs || eggs.length === 0) return false;
 
+    // 1. Écriture dans la table dédiée pokemon_eggs si disponible
+    try {
+      const rows = eggs.map((e) => ({
+        id: e.id,
+        user_id: session.userId,
+        name: e.name,
+        rarity: e.rarity,
+        required_xp: e.required_xp,
+        current_xp: e.current_xp || 0,
+        status: e.status,
+        incubator_slot: e.incubator_slot ?? null,
+        obtained_from: e.obtained_from,
+        obtained_at: e.obtained_at,
+        hatched_at: e.hatched_at ?? null,
+        pokemon_id: e.pokemon_id ?? null,
+        pokemon_name: e.pokemon_name ?? null,
+        pokemon_emoji: e.pokemon_emoji ?? null,
+        pokemon_type: e.pokemon_type ?? null,
+        pokemon_cp: e.pokemon_cp ?? null,
+        is_legendary: e.is_legendary ? 1 : 0,
+        current_pokemon_xp: e.current_pokemon_xp || 0,
+      }));
+      await supabase.from('pokemon_eggs').upsert(rows, { onConflict: 'id' });
+    } catch {}
+
+    // 2. Sauvegarde miroir dans trades pour compatibilité
     const backupId = `pokemon_inventory_${session.userId}`;
     const { error } = await supabase.from('trades').upsert({
       id: backupId,
@@ -1408,17 +1521,37 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
     const session = await getPersistedSession();
     if (!session?.isLoggedIn || !session.userId) return 0;
 
-    const backupId = `pokemon_inventory_${session.userId}`;
-    const { data, error } = await supabase
-      .from('trades')
-      .select('offered_pokemon')
-      .eq('id', backupId)
-      .maybeSingle();
+    let eggs: PokemonEgg[] = [];
 
-    if (error || !data || !data.offered_pokemon) return 0;
+    // 1. Lecture prioritaire depuis la table dédiée pokemon_eggs
+    try {
+      const { data: tableEggs, error: tableErr } = await supabase
+        .from('pokemon_eggs')
+        .select('*')
+        .eq('user_id', session.userId);
+      if (!tableErr && Array.isArray(tableEggs) && tableEggs.length > 0) {
+        eggs = tableEggs as PokemonEgg[];
+      }
+    } catch {}
 
-    const eggs = (data.offered_pokemon as any)?.eggs as PokemonEgg[];
-    if (!Array.isArray(eggs) || eggs.length === 0) return 0;
+    // 2. Repli sur le backup trades
+    if (eggs.length === 0) {
+      const backupId = `pokemon_inventory_${session.userId}`;
+      const { data, error } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!error && data?.offered_pokemon) {
+        const backupEggs = (data.offered_pokemon as any)?.eggs as PokemonEgg[];
+        if (Array.isArray(backupEggs)) {
+          eggs = backupEggs;
+        }
+      }
+    }
+
+    if (eggs.length === 0) return 0;
 
     const db = await getDatabase();
     const localEggs = await db.getAllAsync<PokemonEgg>('SELECT * FROM pokemon_eggs');
@@ -1426,59 +1559,61 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
 
     let maxSlotFound = 1;
 
-    for (const egg of eggs) {
-      const local = localMap.get(egg.id);
+    await runInTransaction(db, async () => {
+      for (const egg of eggs) {
+        const local = localMap.get(egg.id);
 
-      let finalStatus = egg.status;
-      let finalSlot = egg.incubator_slot;
-      let finalHatchedAt = egg.hatched_at || local?.hatched_at || null;
+        let finalStatus = egg.status;
+        let finalSlot = egg.incubator_slot;
+        let finalHatchedAt = egg.hatched_at || local?.hatched_at || null;
 
-      if (local?.status === 'hatched' || egg.status === 'hatched') {
-        finalStatus = 'hatched';
-        finalSlot = null;
-        if (!finalHatchedAt) finalHatchedAt = new Date().toISOString();
-      } else if (local?.status === 'incubating') {
-        finalStatus = 'incubating';
-        finalSlot = local.incubator_slot ?? egg.incubator_slot ?? 1;
-      } else if (egg.status === 'incubating') {
-        finalStatus = 'incubating';
-        finalSlot = egg.incubator_slot ?? local?.incubator_slot ?? 1;
+        if (local?.status === 'hatched' || egg.status === 'hatched') {
+          finalStatus = 'hatched';
+          finalSlot = null;
+          if (!finalHatchedAt) finalHatchedAt = new Date().toISOString();
+        } else if (local?.status === 'incubating') {
+          finalStatus = 'incubating';
+          finalSlot = local.incubator_slot ?? egg.incubator_slot ?? 1;
+        } else if (egg.status === 'incubating') {
+          finalStatus = 'incubating';
+          finalSlot = egg.incubator_slot ?? local?.incubator_slot ?? 1;
+        }
+
+        if (finalSlot && finalSlot > maxSlotFound) {
+          maxSlotFound = finalSlot;
+        }
+
+        const finalXp = Math.max(local?.current_xp || 0, egg.current_xp || 0);
+        const finalPokemonXp = Math.max(egg.current_pokemon_xp || 0, local?.current_pokemon_xp || 0);
+
+        await db.runAsync(
+          `INSERT OR REPLACE INTO pokemon_eggs (
+            id, name, rarity, required_xp, current_xp, status, incubator_slot,
+            obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name,
+            pokemon_emoji, pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            egg.id,
+            egg.name,
+            egg.rarity,
+            egg.required_xp,
+            finalXp,
+            finalStatus,
+            finalSlot,
+            egg.obtained_from,
+            egg.obtained_at,
+            finalHatchedAt,
+            egg.pokemon_id || local?.pokemon_id || null,
+            egg.pokemon_name || local?.pokemon_name || null,
+            egg.pokemon_emoji || local?.pokemon_emoji || null,
+            egg.pokemon_type || local?.pokemon_type || null,
+            egg.pokemon_cp || local?.pokemon_cp || null,
+            egg.is_legendary ? 1 : 0,
+            finalPokemonXp,
+          ]
+        );
       }
-
-      if (finalSlot && finalSlot > maxSlotFound) {
-        maxSlotFound = finalSlot;
-      }
-
-      const finalXp = Math.max(local?.current_xp || 0, egg.current_xp || 0);
-      const finalPokemonXp = Math.max(egg.current_pokemon_xp || 0, local?.current_pokemon_xp || 0);
-
-      await db.runAsync(
-        `INSERT OR REPLACE INTO pokemon_eggs (
-          id, name, rarity, required_xp, current_xp, status, incubator_slot,
-          obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name,
-          pokemon_emoji, pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          egg.id,
-          egg.name,
-          egg.rarity,
-          egg.required_xp,
-          finalXp,
-          finalStatus,
-          finalSlot,
-          egg.obtained_from,
-          egg.obtained_at,
-          finalHatchedAt,
-          egg.pokemon_id || local?.pokemon_id || null,
-          egg.pokemon_name || local?.pokemon_name || null,
-          egg.pokemon_emoji || local?.pokemon_emoji || null,
-          egg.pokemon_type || local?.pokemon_type || null,
-          egg.pokemon_cp || local?.pokemon_cp || null,
-          egg.is_legendary ? 1 : 0,
-          finalPokemonXp,
-        ]
-      );
-    }
+    });
 
     if (maxSlotFound > 1) {
       try {
@@ -1499,119 +1634,195 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
   }
 }
 
+let pushLocalToCloudPromise: Promise<void> | null = null;
+
 /**
- * Envoie toutes les données locales vers Supabase en temps réel
+ * Envoie toutes les données locales vers Supabase en temps réel (avec verrou anti-concurrence)
  */
 export async function pushLocalToCloud(): Promise<void> {
   if (!isSupabaseConfigured()) return;
-  const supabase = getSupabaseClient();
-  if (!supabase) return;
-
-  try {
-    const session = await getPersistedSession();
-    if (!session?.isLoggedIn || !session.userId) {
-      return;
-    }
-
-    const db = await getDatabase();
-    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
-
-    // 0. Synchroniser les suppressions (tombstones)
-    await syncDeletedIdsToCloud(Array.from(deletedIds));
-
-    // 1. Envoyer les séances locales non supprimées
-    const localSessions = await db.getAllAsync<WorkoutSession>(
-      "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)"
-    );
-
-    for (const s of localSessions) {
-      if (deletedIds.has(s.id)) continue;
-      const sets = await db.getAllAsync<WorkoutSet>(
-        'SELECT * FROM workout_sets WHERE workout_session_id = ? ORDER BY set_order ASC',
-        [s.id]
-      );
-      await syncWorkoutSessionToCloud(s, sets);
-    }
-
-    // 2. Envoyer les poids locaux
-    await syncBodyWeightsToCloud();
-
-    // 3. Envoyer les objectifs locaux
-    await syncFitnessGoalsToCloud();
-
-    // 4. Envoyer les séances de course locales
-    await syncRunningSessionsToCloud();
-
-    // 5. Envoyer les programmes et exercices personnalisés
-    await syncCustomCatalogToCloud();
-
-    // 6. Envoyer les réglages utilisateur et la séance active en cours
-    await syncUserSettingsToCloud();
-    await syncActiveWorkoutDraftToCloud();
-
-    // 7. Envoyer les favoris locaux
-    let favIds: string[] = [];
-    try {
-      const favRows = await db.getAllAsync<{ exercise_id: string }>(
-        'SELECT exercise_id FROM exercise_favorites'
-      );
-      if (favRows && favRows.length > 0) {
-        favIds = favRows.map((r) => r.exercise_id);
-      }
-    } catch {}
-
-    if (favIds.length === 0) {
-      const rawFavs = await AsyncStorage.getItem('@vitax_favorite_exercise_ids');
-      if (rawFavs) {
-        const parsed = JSON.parse(rawFavs);
-        if (Array.isArray(parsed)) favIds = parsed;
-      }
-    }
-
-    if (favIds.length > 0) {
-      await syncFavoritesToCloud(favIds);
-    }
-
-    // 8. Envoyer les Pokémon et œufs locaux
-    await syncPokemonEggsToCloud();
-
-    // 9. Sauvegarder la série journalière (streak) et les bonus dans le Cloud (avec colonnes valides)
-    try {
-      const rawBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
-      if (rawBonus) {
-        const bonusState = JSON.parse(rawBonus);
-        const backupId = `daily_bonus_${session.userId}`;
-        await supabase.from('trades').upsert({
-          id: backupId,
-          sender_id: session.userId,
-          sender_name: session.username || 'Athlète Vitax',
-          sender_code: session.friendCode || '00000',
-          offered_pokemon: { daily_bonus: bonusState } as any,
-          status: 'cloud_backup',
-          created_at: new Date().toISOString(),
-        });
-      }
-    } catch (bErr) {
-      console.warn('Erreur sync daily bonus dans pushLocalToCloud:', bErr);
-    }
-
-    // 10. Synchroniser et consolider le profil athlète (XP totale, séances et ligue)
-    try {
-      const gStats = await getUserGamificationStats();
-      const profile = await getOrCreateTrainerProfile();
-      if (gStats && gStats.totalXp > (profile.totalXp || 0)) {
-        profile.totalXp = gStats.totalXp;
-      }
-      if (gStats && gStats.totalSessions > (profile.totalWorkouts || 0)) {
-        profile.totalWorkouts = gStats.totalSessions;
-      }
-      await syncTrainerProfileToSupabase(profile);
-    } catch (pErr) {
-      console.warn('Erreur sync profil athlète dans pushLocalToCloud:', pErr);
-    }
-  } catch (err) {
-    console.warn('Erreur pushLocalToCloud:', err);
+  if (pushLocalToCloudPromise) {
+    return pushLocalToCloudPromise;
   }
+
+  pushLocalToCloudPromise = (async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      const session = await getPersistedSession();
+      if (!session?.isLoggedIn || !session.userId) {
+        return;
+      }
+
+      const db = await getDatabase();
+      const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
+
+      // 0. Synchroniser les suppressions (tombstones)
+      await syncDeletedIdsToCloud(Array.from(deletedIds));
+
+      // 1. Envoyer les séances locales non supprimées en batch (évite le N+1 sur tout l'historique)
+      const localSessions = await db.getAllAsync<WorkoutSession>(
+        "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)"
+      );
+      const validSessions = localSessions.filter((s) => !deletedIds.has(s.id));
+
+      if (validSessions.length > 0) {
+        const { data: existingCloudSessions } = await supabase
+          .from('workout_sessions')
+          .select('id, total_sets, total_volume, duration_seconds')
+          .eq('user_id', session.userId);
+
+        const cloudMap = new Map(
+          (existingCloudSessions || []).map((cs: any) => [cs.id, cs])
+        );
+
+        const sessionsToSync = validSessions.filter((s) => {
+          const cs = cloudMap.get(s.id);
+          if (!cs) return true;
+          return (
+            (s.total_sets || 0) > (cs.total_sets || 0) ||
+            (s.total_volume || 0) > (cs.total_volume || 0) ||
+            (s.duration_seconds || 0) > (cs.duration_seconds || 0)
+          );
+        });
+
+        if (sessionsToSync.length > 0) {
+          const sessionPayloads = sessionsToSync.map((s) => ({
+            id: s.id,
+            user_id: session.userId,
+            program_id: s.program_id,
+            program_name: s.program_name,
+            date: s.date,
+            duration_seconds: s.duration_seconds,
+            notes: s.notes || null,
+            total_volume: s.total_volume,
+            total_sets: s.total_sets,
+            completed: 1,
+          }));
+
+          await supabase
+            .from('workout_sessions')
+            .upsert(sessionPayloads, { onConflict: 'id' });
+
+          const sessionIds = sessionsToSync.map((s) => s.id);
+          const placeholders = sessionIds.map(() => '?').join(', ');
+          const allSets = await db.getAllAsync<WorkoutSet>(
+            `SELECT * FROM workout_sets WHERE workout_session_id IN (${placeholders}) ORDER BY set_order ASC`,
+            sessionIds
+          );
+
+          const validSets = allSets.filter(
+            (set) =>
+              set.completed === 1 ||
+              (set.completed as any) === true ||
+              (set.completed as any) === '1'
+          );
+
+          if (validSets.length > 0) {
+            const setPayloads = validSets.map((set) => ({
+              id: set.id,
+              user_id: session.userId,
+              workout_session_id: set.workout_session_id,
+              exercise_id: set.exercise_id,
+              set_order: set.set_order,
+              weight: set.weight,
+              reps: set.reps,
+              completed: 1,
+              created_at: set.created_at,
+            }));
+
+            await supabase
+              .from('workout_sets')
+              .upsert(setPayloads, { onConflict: 'id' });
+          }
+        }
+      }
+
+      // 2. Envoyer les poids locaux
+      await syncBodyWeightsToCloud();
+
+      // 3. Envoyer les objectifs locaux
+      await syncFitnessGoalsToCloud();
+
+      // 4. Envoyer les séances de course locales
+      await syncRunningSessionsToCloud();
+
+      // 5. Envoyer les programmes et exercices personnalisés
+      await syncCustomCatalogToCloud();
+
+      // 6. Envoyer les réglages utilisateur et la séance active en cours
+      await syncUserSettingsToCloud();
+      await syncActiveWorkoutDraftToCloud();
+
+      // 7. Envoyer les favoris locaux
+      let favIds: string[] = [];
+      try {
+        const favRows = await db.getAllAsync<{ exercise_id: string }>(
+          'SELECT exercise_id FROM exercise_favorites'
+        );
+        if (favRows && favRows.length > 0) {
+          favIds = favRows.map((r) => r.exercise_id);
+        }
+      } catch {}
+
+      if (favIds.length === 0) {
+        const rawFavs = await AsyncStorage.getItem('@vitax_favorite_exercise_ids');
+        if (rawFavs) {
+          const parsed = JSON.parse(rawFavs);
+          if (Array.isArray(parsed)) favIds = parsed;
+        }
+      }
+
+      if (favIds.length > 0) {
+        await syncFavoritesToCloud(favIds);
+      }
+
+      // 8. Envoyer les Pokémon et œufs locaux
+      await syncPokemonEggsToCloud();
+
+      // 9. Sauvegarder la série journalière (streak) et les bonus dans le Cloud (avec colonnes valides)
+      try {
+        const rawBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
+        if (rawBonus) {
+          const bonusState = JSON.parse(rawBonus);
+          const backupId = `daily_bonus_${session.userId}`;
+          await supabase.from('trades').upsert({
+            id: backupId,
+            sender_id: session.userId,
+            sender_name: session.username || 'Athlète Vitax',
+            sender_code: session.friendCode || '00000',
+            offered_pokemon: { daily_bonus: bonusState } as any,
+            status: 'cloud_backup',
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch (bErr) {
+        console.warn('Erreur sync daily bonus dans pushLocalToCloud:', bErr);
+      }
+
+      // 10. Synchroniser et consolider le profil athlète (XP totale, séances et ligue)
+      try {
+        const gStats = await getUserGamificationStats();
+        const profile = await getOrCreateTrainerProfile();
+        if (gStats && gStats.totalXp > (profile.totalXp || 0)) {
+          profile.totalXp = gStats.totalXp;
+        }
+        if (gStats && gStats.totalSessions > (profile.totalWorkouts || 0)) {
+          profile.totalWorkouts = gStats.totalSessions;
+        }
+        await syncTrainerProfileToSupabase(profile);
+      } catch (pErr) {
+        console.warn('Erreur sync profil athlète dans pushLocalToCloud:', pErr);
+      }
+    } catch (err) {
+      console.warn('Erreur pushLocalToCloud:', err);
+    }
+  })().finally(() => {
+    pushLocalToCloudPromise = null;
+  });
+
+  return pushLocalToCloudPromise;
 }
 
 /**
@@ -1635,16 +1846,7 @@ export async function syncCloudAndLocal(): Promise<void> {
 export async function flushAllRealtimeToSupabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
   try {
-    await Promise.allSettled([
-      syncActiveWorkoutDraftToCloud(),
-      syncUserSettingsToCloud(),
-      syncRunningSessionsToCloud(),
-      syncBodyWeightsToCloud(),
-      syncFitnessGoalsToCloud(),
-      syncCustomCatalogToCloud(),
-      syncPokemonEggsToCloud(),
-      pushLocalToCloud(),
-    ]);
+    await pushLocalToCloud();
   } catch (err) {
     console.warn('Erreur flushAllRealtimeToSupabase:', err);
   }

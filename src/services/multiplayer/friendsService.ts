@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LeagueTier, FriendEntry, FriendRequest } from '../../types/social';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabaseClient';
-import { getOrCreateTrainerProfile, syncTrainerProfileToSupabase } from './profileService';
+import {
+  getOrCreateTrainerProfile,
+  syncTrainerProfileToSupabase,
+  PUBLIC_PROFILE_COLUMNS,
+  isAnonymousProfileId,
+} from './profileService';
 
 export const STORAGE_KEY_FRIENDS = '@vitax_friends_list';
 export const STORAGE_KEY_FRIEND_REQUESTS = '@vitax_friend_requests';
@@ -26,7 +31,7 @@ export async function getFriendsList(): Promise<FriendEntry[]> {
           const friendIds = friendships.map((f: any) => f.friend_id);
           const { data: profilesData } = await supabase
             .from('profiles')
-            .select('*')
+            .select(PUBLIC_PROFILE_COLUMNS)
             .in('id', friendIds);
 
           if (profilesData) {
@@ -162,7 +167,7 @@ export async function addFriendByCode(
 
     const { data: codeData, error: codeErr } = await supabase
       .from('profiles')
-      .select('*')
+      .select(PUBLIC_PROFILE_COLUMNS)
       .in('friend_code', candidateCodes)
       .limit(5);
 
@@ -184,7 +189,7 @@ export async function addFriendByCode(
     if (!targetProfile) {
       const { data: nameData } = await supabase
         .from('profiles')
-        .select('*')
+        .select(PUBLIC_PROFILE_COLUMNS)
         .ilike('username', trimmed)
         .limit(5);
 
@@ -196,7 +201,7 @@ export async function addFriendByCode(
     if (!targetProfile && cleanDigits.length >= 2) {
       const { data: partialData } = await supabase
         .from('profiles')
-        .select('*')
+        .select(PUBLIC_PROFILE_COLUMNS)
         .ilike('friend_code', `%${cleanDigits}%`)
         .limit(5);
 
@@ -319,9 +324,7 @@ export async function getPendingFriendRequests(): Promise<FriendRequest[]> {
   if (
     isSupabaseConfigured() &&
     profile.id &&
-    !profile.id.startsWith('vtx_') &&
-    !profile.id.startsWith('trainer_') &&
-    profile.id !== 'default_trainer'
+    !isAnonymousProfileId(profile.id)
   ) {
     const supabase = getSupabaseClient();
     if (supabase) {

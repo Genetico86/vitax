@@ -123,12 +123,15 @@ export const CREATE_TABLES_SQL = `
   );
 
   CREATE INDEX IF NOT EXISTS idx_workout_sessions_date ON workout_sessions(date DESC);
-  CREATE INDEX IF NOT EXISTS idx_workout_sets_session ON workout_sets(workout_session_id);
+  CREATE INDEX IF NOT EXISTS idx_workout_sets_session ON workout_sets(workout_session_id, set_order ASC);
   CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(exercise_id);
-  CREATE INDEX IF NOT EXISTS idx_program_exercises_prog ON program_exercises(program_id);
-  CREATE INDEX IF NOT EXISTS idx_pokemon_eggs_status ON pokemon_eggs(status);
-  CREATE INDEX IF NOT EXISTS idx_body_weights_date ON body_weights(date DESC);
-  CREATE INDEX IF NOT EXISTS idx_fitness_goals_category ON fitness_goals(category);
-  CREATE INDEX IF NOT EXISTS idx_running_sessions_date ON running_sessions(date DESC);
-  CREATE INDEX IF NOT EXISTS idx_exercise_favorites_id ON exercise_favorites(exercise_id);
+  CREATE INDEX IF NOT EXISTS idx_workout_sets_ex_completed ON workout_sets(exercise_id, completed, workout_session_id, set_order DESC);
+  CREATE INDEX IF NOT EXISTS idx_exercises_muscle_name ON exercises(target_muscle, name ASC);
+  CREATE INDEX IF NOT EXISTS idx_programs_custom_name ON programs(is_custom DESC, name ASC);
+  CREATE INDEX IF NOT EXISTS idx_program_exercises_prog ON program_exercises(program_id, order_index ASC);
+  CREATE INDEX IF NOT EXISTS idx_pokemon_eggs_status ON pokemon_eggs(status, obtained_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_body_weights_date ON body_weights(date DESC, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_fitness_goals_category ON fitness_goals(category, completed ASC, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_running_sessions_date ON running_sessions(date DESC, created_at DESC);
 `;
+

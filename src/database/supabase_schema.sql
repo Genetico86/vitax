@@ -76,29 +76,49 @@ CREATE TABLE IF NOT EXISTS public.user_favorites (
 
 CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON public.user_favorites(user_id);
 
--- 5. TABLE DU SUIVI DU POIDS
+-- 5. TABLE DU SUIVI DU POIDS (ALIGNÉE AVEC SQLITE)
 CREATE TABLE IF NOT EXISTS public.body_weights (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   weight REAL NOT NULL,
   date TEXT NOT NULL,
+  note TEXT,
   notes TEXT,
+  body_fat_percentage REAL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.body_weights ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE public.body_weights ADD COLUMN IF NOT EXISTS body_fat_percentage REAL;
 
 CREATE INDEX IF NOT EXISTS idx_body_weights_user ON public.body_weights(user_id, date DESC);
 
--- 6. TABLE DES OBJECTIFS FITNESS
+-- 6. TABLE DES OBJECTIFS FITNESS (ALIGNÉE AVEC SQLITE)
 CREATE TABLE IF NOT EXISTS public.fitness_goals (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  title TEXT,
+  category TEXT,
   type TEXT NOT NULL,
   target_value REAL NOT NULL,
+  starting_value REAL DEFAULT 0,
   current_value REAL DEFAULT 0,
+  unit TEXT DEFAULT 'kg',
+  target_date TEXT,
   deadline TEXT,
+  exercise_id TEXT,
   completed INTEGER DEFAULT 0,
+  completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS starting_value REAL DEFAULT 0;
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'kg';
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS target_date TEXT;
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS exercise_id TEXT;
+ALTER TABLE public.fitness_goals ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_fitness_goals_user ON public.fitness_goals(user_id);
 
@@ -116,6 +136,31 @@ CREATE TABLE IF NOT EXISTS public.running_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_running_sessions_user_date ON public.running_sessions(user_id, date DESC);
+
+-- 6c. TABLE DES OEUFS & POKÉMON D'ATHLÈTES (SYNCHRONISATION NATIVE)
+CREATE TABLE IF NOT EXISTS public.pokemon_eggs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  rarity TEXT NOT NULL,
+  required_xp INTEGER NOT NULL,
+  current_xp INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'inventory',
+  incubator_slot INTEGER,
+  obtained_from TEXT NOT NULL,
+  obtained_at TEXT NOT NULL,
+  hatched_at TEXT,
+  pokemon_id TEXT,
+  pokemon_name TEXT,
+  pokemon_emoji TEXT,
+  pokemon_type TEXT,
+  pokemon_cp INTEGER,
+  is_legendary INTEGER NOT NULL DEFAULT 0,
+  current_pokemon_xp INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pokemon_eggs_user_status ON public.pokemon_eggs(user_id, status);
 
 -- 7. TABLE DES CLASSEMENTS HEBDOMADAIRES
 CREATE TABLE IF NOT EXISTS public.weekly_leaderboards (
@@ -223,8 +268,36 @@ CREATE TABLE IF NOT EXISTS public.friend_gifts (
 CREATE INDEX IF NOT EXISTS idx_friend_gifts_receiver ON public.friend_gifts(receiver_id, status);
 CREATE INDEX IF NOT EXISTS idx_friend_gifts_sender ON public.friend_gifts(sender_id);
 
+-- 13. TABLE DES DÉFIS ENTRE AMIS
+CREATE TABLE IF NOT EXISTS public.friend_challenges (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  creator_name TEXT NOT NULL,
+  creator_avatar TEXT DEFAULT '⚡',
+  target_friend_code TEXT NOT NULL DEFAULT 'all',
+  target_friend_name TEXT,
+  challenge_type TEXT DEFAULT 'exercise',
+  title TEXT NOT NULL,
+  exercise_id TEXT,
+  exercise_name TEXT,
+  program_id TEXT,
+  program_name TEXT,
+  target_weight REAL,
+  target_reps INTEGER,
+  target_duration_seconds INTEGER,
+  target_volume_kg REAL,
+  instructions TEXT,
+  reward_xp INTEGER DEFAULT 150,
+  status TEXT DEFAULT 'active',
+  winner_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_friend_challenges_target ON public.friend_challenges(target_friend_code, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_friend_challenges_creator ON public.friend_challenges(creator_id);
+
 -- =========================================================================
--- SÉCURITÉ & PERMISSIONS LIBRES POUR LA SYNCHRONISATION DE TOUS LES APPAREILS
+-- SÉCURITÉ & PERMISSIONS POUR LA SYNCHRONISATION DE TOUS LES APPAREILS
 -- =========================================================================
 ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workout_sessions DISABLE ROW LEVEL SECURITY;
@@ -233,11 +306,14 @@ ALTER TABLE public.user_favorites DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.body_weights DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fitness_goals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.running_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pokemon_eggs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.weekly_leaderboards DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.friends DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.raid_contributions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.friend_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.friend_gifts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.friend_challenges DISABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+

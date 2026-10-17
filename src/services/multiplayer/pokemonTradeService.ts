@@ -177,32 +177,44 @@ export async function executePokemonTrade(
     throw new Error('Votre Pokémon sélectionné est introuvable.');
   }
 
-  // TRANSACTION SQLITE ATOMIQUE (guillemets simples pour wa-sqlite compatibilité)
-  await db.runAsync('DELETE FROM pokemon_eggs WHERE id = ?', [myPokemonEggId]);
-
+  // TRANSACTION SQLITE ATOMIQUE
+  const { runInTransaction } = await import('../../database/db');
+  const nowIso = new Date().toISOString();
   const newReceivedId = `traded_${Date.now()}_${offer.offeredPokemon.speciesId}`;
-  await db.runAsync(
-    `INSERT INTO pokemon_eggs (
-      id, rarity, required_xp, current_xp, status, incubator_slot, 
-      created_at, hatched_at, pokemon_id, pokemon_name, pokemon_emoji, 
-      pokemon_type, pokemon_cp, is_legendary, obtained_from
-    ) VALUES (?, ?, ?, ?, 'hatched', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      newReceivedId,
-      offer.offeredPokemon.isLegendary ? 'legendary' : 'champion',
-      500,
-      500,
-      new Date().toISOString(),
-      new Date().toISOString(),
-      offer.offeredPokemon.speciesId,
-      offer.offeredPokemon.name,
-      offer.offeredPokemon.emoji,
-      offer.offeredPokemon.type,
-      offer.offeredPokemon.cp,
-      offer.offeredPokemon.isLegendary ? 1 : 0,
-      `Échange avec ${offer.senderName} (${offer.senderCode})`,
-    ]
-  );
+  const eggName = `Œuf de ${offer.offeredPokemon.name}`;
+
+  await runInTransaction(db, async () => {
+    await db.runAsync('DELETE FROM pokemon_eggs WHERE id = ?', [myPokemonEggId]);
+
+    await db.runAsync(
+      `INSERT INTO pokemon_eggs (
+        id, name, rarity, required_xp, current_xp, status, incubator_slot,
+        obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name, pokemon_emoji,
+        pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
+      ) VALUES (?, ?, ?, ?, ?, 'hatched', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [
+        newReceivedId,
+        eggName,
+        offer.offeredPokemon.isLegendary ? 'legendary' : 'champion',
+        500,
+        500,
+        `Échange avec ${offer.senderName} (${offer.senderCode})`,
+        nowIso,
+        nowIso,
+        offer.offeredPokemon.speciesId,
+        offer.offeredPokemon.name,
+        offer.offeredPokemon.emoji,
+        offer.offeredPokemon.type,
+        offer.offeredPokemon.cp,
+        offer.offeredPokemon.isLegendary ? 1 : 0,
+      ]
+    );
+  });
+
+  try {
+    const { syncPokemonEggsToCloud } = await import('../cloudSyncService');
+    void syncPokemonEggsToCloud();
+  } catch {}
 
   offers[offerIndex].status = 'completed';
   offers[offerIndex].completedAt = new Date().toISOString();

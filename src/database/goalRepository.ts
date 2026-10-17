@@ -1,4 +1,4 @@
-import { getDatabase } from './db';
+import { getDatabase, runInTransaction } from './db';
 import { FitnessGoal, GoalCategory } from '../types';
 import { getLatestWeightLog } from './weightRepository';
 import { syncFitnessGoalToCloud, fetchFitnessGoalsFromCloud } from '../services/cloudSyncService';
@@ -18,25 +18,29 @@ export async function getAllGoals(): Promise<FitnessGoal[]> {
     try {
       const cloudGoals = await fetchFitnessGoalsFromCloud();
       if (cloudGoals.length > 0) {
-        for (const g of cloudGoals) {
-          await db.runAsync(
-            `INSERT OR REPLACE INTO fitness_goals (
-               id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?)`,
-            [
-              g.id,
-              g.title,
-              g.category,
-              g.target_value,
-              g.starting_value || 0,
-              g.current_value,
-              g.unit || 'kg',
-              g.target_date || null,
-              g.completed ? 1 : 0,
-              g.created_at || new Date().toISOString(),
-            ]
-          );
-        }
+        await runInTransaction(db, async () => {
+          for (const g of cloudGoals) {
+            await db.runAsync(
+              `INSERT OR REPLACE INTO fitness_goals (
+                 id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                g.id,
+                g.title,
+                g.category,
+                g.target_value,
+                g.starting_value || 0,
+                g.current_value,
+                g.unit || 'kg',
+                g.target_date || null,
+                g.exercise_id || null,
+                g.completed ? 1 : 0,
+                g.completed_at || null,
+                g.created_at || new Date().toISOString(),
+              ]
+            );
+          }
+        });
         rows = await db.getAllAsync<FitnessGoal>(`
           SELECT
             g.*,
@@ -257,24 +261,36 @@ export async function syncGoalsWithUserRecords(): Promise<void> {
   const latestWeight = await getLatestWeightLog();
   if (latestWeight) {
     const weightGoal = goals.find((g) => g.category === 'weight');
-    if (weightGoal) {
+    if (weightGoal && weightGoal.current_value !== latestWeight.weight) {
       await updateGoalProgress(weightGoal.id, latestWeight.weight);
     }
   }
 
-  // Sync objectifs de charge d'exercices avec max soulevé
-  for (const goal of goals) {
-    if (goal.category === 'exercise' && goal.exercise_id) {
-      const maxRow = await db.getFirstAsync<{ max_weight: number | null }>(
-        `SELECT MAX(weight) AS max_weight
-         FROM workout_sets
-         WHERE exercise_id = ? AND (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)`,
-        [goal.exercise_id]
-      );
-      if (maxRow && maxRow.max_weight !== null && maxRow.max_weight > 0) {
-        if (maxRow.max_weight !== goal.current_value) {
-          await updateGoalProgress(goal.id, maxRow.max_weight);
-        }
+  // Sync objectifs de charge d'exercices avec max soulevé en une seule requête SQL groupée
+  const exerciseGoals = goals.filter((g) => g.category === 'exercise' && g.exercise_id);
+  if (exerciseGoals.length > 0) {
+    const exerciseIds = Array.from(new Set(exerciseGoals.map((g) => g.exercise_id!)));
+    const placeholders = exerciseIds.map(() => '?').join(',');
+    const maxRows = await db.getAllAsync<{ exercise_id: string; max_weight: number | null }>(
+      `SELECT exercise_id, MAX(weight) AS max_weight
+       FROM workout_sets
+       WHERE exercise_id IN (${placeholders})
+         AND (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)
+       GROUP BY exercise_id`,
+      exerciseIds
+    );
+
+    const maxMap = new Map<string, number>();
+    for (const r of maxRows) {
+      if (r.max_weight !== null && r.max_weight > 0) {
+        maxMap.set(r.exercise_id, r.max_weight);
+      }
+    }
+
+    for (const goal of exerciseGoals) {
+      const maxWeight = maxMap.get(goal.exercise_id!);
+      if (maxWeight !== undefined && maxWeight !== goal.current_value) {
+        await updateGoalProgress(goal.id, maxWeight);
       }
     }
   }

@@ -108,11 +108,21 @@ export async function deleteRunningSession(id: string): Promise<boolean> {
 
 export async function getRunningStats(): Promise<RunningStats> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<RunningSession>(
-    'SELECT * FROM running_sessions ORDER BY date ASC'
-  );
+  const row = await db.getFirstAsync<{
+    total_sessions: number;
+    total_distance: number;
+    total_duration: number;
+    best_pace: number | null;
+  }>(`
+    SELECT
+      COUNT(id) AS total_sessions,
+      COALESCE(SUM(distance_km), 0) AS total_distance,
+      COALESCE(SUM(duration_seconds), 0) AS total_duration,
+      MIN(CASE WHEN pace_seconds_per_km > 0 THEN pace_seconds_per_km ELSE NULL END) AS best_pace
+    FROM running_sessions
+  `);
 
-  if (!rows || rows.length === 0) {
+  if (!row || row.total_sessions === 0) {
     return {
       totalSessions: 0,
       totalDistanceKm: 0,
@@ -123,19 +133,9 @@ export async function getRunningStats(): Promise<RunningStats> {
     };
   }
 
-  const totalSessions = rows.length;
-  let totalDistance = 0;
-  let totalDuration = 0;
-  let bestPace = Infinity;
-
-  rows.forEach((r) => {
-    totalDistance += r.distance_km;
-    totalDuration += r.duration_seconds;
-    if (r.pace_seconds_per_km > 0 && r.pace_seconds_per_km < bestPace) {
-      bestPace = r.pace_seconds_per_km;
-    }
-  });
-
+  const totalSessions = row.total_sessions;
+  const totalDistance = row.total_distance || 0;
+  const totalDuration = row.total_duration || 0;
   const avgDistance = totalDistance / totalSessions;
   const avgPace = totalDistance > 0 ? totalDuration / totalDistance : 0;
 
@@ -143,7 +143,7 @@ export async function getRunningStats(): Promise<RunningStats> {
     totalSessions,
     totalDistanceKm: Number(totalDistance.toFixed(2)),
     totalDurationSeconds: Math.round(totalDuration),
-    bestPaceSecondsPerKm: bestPace === Infinity ? 0 : Math.round(bestPace),
+    bestPaceSecondsPerKm: row.best_pace ? Math.round(row.best_pace) : 0,
     averagePaceSecondsPerKm: Math.round(avgPace),
     averageDistanceKm: Number(avgDistance.toFixed(2)),
   };
