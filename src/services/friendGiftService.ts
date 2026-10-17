@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FriendGift } from '../types/social';
 import { getOrCreateTrainerProfile } from './multiplayerService';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { sanitizePostgrestIdentifier } from '../utils/cryptoSecurity';
 
 export const STORAGE_KEY_FRIEND_GIFTS = '@vitax_friend_gifts_v1';
 
@@ -116,14 +117,25 @@ export async function getFriendGifts(): Promise<{
   let localGifts = await getAllLocalGifts();
 
   // Synchronisation Supabase si disponible
-  if (isSupabaseConfigured()) {
+  const safeProfileId = sanitizePostgrestIdentifier(profile.id);
+  const safeFriendCode = sanitizePostgrestIdentifier(profile.friendCode);
+  if (isSupabaseConfigured() && (safeProfileId || safeFriendCode)) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
+        const clauses: string[] = [];
+        if (safeProfileId) {
+          clauses.push(`receiver_id.eq.${safeProfileId}`);
+          clauses.push(`sender_id.eq.${safeProfileId}`);
+        }
+        if (safeFriendCode) {
+          clauses.push(`receiver_code.eq.${safeFriendCode}`);
+        }
+
         const { data, error } = await supabase
           .from('friend_gifts')
           .select('*')
-          .or(`receiver_id.eq.${profile.id},sender_id.eq.${profile.id},receiver_code.eq.${profile.friendCode}`)
+          .or(clauses.join(','))
           .order('created_at', { ascending: false });
 
         if (!error && data && Array.isArray(data)) {

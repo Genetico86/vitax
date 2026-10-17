@@ -2,18 +2,21 @@
 -- VITAX - BASE DE DONNÉES CENTRALE PARTAGÉE & SYNCHRONISATION CLOUD SUPABASE
 -- =========================================================================
 -- Exécutez ce script dans le SQL Editor de votre projet Supabase.
--- Il configure les profils, les séances, les séries, les favoris, les poids,
--- les classements et autorise la synchronisation 24h/24 sans blocage.
+-- Il configure les tables, le chiffrement des mots de passe (pgcrypto / PBKDF2),
+-- les fonctions RPC d'authentification (SECURITY DEFINER) et le Row Level Security (RLS).
 -- =========================================================================
 
--- 1. TABLE DES PROFILS UTILISATEURS / ATHLÈTES (MOTS DE PASSE VISIBLES EN CLAIR POUR L'ADMIN)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1. TABLE DES PROFILS UTILISATEURS / ATHLÈTES (CONDENSATS HACHÉS UNIQUEMENT)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL,
   password TEXT,
+  password_hash TEXT,
   friend_code TEXT NOT NULL UNIQUE,
   trainer_title TEXT DEFAULT 'Athlète Débutant',
-  avatar_pokemon_id TEXT DEFAULT 'pikachu',
+  avatar_pokemon_id TEXT DEFAULT 'athlete',
   avatar_pokemon_emoji TEXT DEFAULT '⚡',
   current_league TEXT DEFAULT 'pierre',
   total_xp INTEGER DEFAULT 0,
@@ -23,9 +26,19 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Assurer que la colonne password et avatar_url existent si la table a déjà été créée
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password TEXT;
+-- Assurer que les colonnes password_hash et avatar_url existent
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
+-- Migration automatique des anciens mots de passe en clair vers pgcrypto (bcrypt) et purge du clair
+UPDATE public.profiles
+SET
+  password_hash = CASE
+    WHEN password LIKE 'pbkdf2_sha256$%' OR password LIKE '$2%' THEN password
+    ELSE crypt(password, gen_salt('bf'))
+  END,
+  password = NULL
+WHERE password IS NOT NULL AND password_hash IS NULL;
 
 -- UNICITÉ STRICTE DES PSEUDOS (insensible à la casse : impossible d'avoir des doublons 'Matthieu' et 'matthieu')
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique_lower ON public.profiles (LOWER(TRIM(username)));
@@ -157,7 +170,6 @@ CREATE TABLE IF NOT EXISTS public.weekly_leaderboards (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Assurer que la colonne avatar_url existe si la table a déjà été créée
 ALTER TABLE public.weekly_leaderboards ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_leaderboards_week_league ON public.weekly_leaderboards(week_id, current_league, weekly_xp DESC);
@@ -191,7 +203,6 @@ CREATE TABLE IF NOT EXISTS public.trades (
   completed_at TIMESTAMPTZ
 );
 
--- Purger les anciennes offres d'échanges Pokémon et inventaires d'œufs
 DELETE FROM public.trades WHERE status != 'cloud_backup' OR id LIKE 'pokemon_inventory_%';
 
 CREATE INDEX IF NOT EXISTS idx_trades_status ON public.trades(status, created_at DESC);
@@ -278,28 +289,205 @@ CREATE INDEX IF NOT EXISTS idx_friend_challenges_target ON public.friend_challen
 CREATE INDEX IF NOT EXISTS idx_friend_challenges_creator ON public.friend_challenges(creator_id);
 
 -- =========================================================================
--- SÉCURITÉ & PERMISSIONS POUR LA SYNCHRONISATION DE TOUS LES APPAREILS
+-- FONCTIONS D'AUTHENTIFICATION SÉCURISÉE & CONTEXTE UTILISATEUR RLS
 -- =========================================================================
 
--- 1. DÉSACTIVER LE ROW LEVEL SECURITY SUR TOUTES LES TABLES VITAX
-ALTER TABLE IF EXISTS public.profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.workout_sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.workout_sets DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.user_favorites DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.body_weights DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.fitness_goals DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.running_sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.weekly_leaderboards DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.friends DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.trades DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.raid_contributions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.friend_requests DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.friend_gifts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS public.friend_challenges DISABLE ROW LEVEL SECURITY;
+-- Extrait l'identifiant d'athlète authentifié depuis le JWT Supabase Auth ou l'en-tête x-client-info
+CREATE OR REPLACE FUNCTION public.current_vitax_user_id()
+RETURNS TEXT
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+  v_client_info TEXT;
+  v_extracted_uid TEXT;
+  v_jwt_uid TEXT;
+BEGIN
+  BEGIN
+    v_jwt_uid := current_setting('request.jwt.claims', true)::json->'user_metadata'->>'vitax_user_id';
+  EXCEPTION WHEN OTHERS THEN
+    v_jwt_uid := NULL;
+  END;
 
--- 2. AJOUTER DES POLITIQUES PERMISSIVES UNIVERSELLES
--- (Garantit que même si Supabase réactive automatiquement le RLS,
--- l'application client avec clé anon ne sera JAMAIS bloquée en lecture ou écriture)
+  IF v_jwt_uid IS NOT NULL AND v_jwt_uid <> '' THEN
+    RETURN v_jwt_uid;
+  END IF;
+
+  BEGIN
+    v_client_info := current_setting('request.headers', true)::json->>'x-client-info';
+    IF v_client_info IS NOT NULL THEN
+      v_extracted_uid := substring(v_client_info FROM 'uid=([A-Za-z0-9_-]{1,64})');
+      IF v_extracted_uid IS NOT NULL AND v_extracted_uid <> '' THEN
+        RETURN v_extracted_uid;
+      END IF;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN auth.uid()::text;
+END;
+$$;
+
+-- Inscription sécurisée côté serveur (SECURITY DEFINER : hache le secret PBKDF2 avec bcrypt pgcrypto)
+CREATE OR REPLACE FUNCTION public.register_trainer_secure(
+  p_id TEXT,
+  p_username TEXT,
+  p_password_hash TEXT,
+  p_friend_code TEXT,
+  p_trainer_title TEXT DEFAULT 'Athlète Vitax',
+  p_avatar_url TEXT DEFAULT NULL
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.profiles WHERE LOWER(TRIM(username)) = LOWER(TRIM(p_username))
+  ) THEN
+    RAISE EXCEPTION 'USERNAME_TAKEN';
+  END IF;
+
+  INSERT INTO public.profiles (
+    id,
+    username,
+    password,
+    password_hash,
+    friend_code,
+    trainer_title,
+    avatar_pokemon_id,
+    avatar_pokemon_emoji,
+    current_league,
+    total_xp,
+    total_workouts,
+    avatar_url,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_id,
+    TRIM(p_username),
+    NULL,
+    crypt(p_password_hash, gen_salt('bf')),
+    p_friend_code,
+    COALESCE(p_trainer_title, 'Athlète Vitax'),
+    'athlete',
+    '⚡',
+    'pierre',
+    0,
+    0,
+    p_avatar_url,
+    NOW(),
+    NOW()
+  );
+END;
+$$;
+
+-- Authentification sécurisée côté serveur (vérifie le hash sans jamais exposer password/password_hash au client)
+CREATE OR REPLACE FUNCTION public.authenticate_trainer_secure(
+  p_username TEXT,
+  p_password_hash TEXT,
+  p_legacy_plaintext TEXT DEFAULT NULL
+)
+RETURNS TABLE (
+  id TEXT,
+  username TEXT,
+  friend_code TEXT,
+  trainer_title TEXT,
+  avatar_pokemon_id TEXT,
+  avatar_pokemon_emoji TEXT,
+  current_league TEXT,
+  total_xp INTEGER,
+  total_workouts INTEGER,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_row public.profiles%ROWTYPE;
+  v_secret TEXT;
+  v_valid BOOLEAN := FALSE;
+BEGIN
+  SELECT * INTO v_row
+  FROM public.profiles p
+  WHERE LOWER(TRIM(p.username)) = LOWER(TRIM(p_username))
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+
+  v_secret := COALESCE(v_row.password_hash, v_row.password);
+
+  IF v_secret IS NULL OR v_secret = '' THEN
+    RAISE EXCEPTION 'PASSWORD_RESET_REQUIRED';
+  END IF;
+
+  IF v_secret LIKE '$2%' THEN
+    v_valid := (v_secret = crypt(p_password_hash, v_secret))
+      OR (p_legacy_plaintext IS NOT NULL AND v_secret = crypt(p_legacy_plaintext, v_secret));
+  ELSIF v_secret LIKE 'pbkdf2_sha256$%' THEN
+    v_valid := (v_secret = p_password_hash);
+  ELSE
+    v_valid := (p_legacy_plaintext IS NOT NULL AND v_secret = p_legacy_plaintext)
+      OR (v_secret = p_password_hash);
+  END IF;
+
+  IF NOT v_valid THEN
+    RAISE EXCEPTION 'INVALID_CREDENTIALS';
+  END IF;
+
+  -- Mise à niveau transparente vers bcrypt(pbkdf2_sha256) et suppression du clair
+  IF v_row.password IS NOT NULL OR v_row.password_hash IS NULL OR NOT (v_row.password_hash LIKE '$2%') THEN
+    UPDATE public.profiles
+    SET
+      password_hash = crypt(p_password_hash, gen_salt('bf')),
+      password = NULL,
+      updated_at = NOW()
+    WHERE public.profiles.id = v_row.id;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    v_row.id,
+    v_row.username,
+    v_row.friend_code,
+    v_row.trainer_title,
+    v_row.avatar_pokemon_id,
+    v_row.avatar_pokemon_emoji,
+    v_row.current_league,
+    v_row.total_xp,
+    v_row.total_workouts,
+    v_row.avatar_url,
+    v_row.created_at;
+END;
+$$;
+
+-- =========================================================================
+-- SÉCURITÉ ROW LEVEL SECURITY (RLS) & CONTRÔLE D'ACCÈS GRANULAIRE
+-- =========================================================================
+
+-- 1. ACTIVER LE ROW LEVEL SECURITY SUR LES 14 TABLES VITAX
+ALTER TABLE IF EXISTS public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.workout_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.workout_sets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.user_favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.body_weights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.fitness_goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.running_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.weekly_leaderboards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friends ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.trades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.raid_contributions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friend_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friend_gifts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friend_challenges ENABLE ROW LEVEL SECURITY;
+
+-- 2. SUPPRIMER LES ANCIENNES POLITIQUES UNIVERSELLES PERMISSIVES
 DO $$
 DECLARE
   t text;
@@ -324,15 +512,139 @@ BEGIN
   LOOP
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = t) THEN
       EXECUTE format('DROP POLICY IF EXISTS "vitax_universal_access" ON public.%I', t);
-      EXECUTE format('CREATE POLICY "vitax_universal_access" ON public.%I FOR ALL TO public USING (true) WITH CHECK (true)', t);
     END IF;
   END LOOP;
 END $$;
 
--- 3. PERMISSIONS GLOBALES POUR LES RÔLES CLIENTS (ANON, AUTHENTICATED)
+-- 3. POLITIQUES RLS PAR TABLE
+-- 3.1 Profiles : lecture publique des colonnes non sensibles (classement/amis), modification restreinte au propriétaire
+DROP POLICY IF EXISTS "profiles_select_public" ON public.profiles;
+CREATE POLICY "profiles_select_public" ON public.profiles
+  FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "profiles_insert_owner" ON public.profiles;
+CREATE POLICY "profiles_insert_owner" ON public.profiles
+  FOR INSERT TO anon, authenticated
+  WITH CHECK (id = public.current_vitax_user_id());
+
+DROP POLICY IF EXISTS "profiles_update_owner" ON public.profiles;
+CREATE POLICY "profiles_update_owner" ON public.profiles
+  FOR UPDATE TO anon, authenticated
+  USING (id = public.current_vitax_user_id())
+  WITH CHECK (id = public.current_vitax_user_id());
+
+DROP POLICY IF EXISTS "profiles_delete_owner" ON public.profiles;
+CREATE POLICY "profiles_delete_owner" ON public.profiles
+  FOR DELETE TO anon, authenticated
+  USING (id = public.current_vitax_user_id());
+
+-- 3.2 Tables personnelles / santé (strictement isolées par user_id = current_vitax_user_id())
+DO $$
+DECLARE
+  t text;
+  user_tables text[] := ARRAY[
+    'workout_sessions',
+    'workout_sets',
+    'user_favorites',
+    'body_weights',
+    'fitness_goals',
+    'running_sessions'
+  ];
+BEGIN
+  FOREACH t IN ARRAY user_tables
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "%I_owner_isolation" ON public.%I', t, t);
+    EXECUTE format(
+      'CREATE POLICY "%I_owner_isolation" ON public.%I FOR ALL TO anon, authenticated USING (user_id = public.current_vitax_user_id()) WITH CHECK (user_id = public.current_vitax_user_id())',
+      t, t
+    );
+  END LOOP;
+END $$;
+
+-- 3.3 Table trades (stockage système cloud backup par sender_id)
+DROP POLICY IF EXISTS "trades_owner_isolation" ON public.trades;
+CREATE POLICY "trades_owner_isolation" ON public.trades
+  FOR ALL TO anon, authenticated
+  USING (sender_id = public.current_vitax_user_id())
+  WITH CHECK (sender_id = public.current_vitax_user_id());
+
+-- 3.4 Classements hebdomadaires & Raids Co-op : lecture communautaire, écriture limitée à ses propres entrées
+DROP POLICY IF EXISTS "leaderboards_select_all" ON public.weekly_leaderboards;
+CREATE POLICY "leaderboards_select_all" ON public.weekly_leaderboards
+  FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "leaderboards_write_owner" ON public.weekly_leaderboards;
+CREATE POLICY "leaderboards_write_owner" ON public.weekly_leaderboards
+  FOR ALL TO anon, authenticated
+  USING (user_id = public.current_vitax_user_id())
+  WITH CHECK (user_id = public.current_vitax_user_id());
+
+DROP POLICY IF EXISTS "raids_select_all" ON public.raid_contributions;
+CREATE POLICY "raids_select_all" ON public.raid_contributions
+  FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "raids_write_owner" ON public.raid_contributions;
+CREATE POLICY "raids_write_owner" ON public.raid_contributions
+  FOR ALL TO anon, authenticated
+  USING (user_id = public.current_vitax_user_id())
+  WITH CHECK (user_id = public.current_vitax_user_id());
+
+-- 3.5 Amis, Demandes d'amis et Cadeaux : accessibles uniquement aux deux parties (user/sender ou friend/receiver)
+DROP POLICY IF EXISTS "friends_participants_access" ON public.friends;
+CREATE POLICY "friends_participants_access" ON public.friends
+  FOR ALL TO anon, authenticated
+  USING (user_id = public.current_vitax_user_id() OR friend_id = public.current_vitax_user_id())
+  WITH CHECK (user_id = public.current_vitax_user_id() OR friend_id = public.current_vitax_user_id());
+
+DROP POLICY IF EXISTS "friend_requests_participants_access" ON public.friend_requests;
+CREATE POLICY "friend_requests_participants_access" ON public.friend_requests
+  FOR ALL TO anon, authenticated
+  USING (sender_id = public.current_vitax_user_id() OR receiver_id = public.current_vitax_user_id())
+  WITH CHECK (sender_id = public.current_vitax_user_id() OR receiver_id = public.current_vitax_user_id());
+
+DROP POLICY IF EXISTS "friend_gifts_participants_access" ON public.friend_gifts;
+CREATE POLICY "friend_gifts_participants_access" ON public.friend_gifts
+  FOR ALL TO anon, authenticated
+  USING (sender_id = public.current_vitax_user_id() OR receiver_id = public.current_vitax_user_id())
+  WITH CHECK (sender_id = public.current_vitax_user_id() OR receiver_id = public.current_vitax_user_id());
+
+-- 3.6 Défis entre amis
+DROP POLICY IF EXISTS "friend_challenges_select_all" ON public.friend_challenges;
+CREATE POLICY "friend_challenges_select_all" ON public.friend_challenges
+  FOR SELECT TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "friend_challenges_insert_creator" ON public.friend_challenges;
+CREATE POLICY "friend_challenges_insert_creator" ON public.friend_challenges
+  FOR INSERT TO anon, authenticated
+  WITH CHECK (creator_id = public.current_vitax_user_id());
+
+DROP POLICY IF EXISTS "friend_challenges_update_authenticated" ON public.friend_challenges;
+CREATE POLICY "friend_challenges_update_authenticated" ON public.friend_challenges
+  FOR UPDATE TO anon, authenticated
+  USING (public.current_vitax_user_id() IS NOT NULL)
+  WITH CHECK (public.current_vitax_user_id() IS NOT NULL);
+
+-- 4. PRIVILÈGES DE COLONNES SUR PROFILES (INTERDIT LA LECTURE DE PASSWORD / PASSWORD_HASH AUX CLIENTS)
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
 
+REVOKE SELECT ON public.profiles FROM anon, authenticated;
+GRANT SELECT (
+  id,
+  username,
+  friend_code,
+  trainer_title,
+  avatar_pokemon_id,
+  avatar_pokemon_emoji,
+  current_league,
+  total_xp,
+  total_workouts,
+  avatar_url,
+  created_at,
+  updated_at
+) ON public.profiles TO anon, authenticated;
 
+GRANT EXECUTE ON FUNCTION public.current_vitax_user_id() TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.register_trainer_secure(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.authenticate_trainer_secure(TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
