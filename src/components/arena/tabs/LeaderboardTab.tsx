@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/colors';
+import { showAlert } from '../../../utils/alert';
 import { Card } from '../../common/Card';
 import { Badge } from '../../common/Badge';
 import { Button } from '../../common/Button';
@@ -306,7 +307,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               style={styles.giftOfferBtn}
               onPress={() => {
                 if (friendsList.length === 0) {
-                  Alert.alert('Aucun ami', 'Ajoutez d’abord un ami avec son Code Ami pour lui envoyer un cadeau de motivation.');
+                  showAlert('Aucun ami', 'Ajoutez d’abord un ami avec son Code Ami pour lui envoyer un cadeau de motivation.');
                   onOpenAddFriend();
                 } else {
                   onOpenCreateGift();
@@ -317,13 +318,15 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               <Text style={styles.giftOfferBtnText}>+ Offrir un Cadeau 🎁</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.giftSimulateBtn}
-              onPress={onSimulateGift}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.giftSimulateBtnText}>🧪 Simuler cadeau reçu</Text>
-            </TouchableOpacity>
+            {__DEV__ && (
+              <TouchableOpacity
+                style={styles.giftSimulateBtn}
+                onPress={onSimulateGift}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.giftSimulateBtnText}>🧪 Simuler cadeau reçu</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* CADEAUX REÇUS */}

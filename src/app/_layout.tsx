@@ -18,6 +18,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     let isCancelled = false;
+    let cleanupRealtime = () => {};
 
     async function setup() {
       try {
@@ -25,13 +26,22 @@ export default function RootLayout() {
         await loadSettings();
         await restoreSessionSilently();
 
-        // Rapatriement transparent de la base de données centrale Supabase (partagée App & Web)
+        // Synchronisation temps réel avec Supabase + écouteurs de fermeture d'application / arrière-plan
         try {
-          const { syncCloudAndLocal } = await import('../services/cloudSyncService');
-          void syncCloudAndLocal();
+          const { syncCloudAndLocal, registerRealtimeLifecycleSync } = await import(
+            '../services/cloudSyncService'
+          );
+          cleanupRealtime = registerRealtimeLifecycleSync();
+          await syncCloudAndLocal();
         } catch (syncErr) {
           console.warn('Sync cloud initial:', syncErr);
         }
+
+        // Restauration automatique d'une séance en cours si l'application avait été fermée
+        try {
+          const { useWorkoutSessionStore } = await import('../stores/workoutSessionStore');
+          await useWorkoutSessionStore.getState().restoreActiveWorkoutIfAny();
+        } catch {}
 
         if (!isCancelled) {
           setIsReady(true);
@@ -62,6 +72,7 @@ export default function RootLayout() {
 
     return () => {
       isCancelled = true;
+      cleanupRealtime();
     };
   }, [loadSettings, retryKey]);
 
@@ -70,7 +81,7 @@ export default function RootLayout() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>Vitax Musculation</Text>
-        <Text style={styles.loadingSub}>Initialisation 100% hors-ligne...</Text>
+        <Text style={styles.loadingSub}>Synchronisation Cloud Supabase en temps réel...</Text>
       </View>
     );
   }
@@ -143,6 +154,18 @@ export default function RootLayout() {
           options={{
             headerShown: false,
             presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="workout/ai-generator"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="running/index"
+          options={{
+            headerShown: false,
           }}
         />
         <Stack.Screen

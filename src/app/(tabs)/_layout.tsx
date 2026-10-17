@@ -51,7 +51,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Programmes',
+          title: 'Accueil',
           headerTitle: 'VITAX MUSCULATION',
           tabBarIcon: ({ focused }) => (
             <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
@@ -63,9 +63,13 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          href: null,
           title: 'Progression',
           headerTitle: 'SUIVI DE PROGRESSION',
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
+              📈
+            </Text>
+          ),
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => router.navigate('/(tabs)')}

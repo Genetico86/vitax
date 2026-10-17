@@ -88,11 +88,22 @@ export async function createCustomProgram(input: NewProgramInput): Promise<strin
     );
   }
 
+  try {
+    const { syncCustomCatalogToCloud } = await import('../services/cloudSyncService');
+    void syncCustomCatalogToCloud();
+  } catch {}
+
   return programId;
 }
 
 export async function deleteCustomProgram(id: string): Promise<boolean> {
   const db = await getDatabase();
   const result = await db.runAsync('DELETE FROM programs WHERE id = ? AND is_custom = 1', [id]);
+  if (result.changes > 0) {
+    try {
+      const { deleteCustomEntityFromCloud } = await import('../services/cloudSyncService');
+      void deleteCustomEntityFromCloud(id);
+    } catch {}
+  }
   return result.changes > 0;
 }

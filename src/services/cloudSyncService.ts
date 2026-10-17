@@ -1,6 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
-import { WorkoutSession, WorkoutSet, WorkoutSessionWithSets, BodyWeightLog, FitnessGoal, PokemonEgg } from '../types';
+import {
+  WorkoutSession,
+  WorkoutSet,
+  WorkoutSessionWithSets,
+  BodyWeightLog,
+  FitnessGoal,
+  PokemonEgg,
+  RunningSession,
+  Exercise,
+  Program,
+} from '../types';
 import { getPersistedSession } from './authService';
 import { getOrCreateTrainerProfile, syncTrainerProfileToSupabase } from './multiplayerService';
 import { getDatabase } from '../database/db';
@@ -8,6 +19,92 @@ import seedData from '../database/seedData.json';
 import { getUserGamificationStats } from './gamificationService';
 import { STORAGE_KEY_DAILY_BONUS } from './exerciseWeightingService';
 import { STORAGE_KEY_PROFILE } from './multiplayer/profileService';
+
+export const STORAGE_KEY_DELETED_IDS = '@vitax_deleted_ids';
+export const STORAGE_KEY_ACTIVE_WORKOUT_DRAFT = '@vitax_active_workout_draft';
+const SETTINGS_KEY = '@vitax_user_settings';
+
+/**
+ * Récupère la liste des identifiants supprimés (tombstones) pour éviter la résurrection d'entités supprimées
+ */
+export async function getDeletedIdsSet(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY_DELETED_IDS);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? new Set(arr) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+export async function markIdAsDeleted(id: string): Promise<void> {
+  if (!id) return;
+  try {
+    const set = await getDeletedIdsSet();
+    set.add(id);
+    const list = Array.from(set).slice(-1000);
+    await AsyncStorage.setItem(STORAGE_KEY_DELETED_IDS, JSON.stringify(list));
+    void syncDeletedIdsToCloud(list);
+  } catch (err) {
+    console.warn('Erreur markIdAsDeleted:', err);
+  }
+}
+
+export async function syncDeletedIdsToCloud(localList?: string[]): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return;
+    const list = localList ?? Array.from(await getDeletedIdsSet());
+    const backupId = `deleted_ids_${session.userId}`;
+    await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: session.userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: { deleted_ids: list },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+  } catch {}
+}
+
+export async function fetchAndMergeDeletedIdsFromCloud(): Promise<Set<string>> {
+  const localSet = await getDeletedIdsSet();
+  if (!isSupabaseConfigured()) return localSet;
+  const supabase = getSupabaseClient();
+  if (!supabase) return localSet;
+  try {
+    const userId = await getActiveUserId();
+    const backupId = `deleted_ids_${userId}`;
+    const { data } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
+
+    const cloudIds = (data?.offered_pokemon as any)?.deleted_ids;
+    if (Array.isArray(cloudIds)) {
+      let changed = false;
+      for (const id of cloudIds) {
+        if (typeof id === 'string' && !localSet.has(id)) {
+          localSet.add(id);
+          changed = true;
+        }
+      }
+      if (changed) {
+        await AsyncStorage.setItem(
+          STORAGE_KEY_DELETED_IDS,
+          JSON.stringify(Array.from(localSet).slice(-1000))
+        );
+      }
+    }
+  } catch {}
+  return localSet;
+}
 
 /**
  * Récupère l'identifiant unique de l'athlète actuel pour la synchronisation
@@ -121,13 +218,17 @@ export async function fetchWorkoutSessionsFromCloud(): Promise<WorkoutSession[]>
       return [];
     }
 
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
     const completedRows = data.filter(
       (row: any) =>
-        row.completed === 1 ||
-        row.completed === true ||
-        row.completed === '1' ||
-        row.completed === undefined ||
-        row.completed === null
+        row &&
+        row.id &&
+        !deletedIds.has(row.id) &&
+        (row.completed === 1 ||
+          row.completed === true ||
+          row.completed === '1' ||
+          row.completed === undefined ||
+          row.completed === null)
     );
 
     return completedRows.map((row: any) => ({
@@ -212,11 +313,13 @@ export async function fetchWorkoutDetailsFromCloud(
 }
 
 export async function deleteWorkoutSessionFromCloud(sessionId: string): Promise<boolean> {
+  await markIdAsDeleted(sessionId);
   if (!isSupabaseConfigured()) return false;
   const supabase = getSupabaseClient();
   if (!supabase) return false;
 
   try {
+    await supabase.from('workout_sets').delete().eq('workout_session_id', sessionId);
     const { error } = await supabase.from('workout_sessions').delete().eq('id', sessionId);
     return !error;
   } catch {
@@ -289,13 +392,13 @@ export async function syncBodyWeightsToCloud(): Promise<boolean> {
     const userId = session.userId;
     await ensureCloudProfileExists(userId);
     const db = await getDatabase();
-    const weights = await db.getAllAsync<BodyWeightLog>(
+    const deletedIds = await getDeletedIdsSet();
+    const allWeights = await db.getAllAsync<BodyWeightLog>(
       'SELECT * FROM body_weights ORDER BY date ASC, created_at ASC'
     );
+    const weights = (allWeights || []).filter((w) => !deletedIds.has(w.id));
 
-    if (!weights || weights.length === 0) return true;
-
-    // 1. Sauvegarde fiable dans la table trades (RLS désactivé)
+    // 1. Sauvegarde fiable dans la table trades (même si vide après suppression)
     const backupId = `body_weights_${userId}`;
     const { error: backupErr } = await supabase.from('trades').upsert({
       id: backupId,
@@ -330,6 +433,17 @@ export async function syncBodyWeightsToCloud(): Promise<boolean> {
     console.warn('Erreur syncBodyWeightsToCloud:', err);
     return false;
   }
+}
+
+export async function deleteWeightLogFromCloud(id: string): Promise<void> {
+  await markIdAsDeleted(id);
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  try {
+    await supabase.from('body_weights').delete().eq('id', id);
+  } catch {}
+  await syncBodyWeightsToCloud();
 }
 
 export async function syncBodyWeightToCloud(log: BodyWeightLog): Promise<void> {
@@ -368,43 +482,46 @@ export async function fetchBodyWeightsFromCloud(): Promise<BodyWeightLog[]> {
   try {
     const userId = await getActiveUserId();
     const db = await getDatabase();
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
     let recoveredWeights: BodyWeightLog[] = [];
 
-    // 1. D'abord tenter depuis la table native body_weights
-    const { data, error } = await supabase
-      .from('body_weights')
-      .select('*')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(1000);
+    // 1. D'abord tenter depuis la sauvegarde cloud unifiée (contient body_fat_percentage et l'état exact)
+    const backupId = `body_weights_${userId}`;
+    const { data: backupData, error: backupErr } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
 
-    if (!error && data && data.length > 0) {
-      recoveredWeights = data.map((r: any) => ({
-        id: r.id,
-        weight: r.weight,
-        date: r.date,
-        note: r.notes || r.note,
-        body_fat_percentage: r.body_fat_percentage,
-        created_at: r.created_at,
-      }));
-    }
-
-    // 2. Si vide (ex: RLS actif), récupérer depuis la sauvegarde cloud
-    if (recoveredWeights.length === 0) {
-      const backupId = `body_weights_${userId}`;
-      const { data: backupData, error: backupErr } = await supabase
-        .from('trades')
-        .select('offered_pokemon')
-        .eq('id', backupId)
-        .maybeSingle();
-
-      if (!backupErr && backupData?.offered_pokemon) {
-        const weights = (backupData.offered_pokemon as any)?.weights as BodyWeightLog[];
-        if (Array.isArray(weights) && weights.length > 0) {
-          recoveredWeights = weights;
-        }
+    if (!backupErr && backupData?.offered_pokemon) {
+      const weights = (backupData.offered_pokemon as any)?.weights as BodyWeightLog[];
+      if (Array.isArray(weights)) {
+        recoveredWeights = weights;
       }
     }
+
+    // 2. Compléter avec la table native body_weights si nécessaire
+    if (recoveredWeights.length === 0) {
+      const { data, error } = await supabase
+        .from('body_weights')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(1000);
+
+      if (!error && data && data.length > 0) {
+        recoveredWeights = data.map((r: any) => ({
+          id: r.id,
+          weight: r.weight,
+          date: r.date,
+          note: r.notes || r.note,
+          body_fat_percentage: r.body_fat_percentage,
+          created_at: r.created_at,
+        }));
+      }
+    }
+
+    recoveredWeights = recoveredWeights.filter((w) => w && w.id && !deletedIds.has(w.id));
 
     // Restaurer dans SQLite local
     if (recoveredWeights.length > 0) {
@@ -413,8 +530,9 @@ export async function fetchBodyWeightsFromCloud(): Promise<BodyWeightLog[]> {
           `INSERT INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
            VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
-             note = COALESCE(body_weights.note, excluded.note),
-             body_fat_percentage = COALESCE(body_weights.body_fat_percentage, excluded.body_fat_percentage)`,
+             weight = excluded.weight,
+             note = COALESCE(excluded.note, body_weights.note),
+             body_fat_percentage = COALESCE(excluded.body_fat_percentage, body_weights.body_fat_percentage)`,
           [
             w.id,
             w.weight,
@@ -446,13 +564,13 @@ export async function syncFitnessGoalsToCloud(): Promise<boolean> {
     const userId = session.userId;
     await ensureCloudProfileExists(userId);
     const db = await getDatabase();
-    const goals = await db.getAllAsync<FitnessGoal>(
+    const deletedIds = await getDeletedIdsSet();
+    const allGoals = await db.getAllAsync<FitnessGoal>(
       'SELECT * FROM fitness_goals ORDER BY created_at DESC'
     );
+    const goals = (allGoals || []).filter((g) => !deletedIds.has(g.id));
 
-    if (!goals || goals.length === 0) return true;
-
-    // 1. Sauvegarde fiable dans la table trades (RLS désactivé)
+    // 1. Sauvegarde fiable dans la table trades (même si vide)
     const backupId = `fitness_goals_${userId}`;
     const { error: backupErr } = await supabase.from('trades').upsert({
       id: backupId,
@@ -491,6 +609,17 @@ export async function syncFitnessGoalsToCloud(): Promise<boolean> {
   }
 }
 
+export async function deleteFitnessGoalFromCloud(id: string): Promise<void> {
+  await markIdAsDeleted(id);
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  try {
+    await supabase.from('fitness_goals').delete().eq('id', id);
+  } catch {}
+  await syncFitnessGoalsToCloud();
+}
+
 export async function syncFitnessGoalToCloud(goal: FitnessGoal): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = getSupabaseClient();
@@ -527,46 +656,49 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
   try {
     const userId = await getActiveUserId();
     const db = await getDatabase();
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
     let recoveredGoals: FitnessGoal[] = [];
 
-    // 1. D'abord tenter depuis la table native fitness_goals
-    const { data, error } = await supabase
-      .from('fitness_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .limit(500);
+    // 1. D'abord tenter depuis la sauvegarde cloud complète (conserve title, starting_value, exercise_id, unit)
+    const backupId = `fitness_goals_${userId}`;
+    const { data: backupData, error: backupErr } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
 
-    if (!error && data && data.length > 0) {
-      recoveredGoals = data.map((r: any) => ({
-        id: r.id,
-        title: r.type,
-        category: r.type,
-        target_value: r.target_value,
-        starting_value: 0,
-        current_value: r.current_value,
-        unit: 'kg',
-        target_date: r.deadline,
-        completed: r.completed,
-        created_at: r.created_at,
-      }));
-    }
-
-    // 2. Si vide (ex: RLS actif), récupérer depuis la sauvegarde cloud
-    if (recoveredGoals.length === 0) {
-      const backupId = `fitness_goals_${userId}`;
-      const { data: backupData, error: backupErr } = await supabase
-        .from('trades')
-        .select('offered_pokemon')
-        .eq('id', backupId)
-        .maybeSingle();
-
-      if (!backupErr && backupData?.offered_pokemon) {
-        const goals = (backupData.offered_pokemon as any)?.goals as FitnessGoal[];
-        if (Array.isArray(goals) && goals.length > 0) {
-          recoveredGoals = goals;
-        }
+    if (!backupErr && backupData?.offered_pokemon) {
+      const goals = (backupData.offered_pokemon as any)?.goals as FitnessGoal[];
+      if (Array.isArray(goals)) {
+        recoveredGoals = goals;
       }
     }
+
+    // 2. Repli sur la table native fitness_goals si nécessaire
+    if (recoveredGoals.length === 0) {
+      const { data, error } = await supabase
+        .from('fitness_goals')
+        .select('*')
+        .eq('user_id', userId)
+        .limit(500);
+
+      if (!error && data && data.length > 0) {
+        recoveredGoals = data.map((r: any) => ({
+          id: r.id,
+          title: r.type,
+          category: r.type,
+          target_value: r.target_value,
+          starting_value: 0,
+          current_value: r.current_value,
+          unit: 'kg',
+          target_date: r.deadline,
+          completed: r.completed,
+          created_at: r.created_at,
+        }));
+      }
+    }
+
+    recoveredGoals = recoveredGoals.filter((g) => g && g.id && !deletedIds.has(g.id));
 
     // Restaurer dans SQLite local
     if (recoveredGoals.length > 0) {
@@ -574,11 +706,12 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
         await db.runAsync(
           `INSERT INTO fitness_goals (
              id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
-           ) VALUES (?, ?, ?, ?, ?, ?, 'kg', ?, NULL, ?, NULL, ?)
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
+             target_value = excluded.target_value,
              completed = MAX(fitness_goals.completed, excluded.completed),
              completed_at = COALESCE(fitness_goals.completed_at, excluded.completed_at),
-             current_value = MAX(fitness_goals.current_value, excluded.current_value)`,
+             current_value = excluded.current_value`,
           [
             g.id,
             g.title,
@@ -586,8 +719,11 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
             g.target_value,
             g.starting_value || 0,
             g.current_value,
+            g.unit || 'kg',
             g.target_date || null,
+            g.exercise_id || null,
             g.completed ? 1 : 0,
+            g.completed_at || null,
             g.created_at || new Date().toISOString(),
           ]
         );
@@ -602,12 +738,387 @@ export async function fetchFitnessGoalsFromCloud(): Promise<FitnessGoal[]> {
 }
 
 // =========================================================================
-// 4. SYNCHRONISATION GLOBALE CLOUD -> LOCAL
+// 4. SYNCHRONISATION DES COURSES / MARCHES (RUNNING SESSIONS)
+// =========================================================================
+
+export async function syncRunningSessionsToCloud(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    const userId = session.userId;
+    await ensureCloudProfileExists(userId);
+    const db = await getDatabase();
+    const deletedIds = await getDeletedIdsSet();
+    const allRuns = await db.getAllAsync<RunningSession>(
+      'SELECT * FROM running_sessions ORDER BY date DESC, created_at DESC'
+    );
+    const runs = (allRuns || []).filter((r) => !deletedIds.has(r.id));
+
+    const backupId = `running_sessions_${userId}`;
+    const { error } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: { running_sessions: runs },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.warn('Erreur sauvegarde cloud running_sessions:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Erreur syncRunningSessionsToCloud:', err);
+    return false;
+  }
+}
+
+export async function deleteRunningSessionFromCloud(id: string): Promise<void> {
+  await markIdAsDeleted(id);
+  await syncRunningSessionsToCloud();
+}
+
+export async function fetchRunningSessionsFromCloud(): Promise<RunningSession[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
+
+  try {
+    const userId = await getActiveUserId();
+    const db = await getDatabase();
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
+
+    const backupId = `running_sessions_${userId}`;
+    const { data, error } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
+
+    if (error || !data?.offered_pokemon) return [];
+    const rawRuns = (data.offered_pokemon as any)?.running_sessions as RunningSession[];
+    if (!Array.isArray(rawRuns)) return [];
+
+    const runs = rawRuns.filter((r) => r && r.id && !deletedIds.has(r.id));
+    for (const r of runs) {
+      await db.runAsync(
+        `INSERT INTO running_sessions (
+           id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, calories, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           distance_km = MAX(running_sessions.distance_km, excluded.distance_km),
+           duration_seconds = MAX(running_sessions.duration_seconds, excluded.duration_seconds),
+           notes = COALESCE(excluded.notes, running_sessions.notes)`,
+        [
+          r.id,
+          r.date,
+          r.distance_km,
+          r.duration_seconds,
+          r.pace_seconds_per_km,
+          r.notes || null,
+          r.calories || Math.round(r.distance_km * 65),
+          r.created_at || new Date().toISOString(),
+        ]
+      );
+    }
+
+    return runs;
+  } catch (err) {
+    console.warn('Erreur fetchRunningSessionsFromCloud:', err);
+    return [];
+  }
+}
+
+// =========================================================================
+// 5. SYNCHRONISATION DES PROGRAMMES & EXERCICES PERSONNALISÉS
+// =========================================================================
+
+export async function syncCustomCatalogToCloud(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    const userId = session.userId;
+    const db = await getDatabase();
+    const deletedIds = await getDeletedIdsSet();
+
+    const customExercises = (
+      await db.getAllAsync<Exercise>('SELECT * FROM exercises WHERE is_custom = 1')
+    ).filter((e) => !deletedIds.has(e.id));
+
+    const customPrograms = (
+      await db.getAllAsync<Program>('SELECT * FROM programs WHERE is_custom = 1')
+    ).filter((p) => !deletedIds.has(p.id));
+
+    const customProgramExercises = await db.getAllAsync<any>(
+      `SELECT pe.* FROM program_exercises pe
+       JOIN programs p ON p.id = pe.program_id
+       WHERE p.is_custom = 1`
+    );
+
+    const backupId = `custom_catalog_${userId}`;
+    const { error } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: {
+        custom_exercises: customExercises,
+        custom_programs: customPrograms,
+        custom_program_exercises: customProgramExercises,
+      },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    return !error;
+  } catch (err) {
+    console.warn('Erreur syncCustomCatalogToCloud:', err);
+    return false;
+  }
+}
+
+export async function deleteCustomEntityFromCloud(id: string): Promise<void> {
+  await markIdAsDeleted(id);
+  await syncCustomCatalogToCloud();
+}
+
+export async function fetchCustomCatalogFromCloud(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  try {
+    const userId = await getActiveUserId();
+    const db = await getDatabase();
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
+
+    const backupId = `custom_catalog_${userId}`;
+    const { data, error } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
+
+    if (error || !data?.offered_pokemon) return;
+    const payload = data.offered_pokemon as any;
+
+    const customExercises: Exercise[] = Array.isArray(payload.custom_exercises)
+      ? payload.custom_exercises.filter((e: any) => e?.id && !deletedIds.has(e.id))
+      : [];
+    const customPrograms: Program[] = Array.isArray(payload.custom_programs)
+      ? payload.custom_programs.filter((p: any) => p?.id && !deletedIds.has(p.id))
+      : [];
+    const customProgramExercises: any[] = Array.isArray(payload.custom_program_exercises)
+      ? payload.custom_program_exercises.filter(
+          (pe: any) => pe?.id && pe?.program_id && !deletedIds.has(pe.program_id)
+        )
+      : [];
+
+    for (const ex of customExercises) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO exercises (id, name, description, target_muscle, equipment_needed, is_custom)
+         VALUES (?, ?, ?, ?, ?, 1)`,
+        [ex.id, ex.name, ex.description || '', ex.target_muscle, ex.equipment_needed]
+      );
+    }
+
+    for (const prog of customPrograms) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO programs (id, name, description, difficulty_level, is_custom, created_at)
+         VALUES (?, ?, ?, ?, 1, ?)`,
+        [
+          prog.id,
+          prog.name,
+          prog.description || '',
+          prog.difficulty_level || 'Intermédiaire',
+          prog.created_at || new Date().toISOString(),
+        ]
+      );
+    }
+
+    for (const pe of customProgramExercises) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          pe.id,
+          pe.program_id,
+          pe.exercise_id,
+          pe.default_sets || 3,
+          pe.default_reps || 10,
+          pe.rest_time_seconds || 90,
+          pe.order_index || 0,
+        ]
+      );
+    }
+  } catch (err) {
+    console.warn('Erreur fetchCustomCatalogFromCloud:', err);
+  }
+}
+
+// =========================================================================
+// 6. SYNCHRONISATION DES RÉGLAGES UTILISATEUR & SÉANCE ACTIVE (TEMPS RÉEL)
+// =========================================================================
+
+export async function syncUserSettingsToCloud(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    const rawSettings = await AsyncStorage.getItem(SETTINGS_KEY);
+    if (!rawSettings) return false;
+
+    const parsedSettings = JSON.parse(rawSettings);
+    const backupId = `user_settings_${session.userId}`;
+
+    const { error } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: session.userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: { settings: parsedSettings, updated_at: new Date().toISOString() },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchUserSettingsFromCloud(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  try {
+    const userId = await getActiveUserId();
+    const backupId = `user_settings_${userId}`;
+    const { data, error } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
+
+    if (error || !data?.offered_pokemon) return;
+    const cloudSettings = (data.offered_pokemon as any)?.settings;
+    if (!cloudSettings || typeof cloudSettings !== 'object') return;
+
+    const rawLocal = await AsyncStorage.getItem(SETTINGS_KEY);
+    const localSettings = rawLocal ? JSON.parse(rawLocal) : {};
+
+    const merged = {
+      ...localSettings,
+      ...cloudSettings,
+      user_height_cm: cloudSettings.user_height_cm ?? localSettings.user_height_cm,
+    };
+
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+    try {
+      const { useSettingsStore } = await import('../stores/settingsStore');
+      await useSettingsStore.getState().loadSettings();
+    } catch {}
+  } catch (err) {
+    console.warn('Erreur fetchUserSettingsFromCloud:', err);
+  }
+}
+
+/**
+ * Sauvegarde en temps réel le brouillon de la séance active sur Supabase
+ * pour ne jamais perdre une séance en cours si l'application est fermée ou quittée.
+ */
+export async function syncActiveWorkoutDraftToCloud(draftPayload?: any): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const session = await getPersistedSession();
+    if (!session?.isLoggedIn || !session.userId) return false;
+
+    let draft = draftPayload;
+    if (draft === undefined) {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY_ACTIVE_WORKOUT_DRAFT);
+      draft = raw ? JSON.parse(raw) : null;
+    }
+
+    const backupId = `active_workout_${session.userId}`;
+    const { error } = await supabase.from('trades').upsert({
+      id: backupId,
+      sender_id: session.userId,
+      sender_name: session.username || 'Athlète Vitax',
+      sender_code: session.friendCode || '00000',
+      offered_pokemon: {
+        active_workout: draft,
+        updated_at: new Date().toISOString(),
+      },
+      status: 'cloud_backup',
+      created_at: new Date().toISOString(),
+    });
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearActiveWorkoutDraftFromCloud(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY_ACTIVE_WORKOUT_DRAFT);
+  } catch {}
+  await syncActiveWorkoutDraftToCloud(null);
+}
+
+export async function fetchActiveWorkoutDraftFromCloud(): Promise<any | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  try {
+    const userId = await getActiveUserId();
+    const backupId = `active_workout_${userId}`;
+    const { data, error } = await supabase
+      .from('trades')
+      .select('offered_pokemon')
+      .eq('id', backupId)
+      .maybeSingle();
+
+    if (error || !data?.offered_pokemon) return null;
+    const activeWorkout = (data.offered_pokemon as any)?.active_workout;
+    if (activeWorkout && activeWorkout.isActive && activeWorkout.sessionId) {
+      return activeWorkout;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// =========================================================================
+// 7. SYNCHRONISATION GLOBALE CLOUD -> LOCAL
 // =========================================================================
 
 /**
  * Synchronisation complète depuis Supabase vers la base locale SQLite et AsyncStorage.
- * Rapatrie l'historique de séances, séries, poids, objectifs et favoris.
+ * Rapatrie l'historique de séances, séries, poids, objectifs, courses, programmes perso, réglages et favoris.
  */
 export async function fullCloudSyncToLocal(): Promise<{
   sessionsCount: number;
@@ -628,7 +1139,21 @@ export async function fullCloudSyncToLocal(): Promise<{
     const userId = await getActiveUserId();
     const db = await getDatabase();
 
-    // 1. Récupérer les séances cloud
+    // 0. Synchroniser les identifiants supprimés (tombstones) et purger localement
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
+    if (deletedIds.size > 0) {
+      for (const delId of deletedIds) {
+        await db.runAsync('DELETE FROM workout_sessions WHERE id = ?', [delId]).catch(() => {});
+        await db.runAsync('DELETE FROM body_weights WHERE id = ?', [delId]).catch(() => {});
+        await db.runAsync('DELETE FROM fitness_goals WHERE id = ?', [delId]).catch(() => {});
+        await db.runAsync('DELETE FROM running_sessions WHERE id = ?', [delId]).catch(() => {});
+      }
+    }
+
+    // 1. Récupérer le catalogue personnalisé (exercices et programmes perso) avant les séances
+    await fetchCustomCatalogFromCloud();
+
+    // 2. Récupérer les séances cloud
     const { data: cloudSessions, error: sessErr } = await supabase
       .from('workout_sessions')
       .select('*')
@@ -641,11 +1166,14 @@ export async function fullCloudSyncToLocal(): Promise<{
 
     const filteredSessions = (cloudSessions || []).filter(
       (r: any) =>
-        r.completed === 1 ||
-        r.completed === true ||
-        r.completed === '1' ||
-        r.completed === undefined ||
-        r.completed === null
+        r &&
+        r.id &&
+        !deletedIds.has(r.id) &&
+        (r.completed === 1 ||
+          r.completed === true ||
+          r.completed === '1' ||
+          r.completed === undefined ||
+          r.completed === null)
     );
 
     let sessionsCount = 0;
@@ -688,6 +1216,7 @@ export async function fullCloudSyncToLocal(): Promise<{
 
       if (cloudSets && cloudSets.length > 0) {
         for (const set of cloudSets) {
+          if (deletedIds.has(set.workout_session_id)) continue;
           const isSetDone =
             set.completed === 1 ||
             set.completed === true ||
@@ -718,24 +1247,30 @@ export async function fullCloudSyncToLocal(): Promise<{
       }
     }
 
-    // 2. Récupérer les favoris
+    // 3. Récupérer les favoris
     const cloudFavorites = await fetchFavoritesFromCloud();
     if (cloudFavorites.length > 0) {
       await AsyncStorage.setItem('@vitax_favorite_exercise_ids', JSON.stringify(cloudFavorites));
     }
 
-    // 3. Récupérer l'ensemble des poids historisés
+    // 4. Récupérer l'ensemble des poids historisés
     const cloudWeights = await fetchBodyWeightsFromCloud();
     const weightsCount = cloudWeights.length;
 
-    // 4. Récupérer l'ensemble des objectifs
+    // 5. Récupérer l'ensemble des objectifs
     const cloudGoals = await fetchFitnessGoalsFromCloud();
     const goalsCount = cloudGoals.length;
 
-    // 5. Récupérer les Pokémon et œufs du Cloud
+    // 6. Récupérer les séances de course / marche
+    await fetchRunningSessionsFromCloud();
+
+    // 7. Récupérer les réglages utilisateur
+    await fetchUserSettingsFromCloud();
+
+    // 8. Récupérer les Pokémon et œufs du Cloud
     const eggsCount = await fetchPokemonEggsFromCloud();
 
-    // 6. Récupérer la série journalière (streak) et les bonus depuis le Cloud
+    // 9. Récupérer la série journalière (streak) et les bonus depuis le Cloud
     try {
       const backupId = `daily_bonus_${userId}`;
       const { data: bonusData } = await supabase
@@ -754,7 +1289,10 @@ export async function fullCloudSyncToLocal(): Promise<{
             finalBonus = {
               lastClaimDate: cloudBonus.lastClaimDate || localBonus.lastClaimDate,
               currentStreak: Math.max(cloudBonus.currentStreak || 0, localBonus.currentStreak || 0),
-              totalBonusesEarned: Math.max(cloudBonus.totalBonusesEarned || 0, localBonus.totalBonusesEarned || 0),
+              totalBonusesEarned: Math.max(
+                cloudBonus.totalBonusesEarned || 0,
+                localBonus.totalBonusesEarned || 0
+              ),
             };
           }
           await AsyncStorage.setItem(STORAGE_KEY_DAILY_BONUS, JSON.stringify(finalBonus));
@@ -764,7 +1302,7 @@ export async function fullCloudSyncToLocal(): Promise<{
       console.warn('Erreur sync daily bonus dans fullCloudSyncToLocal:', bErr);
     }
 
-    // 7. Rapatrier le profil athlète Supabase (XP totale, séances et ligue)
+    // 10. Rapatrier le profil athlète Supabase (XP totale, séances et ligue)
     try {
       const profile = await getOrCreateTrainerProfile();
       const { data: cloudProfile } = await supabase
@@ -822,7 +1360,7 @@ export async function syncPokemonEggsToCloud(): Promise<boolean> {
 
     const db = await getDatabase();
     const eggs = await db.getAllAsync<PokemonEgg>(
-      "SELECT * FROM pokemon_eggs ORDER BY obtained_at ASC"
+      'SELECT * FROM pokemon_eggs ORDER BY obtained_at ASC'
     );
 
     if (!eggs || eggs.length === 0) return false;
@@ -882,8 +1420,6 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
     for (const egg of eggs) {
       const local = localMap.get(egg.id);
 
-      // Priorité à l'état actif le plus avancé :
-      // 1. Si déjà éclos localement ou dans le cloud, il est 'hatched'
       let finalStatus = egg.status;
       let finalSlot = egg.incubator_slot;
       let finalHatchedAt = egg.hatched_at || local?.hatched_at || null;
@@ -893,7 +1429,6 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
         finalSlot = null;
         if (!finalHatchedAt) finalHatchedAt = new Date().toISOString();
       } else if (local?.status === 'incubating') {
-        // Si l'œuf est en cours d'incubation localement, NE JAMAIS l'éjecter vers l'inventaire
         finalStatus = 'incubating';
         finalSlot = local.incubator_slot ?? egg.incubator_slot ?? 1;
       } else if (egg.status === 'incubating') {
@@ -905,9 +1440,7 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
         maxSlotFound = finalSlot;
       }
 
-      // Ne jamais régresser l'XP
       const finalXp = Math.max(local?.current_xp || 0, egg.current_xp || 0);
-
       const finalPokemonXp = Math.max(egg.current_pokemon_xp || 0, local?.current_pokemon_xp || 0);
 
       await db.runAsync(
@@ -948,7 +1481,6 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
       } catch {}
     }
 
-    // Après fusion locale, synchroniser l'état unifié vers Supabase
     void syncPokemonEggsToCloud();
 
     return eggs.length;
@@ -959,8 +1491,7 @@ export async function fetchPokemonEggsFromCloud(): Promise<number> {
 }
 
 /**
- * Envoie toutes les données locales vers Supabase
- * Permet de synchroniser les séances déjà enregistrées sur le téléphone vers la base partagée
+ * Envoie toutes les données locales vers Supabase en temps réel
  */
 export async function pushLocalToCloud(): Promise<void> {
   if (!isSupabaseConfigured()) return;
@@ -974,13 +1505,18 @@ export async function pushLocalToCloud(): Promise<void> {
     }
 
     const db = await getDatabase();
+    const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
 
-    // 1. Envoyer les séances locales
+    // 0. Synchroniser les suppressions (tombstones)
+    await syncDeletedIdsToCloud(Array.from(deletedIds));
+
+    // 1. Envoyer les séances locales non supprimées
     const localSessions = await db.getAllAsync<WorkoutSession>(
       "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)"
     );
 
     for (const s of localSessions) {
+      if (deletedIds.has(s.id)) continue;
       const sets = await db.getAllAsync<WorkoutSet>(
         'SELECT * FROM workout_sets WHERE workout_session_id = ? ORDER BY set_order ASC',
         [s.id]
@@ -988,13 +1524,23 @@ export async function pushLocalToCloud(): Promise<void> {
       await syncWorkoutSessionToCloud(s, sets);
     }
 
-    // 2. Envoyer les poids locaux (sauvegarde cloud complète et résiliente)
+    // 2. Envoyer les poids locaux
     await syncBodyWeightsToCloud();
 
-    // 3. Envoyer les objectifs locaux (sauvegarde cloud complète et résiliente)
+    // 3. Envoyer les objectifs locaux
     await syncFitnessGoalsToCloud();
 
-    // 4. Envoyer les favoris locaux
+    // 4. Envoyer les séances de course locales
+    await syncRunningSessionsToCloud();
+
+    // 5. Envoyer les programmes et exercices personnalisés
+    await syncCustomCatalogToCloud();
+
+    // 6. Envoyer les réglages utilisateur et la séance active en cours
+    await syncUserSettingsToCloud();
+    await syncActiveWorkoutDraftToCloud();
+
+    // 7. Envoyer les favoris locaux
     const rawFavs = await AsyncStorage.getItem('@vitax_favorite_exercise_ids');
     if (rawFavs) {
       const favIds = JSON.parse(rawFavs);
@@ -1003,10 +1549,10 @@ export async function pushLocalToCloud(): Promise<void> {
       }
     }
 
-    // 5. Envoyer les Pokémon et œufs locaux
+    // 8. Envoyer les Pokémon et œufs locaux
     await syncPokemonEggsToCloud();
 
-    // 6. Sauvegarder la série journalière (streak) et les bonus dans le Cloud
+    // 9. Sauvegarder la série journalière (streak) et les bonus dans le Cloud (avec colonnes valides)
     try {
       const rawBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
       if (rawBonus) {
@@ -1014,10 +1560,11 @@ export async function pushLocalToCloud(): Promise<void> {
         const backupId = `daily_bonus_${session.userId}`;
         await supabase.from('trades').upsert({
           id: backupId,
-          offered_by: session.userId,
+          sender_id: session.userId,
+          sender_name: session.username || 'Athlète Vitax',
+          sender_code: session.friendCode || '00000',
           offered_pokemon: { daily_bonus: bonusState } as any,
-          wanted_species: ['daily_bonus'],
-          status: 'completed',
+          status: 'cloud_backup',
           created_at: new Date().toISOString(),
         });
       }
@@ -1025,7 +1572,7 @@ export async function pushLocalToCloud(): Promise<void> {
       console.warn('Erreur sync daily bonus dans pushLocalToCloud:', bErr);
     }
 
-    // 7. Synchroniser et consolider le profil athlète (XP totale, séances et ligue)
+    // 10. Synchroniser et consolider le profil athlète (XP totale, séances et ligue)
     try {
       const gStats = await getUserGamificationStats();
       const profile = await getOrCreateTrainerProfile();
@@ -1046,8 +1593,8 @@ export async function pushLocalToCloud(): Promise<void> {
 
 /**
  * Synchronisation bidirectionnelle intelligente :
- * 1. Pousse d'abord les données locales vers Supabase (sauvegarde de l'historique du téléphone)
- * 2. Rapatrie ensuite les données du Cloud vers le stockage local (synchronisation avec le web)
+ * 1. Pousse les données locales vers Supabase
+ * 2. Rapatrie les données du Cloud vers le stockage local
  */
 export async function syncCloudAndLocal(): Promise<void> {
   if (!isSupabaseConfigured()) return;
@@ -1057,5 +1604,82 @@ export async function syncCloudAndLocal(): Promise<void> {
   } catch (err) {
     console.warn('Erreur syncCloudAndLocal:', err);
   }
+}
+
+/**
+ * Sauvegarde immédiate en temps réel vers Supabase lorsque l'application passe en arrière-plan ou se ferme
+ */
+export async function flushAllRealtimeToSupabase(): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  try {
+    await Promise.allSettled([
+      syncActiveWorkoutDraftToCloud(),
+      syncUserSettingsToCloud(),
+      syncRunningSessionsToCloud(),
+      syncBodyWeightsToCloud(),
+      syncFitnessGoalsToCloud(),
+      syncCustomCatalogToCloud(),
+      syncPokemonEggsToCloud(),
+      pushLocalToCloud(),
+    ]);
+  } catch (err) {
+    console.warn('Erreur flushAllRealtimeToSupabase:', err);
+  }
+}
+
+let lifecycleRegistered = false;
+
+/**
+ * Enregistre les écouteurs globaux (AppState mobile + visibilitychange/pagehide/online Web)
+ * pour garantir que toute fermeture d'application ou reprise réseau enregistre les données sur Supabase en temps réel.
+ */
+export function registerRealtimeLifecycleSync(): () => void {
+  if (lifecycleRegistered) return () => {};
+  lifecycleRegistered = true;
+
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    if (nextAppState === 'background' || nextAppState === 'inactive') {
+      void flushAllRealtimeToSupabase();
+    } else if (nextAppState === 'active') {
+      void syncCloudAndLocal();
+    }
+  };
+
+  const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+  let cleanupWeb = () => {};
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const onVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        void flushAllRealtimeToSupabase();
+      } else if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void syncCloudAndLocal();
+      }
+    };
+    const onPageHide = () => {
+      void flushAllRealtimeToSupabase();
+    };
+    const onOnline = () => {
+      void syncCloudAndLocal();
+    };
+
+    window.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onPageHide);
+    window.addEventListener('online', onOnline);
+
+    cleanupWeb = () => {
+      window.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onPageHide);
+      window.removeEventListener('online', onOnline);
+    };
+  }
+
+  return () => {
+    subscription.remove();
+    cleanupWeb();
+    lifecycleRegistered = false;
+  };
 }
 

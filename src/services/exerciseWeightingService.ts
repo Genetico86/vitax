@@ -265,8 +265,10 @@ export function computeSetXp(params: {
 
   const bodyweight = params.userBodyweightKg && params.userBodyweightKg > 30 ? params.userBodyweightKg : 75;
   const bwExtra = bodyweight * profile.bodyweightDisplacementRatio;
-  const effectiveWeightKg = Math.round((params.weight + bwExtra) * 10) / 10;
-  const workVolumeKg = Math.round(effectiveWeightKg * Math.max(1, params.reps));
+  const safeWeight = Math.min(Math.max(0, Number(params.weight) || 0), 500);
+  const safeReps = Math.min(Math.max(1, Math.round(Number(params.reps) || 1)), 200);
+  const effectiveWeightKg = Math.round((safeWeight + bwExtra) * 10) / 10;
+  const workVolumeKg = Math.round(effectiveWeightKg * safeReps);
 
   // Base par série validée (effort d'exécution)
   const baseSetXp = 10;
@@ -274,11 +276,11 @@ export function computeSetXp(params: {
   // XP volume pondéré par le coefficient de difficulté
   // Pour les exercices d'isolation légers (ex: élévations 10 kg), un facteur de compensation assure une récompense équitable
   let adjustedVolume = workVolumeKg;
-  if (profile.difficultyCoef < 1.0 && params.weight > 0 && params.weight <= 20) {
+  if (profile.difficultyCoef < 1.0 && safeWeight > 0 && safeWeight <= 20) {
     adjustedVolume = workVolumeKg * 1.6;
   }
 
-  const volumeXp = Math.max(1, Math.round((adjustedVolume * profile.difficultyCoef) / 45));
+  const volumeXp = Math.min(180, Math.max(1, Math.round((adjustedVolume * profile.difficultyCoef) / 45)));
   const totalSetXp = baseSetXp + volumeXp;
 
   return {

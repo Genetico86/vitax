@@ -1,8 +1,10 @@
 import { Equipment } from '../types';
 import { EQUIPMENTS } from '../constants/muscles';
+import { useSettingsStore } from '../stores/settingsStore';
 
 export interface ExerciseUnitInfo {
   isDuration: boolean;
+  isTimeBased: boolean;
   valueUnit: string;
   valueLabel: string;
   loadUnit: string;
@@ -66,10 +68,7 @@ export function isDurationExercise(exercise?: {
 }
 
 /**
- * Fournit les unités et libellés adaptés au matériel utilisé.
- * En vélo, tapis de course et rameur : on parle en minutes pour la durée,
- * et en vitesse (km/h) ou résistance pour l'intensité.
- * En musculation et renforcement : Charge (kg) et Répétitions (reps).
+ * Fournit les unités et libellés adaptés au matériel utilisé et au réglage kg/lbs.
  */
 export function getExerciseUnitInfo(exercise?: {
   id?: string;
@@ -107,6 +106,7 @@ export function getExerciseUnitInfo(exercise?: {
 
     return {
       isDuration: true,
+      isTimeBased: true,
       valueUnit: 'min',
       valueLabel: 'DURÉE',
       loadUnit,
@@ -121,16 +121,22 @@ export function getExerciseUnitInfo(exercise?: {
     };
   }
 
+  let unit: 'kg' | 'lbs' = 'kg';
+  try {
+    unit = useSettingsStore.getState().weight_unit || 'kg';
+  } catch {}
+
   return {
     isDuration: false,
+    isTimeBased: false,
     valueUnit: 'reps',
     valueLabel: 'REPS',
-    loadUnit: 'kg',
-    loadLabel: 'CHARGE',
+    loadUnit: unit,
+    loadLabel: `CHARGE (${unit.toUpperCase()})`,
     defaultStep: 1, // Pas de 1 rep
     formatSet: (weight: number, reps: number) => {
       if (weight > 0) {
-        return `${reps} reps @ ${weight} kg`;
+        return `${reps} reps @ ${weight} ${unit}`;
       }
       return `${reps} reps`;
     },

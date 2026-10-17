@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Modal,
-  Alert,
   TextInput,
   KeyboardAvoidingView,
   Platform,
@@ -40,6 +39,9 @@ import {
   ActiveBuddyInfo,
   ActiveBuddyBuffInfo,
 } from '../../services/pokemonEggService';
+import { isProgramCompatibleByEquipmentString } from '../../utils/exerciseUnits';
+import { WeightHomeWidget } from '../../components/weight/WeightHomeWidget';
+import { showAlert } from '../../utils/alert';
 
 export default function HomeScreen() {
   const { height: screenHeight } = useWindowDimensions();
@@ -591,7 +593,14 @@ export default function HomeScreen() {
   // Modal Badges & Pokémon Hub
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
 
-  const { user_name } = useSettingsStore();
+  const { user_name, available_equipments, filter_by_available_equipment } = useSettingsStore();
+
+  const compatibleProgramsCount = useMemo(() => {
+    if (!filter_by_available_equipment) return programs.length;
+    return programs.filter((p) =>
+      isProgramCompatibleByEquipmentString(p, available_equipments)
+    ).length;
+  }, [programs, filter_by_available_equipment, available_equipments]);
 
   const handleSaveName = async () => {
     const trimmed = nameInput.trim();
@@ -1021,7 +1030,7 @@ export default function HomeScreen() {
             <View style={styles.cardTextCol}>
               <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={2}>Programmes</Text>
               <Text style={[styles.secondaryColSub, { color: '#60A5FA' }, dynamic.cardSub]} numberOfLines={1}>
-                {programs.length} disponible{programs.length > 1 ? 's' : ''}
+                {compatibleProgramsCount} disponible{compatibleProgramsCount > 1 ? 's' : ''}
               </Text>
             </View>
           </TouchableOpacity>
@@ -1113,6 +1122,49 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* ======================================================== */}
+        {/* 5. RANGÉE 4 : COURSE / MARCHE & SUIVI DU POIDS           */}
+        {/* ======================================================== */}
+        <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
+          <TouchableOpacity
+            style={[styles.secondaryColCard, dynamic.cardRow, { borderColor: '#10B98155' }]}
+            onPress={() => router.push('/running')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir le suivi de course à pied et marche"
+          >
+            <View style={[styles.secondaryIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: '#10B981' }, dynamic.iconCircle]}>
+              <Text style={{ fontSize: dynamic.cardIconSize }}>🏃‍♂️</Text>
+            </View>
+            <View style={styles.cardTextCol}>
+              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Course & Marche</Text>
+              <Text style={[styles.secondaryColSub, { color: '#34D399' }, dynamic.cardSub]} numberOfLines={1}>
+                Chrono • Allure • Km
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.secondaryColCard, dynamic.cardRow, { borderColor: '#3B82F655' }]}
+            onPress={() => router.push('/exercises')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir le catalogue complet des exercices"
+          >
+            <View style={[styles.secondaryIconCircle, { backgroundColor: 'rgba(59, 130, 246, 0.16)', borderColor: '#3B82F6' }, dynamic.iconCircle]}>
+              <Text style={{ fontSize: dynamic.cardIconSize }}>📖</Text>
+            </View>
+            <View style={styles.cardTextCol}>
+              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Catalogue</Text>
+              <Text style={[styles.secondaryColSub, { color: '#60A5FA' }, dynamic.cardSub]} numberOfLines={1}>
+                Guides & Postures
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <WeightHomeWidget />
       </ScrollView>
 
       {/* ======================================================== */}
@@ -1193,7 +1245,7 @@ export default function HomeScreen() {
                     onPress={() => {
                       const currentTotalXp = effectiveLevelInfo?.currentXp ?? 0;
                       const remaining = Math.max(0, tier.minXp - currentTotalXp);
-                      Alert.alert(
+                      showAlert(
                         `${tier.emoji} ${tier.badgeName}`,
                         `${tier.description}\n\n` +
                         `🏛️ Arène : ${tier.city} (${tier.champion}) • ${tier.type}\n` +

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import {
   ActiveWorkoutExerciseItem,
@@ -19,12 +20,20 @@ import {
 } from '../services/pokemonEggService';
 import { useSettingsStore } from './settingsStore';
 import { computeSetXp, claimDailyWorkoutBonus } from '../services/exerciseWeightingService';
+import { getExerciseUnitInfo } from '../utils/exerciseUnits';
+import {
+  STORAGE_KEY_ACTIVE_WORKOUT_DRAFT,
+  syncActiveWorkoutDraftToCloud,
+  clearActiveWorkoutDraftFromCloud,
+  fetchActiveWorkoutDraftFromCloud,
+} from '../services/cloudSyncService';
 
 interface RestTimerState {
   isRunning: boolean;
   totalDuration: number;
   remainingSeconds: number;
   exerciseName: string;
+  endTime?: number | null;
 }
 
 interface WorkoutSessionState {
@@ -47,7 +56,8 @@ interface WorkoutSessionState {
     inventoryFullNotice?: boolean;
   } | null;
 
-  // Actions d'initialisation
+  // Actions d'initialisation et restauration
+  restoreActiveWorkoutIfAny: () => Promise<boolean>;
   startWorkoutFromProgram: (programId: string) => Promise<void>;
   startFreeWorkout: () => void;
   startTargetedWorkout: (targetName: string, exercisesToInclude: Exercise[]) => Promise<void>;
@@ -64,7 +74,12 @@ interface WorkoutSessionState {
   finishWorkout: () => Promise<{ session: WorkoutSession; sets: WorkoutSet[] } | null>;
 
   // Gestion des exercices
-  addExerciseToWorkout: (exercise: Exercise, defaultSets?: number, defaultReps?: number, restSec?: number) => Promise<void>;
+  addExerciseToWorkout: (
+    exercise: Exercise,
+    defaultSets?: number,
+    defaultReps?: number,
+    restSec?: number
+  ) => Promise<void>;
   removeExerciseFromWorkout: (exerciseIndex: number) => void;
 
   // Gestion des séries
@@ -87,7 +102,7 @@ function computeSessionXpFromExercises(exercises: ActiveWorkoutExerciseItem[]): 
   let sessionXp = 0;
   exercises.forEach((ex) => {
     ex.sets.forEach((s) => {
-      if (s.completed || (s.weight > 0 && s.reps > 0)) {
+      if (s.completed) {
         const computed = computeSetXp({
           exerciseName: ex.exercise.name,
           targetMuscle: ex.exercise.target_muscle,
@@ -100,6 +115,42 @@ function computeSessionXpFromExercises(exercises: ActiveWorkoutExerciseItem[]): 
     });
   });
   return sessionXp;
+}
+
+let draftSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function persistActiveWorkoutDraft(state: WorkoutSessionState, immediateCloud = false): void {
+  if (!state.isActive || !state.sessionId) return;
+  const payload = {
+    isActive: state.isActive,
+    sessionId: state.sessionId,
+    programId: state.programId,
+    programName: state.programName,
+    startTime: state.startTime,
+    elapsedSeconds: state.elapsedSeconds,
+    notes: state.notes,
+    exercises: state.exercises,
+    restTimer: state.restTimer,
+    activeSessionXp: state.activeSessionXp,
+    savedAt: Date.now(),
+  };
+
+  void AsyncStorage.setItem(STORAGE_KEY_ACTIVE_WORKOUT_DRAFT, JSON.stringify(payload)).catch(
+    () => {}
+  );
+
+  if (immediateCloud) {
+    if (draftSyncTimeout) {
+      clearTimeout(draftSyncTimeout);
+      draftSyncTimeout = null;
+    }
+    void syncActiveWorkoutDraftToCloud(payload);
+  } else {
+    if (draftSyncTimeout) clearTimeout(draftSyncTimeout);
+    draftSyncTimeout = setTimeout(() => {
+      void syncActiveWorkoutDraftToCloud(payload);
+    }, 600);
+  }
 }
 
 export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => ({
@@ -116,9 +167,70 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     totalDuration: 90,
     remainingSeconds: 0,
     exerciseName: '',
+    endTime: null,
   },
   activeSessionXp: 0,
   lastCompletedSession: null,
+
+  restoreActiveWorkoutIfAny: async () => {
+    if (get().isActive && get().sessionId) return true;
+    try {
+      let draft: any = null;
+      const rawLocal = await AsyncStorage.getItem(STORAGE_KEY_ACTIVE_WORKOUT_DRAFT);
+      if (rawLocal) {
+        draft = JSON.parse(rawLocal);
+      }
+      if (!draft || !draft.isActive || !draft.sessionId) {
+        draft = await fetchActiveWorkoutDraftFromCloud();
+        if (draft) {
+          await AsyncStorage.setItem(STORAGE_KEY_ACTIVE_WORKOUT_DRAFT, JSON.stringify(draft));
+        }
+      }
+
+      if (draft && draft.isActive && draft.sessionId) {
+        const now = Date.now();
+        const startTime = draft.startTime || now;
+        const elapsedSeconds = Math.max(
+          draft.elapsedSeconds || 0,
+          Math.floor((now - startTime) / 1000)
+        );
+
+        let restTimer: RestTimerState = draft.restTimer || {
+          isRunning: false,
+          totalDuration: 90,
+          remainingSeconds: 0,
+          exerciseName: '',
+          endTime: null,
+        };
+        if (restTimer.isRunning && restTimer.endTime) {
+          const rem = Math.max(0, Math.ceil((restTimer.endTime - now) / 1000));
+          restTimer = {
+            ...restTimer,
+            isRunning: rem > 0,
+            remainingSeconds: rem,
+          };
+        }
+
+        const exercises = Array.isArray(draft.exercises) ? draft.exercises : [];
+        set({
+          isActive: true,
+          sessionId: draft.sessionId,
+          programId: draft.programId ?? null,
+          programName: draft.programName ?? 'Séance libre',
+          startTime,
+          elapsedSeconds,
+          notes: draft.notes ?? '',
+          exercises,
+          restTimer,
+          activeSessionXp: computeSessionXpFromExercises(exercises),
+        });
+        return true;
+      }
+    } catch (err) {
+      console.warn('Erreur restauration séance active:', err);
+    }
+    return false;
+  },
 
   startWorkoutFromProgram: async (programId: string) => {
     const data = await getProgramById(programId);
@@ -170,13 +282,16 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       elapsedSeconds: 0,
       notes: '',
       exercises: activeExercises,
+      activeSessionXp: 0,
       restTimer: {
         isRunning: false,
         totalDuration: defaultRest,
         remainingSeconds: 0,
         exerciseName: '',
+        endTime: null,
       },
     });
+    persistActiveWorkoutDraft(get(), true);
   },
 
   startFreeWorkout: () => {
@@ -190,13 +305,16 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       elapsedSeconds: 0,
       notes: '',
       exercises: [],
+      activeSessionXp: 0,
       restTimer: {
         isRunning: false,
         totalDuration: defaultRest,
         remainingSeconds: 0,
         exerciseName: '',
+        endTime: null,
       },
     });
+    persistActiveWorkoutDraft(get(), true);
   },
 
   startTargetedWorkout: async (targetName: string, exercisesToInclude: Exercise[]) => {
@@ -238,13 +356,16 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       elapsedSeconds: 0,
       notes: '',
       exercises: activeExercises,
+      activeSessionXp: 0,
       restTimer: {
         isRunning: false,
         totalDuration: defaultRest,
         remainingSeconds: 0,
         exerciseName: '',
+        endTime: null,
       },
     });
+    persistActiveWorkoutDraft(get(), true);
   },
 
   startCustomConfiguredWorkout: async (
@@ -292,16 +413,23 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       elapsedSeconds: 0,
       notes: '',
       exercises: activeExercises,
+      activeSessionXp: 0,
       restTimer: {
         isRunning: false,
         totalDuration: defaultRest,
         remainingSeconds: 0,
         exerciseName: '',
+        endTime: null,
       },
     });
+    persistActiveWorkoutDraft(get(), true);
   },
 
   cancelWorkout: () => {
+    if (draftSyncTimeout) {
+      clearTimeout(draftSyncTimeout);
+      draftSyncTimeout = null;
+    }
     set({
       isActive: false,
       sessionId: null,
@@ -311,13 +439,16 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       elapsedSeconds: 0,
       notes: '',
       exercises: [],
+      activeSessionXp: 0,
       restTimer: {
         isRunning: false,
         totalDuration: 90,
         remainingSeconds: 0,
         exerciseName: '',
+        endTime: null,
       },
     });
+    void clearActiveWorkoutDraftFromCloud();
   },
 
   addExerciseToWorkout: async (
@@ -353,12 +484,18 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
         },
       ],
     }));
+    persistActiveWorkoutDraft(get(), true);
   },
 
   removeExerciseFromWorkout: (exerciseIndex: number) => {
-    set((state) => ({
-      exercises: state.exercises.filter((_, idx) => idx !== exerciseIndex),
-    }));
+    set((state) => {
+      const updated = state.exercises.filter((_, idx) => idx !== exerciseIndex);
+      return {
+        exercises: updated,
+        activeSessionXp: computeSessionXpFromExercises(updated),
+      };
+    });
+    persistActiveWorkoutDraft(get(), true);
   },
 
   addSetToExercise: (exerciseIndex: number) => {
@@ -383,6 +520,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
 
       return { exercises: updated };
     });
+    persistActiveWorkoutDraft(get(), false);
   },
 
   removeSetFromExercise: (exerciseIndex: number, setIndex: number) => {
@@ -392,13 +530,16 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       if (!targetEx) return state;
 
       targetEx.sets = targetEx.sets.filter((_, idx) => idx !== setIndex);
-      // Réajuster l'ordre
       targetEx.sets.forEach((s, idx) => {
         s.set_order = idx + 1;
       });
 
-      return { exercises: updated };
+      return {
+        exercises: updated,
+        activeSessionXp: computeSessionXpFromExercises(updated),
+      };
     });
+    persistActiveWorkoutDraft(get(), false);
   },
 
   updateSetValues: (exerciseIndex: number, setIndex: number, weight: number, reps: number) => {
@@ -413,6 +554,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       const liveXp = computeSessionXpFromExercises(updated);
       return { exercises: updated, activeSessionXp: liveXp };
     });
+    persistActiveWorkoutDraft(get(), false);
   },
 
   toggleSetCompleted: (exerciseIndex: number, setIndex: number) => {
@@ -431,12 +573,10 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       if (hapticEnabled) {
         try {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } catch {
-          // ignore if haptics unavailable on emulator
-        }
+        } catch {}
       }
 
-      // Lancement automatique du chronomètre de repos
+      // Lancement automatique du chronomètre de repos basé sur horodatage réel
       state.startRestTimer(targetEx.rest_time_seconds, targetEx.exercise.name);
     } else {
       if (hapticEnabled) {
@@ -448,35 +588,52 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
 
     const liveXp = computeSessionXpFromExercises(updated);
     set({ exercises: updated, activeSessionXp: liveXp });
+    persistActiveWorkoutDraft(get(), true);
   },
 
   tickWorkoutTimer: () => {
-    set((state) => ({ elapsedSeconds: state.elapsedSeconds + 1 }));
+    set((state) => {
+      if (!state.isActive) return state;
+      const elapsed = state.startTime
+        ? Math.max(0, Math.floor((Date.now() - state.startTime) / 1000))
+        : state.elapsedSeconds + 1;
+      return { elapsedSeconds: elapsed };
+    });
   },
 
   startRestTimer: (seconds: number, exerciseName: string) => {
+    const endTime = Date.now() + seconds * 1000;
     set({
       restTimer: {
         isRunning: true,
         totalDuration: seconds,
         remainingSeconds: seconds,
         exerciseName,
+        endTime,
       },
     });
   },
 
   adjustRestTimer: (deltaSeconds: number) => {
     set((state) => {
-      const newRemaining = Math.max(0, state.restTimer.remainingSeconds + deltaSeconds);
+      const now = Date.now();
+      const currentRem = state.restTimer.endTime
+        ? Math.max(0, Math.ceil((state.restTimer.endTime - now) / 1000))
+        : state.restTimer.remainingSeconds;
+      const newRemaining = Math.max(0, currentRem + deltaSeconds);
       const newTotal = Math.max(newRemaining, state.restTimer.totalDuration + deltaSeconds);
+      const newEndTime = now + newRemaining * 1000;
       return {
         restTimer: {
           ...state.restTimer,
+          isRunning: newRemaining > 0,
           remainingSeconds: newRemaining,
           totalDuration: newTotal,
+          endTime: newEndTime,
         },
       };
     });
+    persistActiveWorkoutDraft(get(), false);
   },
 
   skipRestTimer: () => {
@@ -485,15 +642,22 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
         ...state.restTimer,
         isRunning: false,
         remainingSeconds: 0,
+        endTime: null,
       },
     }));
+    persistActiveWorkoutDraft(get(), false);
   },
 
   tickRestTimer: () => {
     const state = get();
     if (!state.restTimer.isRunning) return;
 
-    if (state.restTimer.remainingSeconds <= 1) {
+    const now = Date.now();
+    const remaining = state.restTimer.endTime
+      ? Math.max(0, Math.ceil((state.restTimer.endTime - now) / 1000))
+      : Math.max(0, state.restTimer.remainingSeconds - 1);
+
+    if (remaining <= 0) {
       const hapticEnabled = useSettingsStore.getState().haptic_enabled;
       if (hapticEnabled) {
         try {
@@ -505,13 +669,14 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
           ...state.restTimer,
           isRunning: false,
           remainingSeconds: 0,
+          endTime: null,
         },
       });
-    } else {
+    } else if (remaining !== state.restTimer.remainingSeconds) {
       set({
         restTimer: {
           ...state.restTimer,
-          remainingSeconds: state.restTimer.remainingSeconds - 1,
+          remainingSeconds: remaining,
         },
       });
     }
@@ -519,22 +684,34 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
 
   setNotes: (notes: string) => {
     set({ notes });
+    persistActiveWorkoutDraft(get(), false);
   },
 
   finishWorkout: async () => {
     const state = get();
     if (!state.sessionId) return null;
 
+    if (draftSyncTimeout) {
+      clearTimeout(draftSyncTimeout);
+      draftSyncTimeout = null;
+    }
+
     const allSets: WorkoutSet[] = [];
     let completedCount = 0;
     let totalVol = 0;
 
     state.exercises.forEach((exItem) => {
+      const unitInfo = getExerciseUnitInfo(exItem.exercise);
+      const isCardioOrTimeOnly = unitInfo.isTimeBased || unitInfo.loadUnit === 'km/h';
+
       exItem.sets.forEach((s) => {
-        const isEffectivelyCompleted = s.completed || s.reps > 0;
+        // Ne comptabiliser que les séries explicitement validées par l'utilisateur
+        const isEffectivelyCompleted = Boolean(s.completed);
         if (isEffectivelyCompleted) {
           completedCount += 1;
-          totalVol += s.weight * s.reps;
+          if (!isCardioOrTimeOnly) {
+            totalVol += (s.weight || 0) * (s.reps || 0);
+          }
         }
         allSets.push({
           id: s.id,
@@ -548,20 +725,25 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       });
     });
 
+    const finalElapsedSeconds = state.startTime
+      ? Math.max(state.elapsedSeconds, Math.floor((Date.now() - state.startTime) / 1000))
+      : state.elapsedSeconds;
+
     const session: WorkoutSession = {
       id: state.sessionId,
       program_id: state.programId,
       program_name: state.programName,
       date: new Date().toISOString(),
-      duration_seconds: state.elapsedSeconds,
+      duration_seconds: finalElapsedSeconds,
       notes: state.notes || null,
-      total_volume: totalVol,
+      total_volume: Math.round(totalVol),
       total_sets: completedCount,
       completed: 1,
     };
 
-    // Sauvegarde immédiate dans SQLite
+    // Sauvegarde immédiate dans SQLite + synchronisation temps réel vers Supabase
     await saveWorkoutSession(session, allSets);
+    void clearActiveWorkoutDraftFromCloud();
 
     // Calcul de l'XP biomécanique des séries + bonus journalier d'entraînement
     const setsXp = computeSessionXpFromExercises(state.exercises);
@@ -584,7 +766,10 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       if (buddyBuff) {
         if (buddyBuff.type === 'combat') {
           buddyBonusXp += Math.round(setsXp * 0.10);
-        } else if (buddyBuff.type === 'feu' && (session.duration_seconds >= 2400 || completedCount >= 10)) {
+        } else if (
+          buddyBuff.type === 'feu' &&
+          (session.duration_seconds >= 2400 || completedCount >= 10)
+        ) {
           buddyBonusXp += Math.round(setsXp * 0.10);
         } else if (buddyBuff.type === 'roche' && (session.total_volume || 0) >= 2000) {
           const tonnes = Math.floor((session.total_volume || 0) / 2000);
@@ -654,6 +839,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
         totalDuration: 90,
         remainingSeconds: 0,
         exerciseName: '',
+        endTime: null,
       },
       lastCompletedSession: {
         session,
@@ -668,3 +854,4 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     return { session, sets: allSets };
   },
 }));
+

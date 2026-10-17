@@ -26,7 +26,6 @@ export const EQUIPMENTS: Equipment[] = [
   'Vélo elliptique',
   'Corde à sauter',
   'Roue abdominale',
-  'Cardio',
 ];
 
 export const DIFFICULTY_LEVELS: DifficultyLevel[] = [

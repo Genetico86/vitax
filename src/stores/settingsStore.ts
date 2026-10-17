@@ -20,6 +20,26 @@ interface SettingsState extends UserPreferences {
 
 const SETTINGS_KEY = '@vitax_user_settings';
 
+async function persistAndSyncSettings(state: SettingsState): Promise<void> {
+  await AsyncStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      user_name: state.user_name,
+      user_height_cm: state.user_height_cm,
+      available_equipments: state.available_equipments,
+      filter_by_available_equipment: state.filter_by_available_equipment,
+      default_rest_seconds: state.default_rest_seconds,
+      haptic_enabled: state.haptic_enabled,
+      sound_enabled: state.sound_enabled,
+      weight_unit: state.weight_unit,
+    })
+  );
+  try {
+    const { syncUserSettingsToCloud } = await import('../services/cloudSyncService');
+    void syncUserSettingsToCloud();
+  } catch {}
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   user_name: '',
   user_height_cm: undefined,
@@ -40,7 +60,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           user_name: parsed.user_name ?? '',
           user_height_cm: parsed.user_height_cm ?? undefined,
           available_equipments: Array.isArray(parsed.available_equipments)
-            ? (parsed.available_equipments as Equipment[])
+            ? (parsed.available_equipments as Equipment[]).filter((eq) =>
+                (EQUIPMENTS as string[]).includes(eq)
+              )
             : EQUIPMENTS,
           filter_by_available_equipment: parsed.filter_by_available_equipment ?? true,
           default_rest_seconds: parsed.default_rest_seconds ?? 90,
@@ -60,54 +82,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setUserName: async (name: string) => {
     const trimmed = name.trim();
     set({ user_name: trimmed });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: trimmed,
-        user_height_cm: get().user_height_cm,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setUserHeight: async (heightCm: number) => {
     const val = heightCm > 0 ? heightCm : undefined;
     set({ user_height_cm: val });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: val,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setAvailableEquipments: async (equipments: Equipment[]) => {
     set({ available_equipments: equipments });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   toggleAvailableEquipment: async (equipment: Equipment) => {
@@ -116,120 +102,36 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const updated = exists ? current.filter((eq) => eq !== equipment) : [...current, equipment];
 
     set({ available_equipments: updated });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: updated,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setFilterByAvailableEquipment: async (enabled: boolean) => {
     set({ filter_by_available_equipment: enabled });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: enabled,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   resetAvailableEquipments: async () => {
     set({ available_equipments: EQUIPMENTS, filter_by_available_equipment: true });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: EQUIPMENTS,
-        filter_by_available_equipment: true,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setDefaultRestSeconds: async (seconds: number) => {
     set({ default_rest_seconds: seconds });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setHapticEnabled: async (enabled: boolean) => {
     set({ haptic_enabled: enabled });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setSoundEnabled: async (enabled: boolean) => {
     set({ sound_enabled: enabled });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: enabled,
-        weight_unit: get().weight_unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 
   setWeightUnit: async (unit: 'kg' | 'lbs') => {
     set({ weight_unit: unit });
-    await AsyncStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({
-        user_name: get().user_name,
-        user_height_cm: get().user_height_cm,
-        available_equipments: get().available_equipments,
-        filter_by_available_equipment: get().filter_by_available_equipment,
-        default_rest_seconds: get().default_rest_seconds,
-        haptic_enabled: get().haptic_enabled,
-        sound_enabled: get().sound_enabled,
-        weight_unit: unit,
-      })
-    );
+    await persistAndSyncSettings(get());
   },
 }));

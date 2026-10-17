@@ -6,13 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
   TextInput,
   Share,
   Linking,
   Platform,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
+import { showAlert } from '../../utils/alert';
 import * as Updates from 'expo-updates';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { exportAllData, importDataFromFile } from '../../database/backupService';
@@ -78,7 +78,7 @@ export default function SettingsScreen() {
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(trainerProfile.friendCode);
-        Alert.alert('Code copié ! 📋', `Votre Code Ami (${trainerProfile.friendCode}) a été copié dans le presse-papier.`);
+        showAlert('Code copié ! 📋', `Votre Code Ami (${trainerProfile.friendCode}) a été copié dans le presse-papier.`);
         return;
       }
       await Share.share({
@@ -88,14 +88,14 @@ export default function SettingsScreen() {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(trainerProfile.friendCode);
-          Alert.alert('Code copié ! 📋', `Votre Code Ami (${trainerProfile.friendCode}) a été copié dans le presse-papier.`);
+          showAlert('Code copié ! 📋', `Votre Code Ami (${trainerProfile.friendCode}) a été copié dans le presse-papier.`);
         } catch {}
       }
     }
   };
 
   const handleTrainerLogout = () => {
-    Alert.alert(
+    showAlert(
       'Déconnexion',
       'Voulez-vous vous déconnecter de votre compte partagé ?',
       [
@@ -106,7 +106,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             await logoutTrainer();
             await loadTrainerData();
-            Alert.alert('Déconnecté', 'Session fermée.');
+            showAlert('Déconnecté', 'Session fermée.');
           },
         },
       ]
@@ -117,7 +117,7 @@ export default function SettingsScreen() {
 
   const handleCheckUpdate = async () => {
     if (!Updates.isEnabled) {
-      Alert.alert(
+      showAlert(
         'Mises à jour non actives',
         'Cette version installée sur votre smartphone ne contient pas le module natif de mise à jour automatique. Veuillez installer l’APK autonome officiel généré par EAS pour activer les mises à jour automatiques.',
         [
@@ -138,7 +138,7 @@ export default function SettingsScreen() {
     try {
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
-        Alert.alert(
+        showAlert(
           'Mise à jour trouvée ! 🚀',
           'Une nouvelle version est disponible sur le serveur. Téléchargement et application...',
           [
@@ -149,14 +149,14 @@ export default function SettingsScreen() {
                   await Updates.fetchUpdateAsync();
                   await Updates.reloadAsync();
                 } catch (err: any) {
-                  Alert.alert('Erreur', err.message || 'Échec du téléchargement.');
+                  showAlert('Erreur', err.message || 'Échec du téléchargement.');
                 }
               },
             },
           ]
         );
       } else {
-        Alert.alert(
+        showAlert(
           'Application à jour ✅',
           `Vous utilisez déjà la dernière version disponible sur le canal « ${Updates.channel || 'preview'} ».\n(ID: ${
             Updates.updateId ? Updates.updateId.substring(0, 10) : 'Version initiale'
@@ -164,7 +164,7 @@ export default function SettingsScreen() {
         );
       }
     } catch (err: any) {
-      Alert.alert(
+      showAlert(
         'Erreur de vérification',
         err.message || 'Impossible de contacter le serveur de mise à jour.'
       );
@@ -199,12 +199,12 @@ export default function SettingsScreen() {
       const { getUserGamificationStats } = await import('../../services/gamificationService');
       await getUserGamificationStats();
       await loadTrainerData();
-      Alert.alert(
+      showAlert(
         'Synchronisation réussie ✅',
         'Toutes vos données (séances, séries, pesées, objectifs, favoris et Pokémon) ont été synchronisées sans aucune régression.'
       );
     } catch (err: any) {
-      Alert.alert('Erreur de synchronisation', err?.message || 'Impossible de synchroniser avec le cloud.');
+      showAlert('Erreur de synchronisation', err?.message || 'Impossible de synchroniser avec le cloud.');
     } finally {
       setSyncingCloud(false);
     }
@@ -233,17 +233,17 @@ export default function SettingsScreen() {
     setExporting(false);
 
     if (res.success) {
-      Alert.alert(
+      showAlert(
         'Exportation réussie',
         'Votre fichier de sauvegarde JSON a été généré et partagé avec succès.'
       );
     } else {
-      Alert.alert('Erreur d’exportation', res.error || 'Impossible d’exporter les données.');
+      showAlert('Erreur d’exportation', res.error || 'Impossible d’exporter les données.');
     }
   };
 
   const handleImport = async () => {
-    Alert.alert(
+    showAlert(
       'Importer une sauvegarde',
       'L’importation ajoutera ou mettra à jour vos séances et exercices depuis le fichier JSON. Continuer ?',
       [
@@ -256,12 +256,12 @@ export default function SettingsScreen() {
             setImporting(false);
 
             if (res.success) {
-              Alert.alert(
+              showAlert(
                 'Importation terminée',
                 `Vos données ont été restaurées avec succès (${res.sessionsCount ?? 0} séances trouvées).`
               );
             } else if (res.error !== 'Opération annulée') {
-              Alert.alert('Erreur', res.error || 'Échec de l’importation');
+              showAlert('Erreur', res.error || 'Échec de l’importation');
             }
           },
         },
@@ -275,17 +275,17 @@ export default function SettingsScreen() {
     setExportingExercises(false);
 
     if (res.success) {
-      Alert.alert(
+      showAlert(
         'Exportation réussie ✅',
         `Les ${res.total || 107} exercices du catalogue Vitax (avec fiches posturales, risques, charges adaptées et sous-muscles) ont été exportés dans le fichier :\n${res.fileName || 'vitax_exercices_qualifies.json'}`
       );
     } else {
-      Alert.alert('Erreur d’exportation', res.error || 'Impossible d’exporter les fiches d’exercices.');
+      showAlert('Erreur d’exportation', res.error || 'Impossible d’exporter les fiches d’exercices.');
     }
   };
 
   const handleImportExercises = async () => {
-    Alert.alert(
+    showAlert(
       'Mettre à jour les fiches d’exercices',
       'L’importation va mettre à jour la qualification anatomique, les postures, objectifs et consignes de sécurité des exercices à partir de votre fichier JSON retravaillé. Continuer ?',
       [
@@ -298,12 +298,12 @@ export default function SettingsScreen() {
             setImportingExercises(false);
 
             if (res.success) {
-              Alert.alert(
+              showAlert(
                 'Mise à jour réussie 🎉',
                 `${res.total || 0} fiches d’exercices ont été mises à jour avec succès dans votre application !`
               );
             } else if (res.error !== 'Opération annulée') {
-              Alert.alert('Erreur d’importation', res.error || 'Échec de la mise à jour des exercices.');
+              showAlert('Erreur d’importation', res.error || 'Échec de la mise à jour des exercices.');
             }
           },
         },
@@ -312,7 +312,7 @@ export default function SettingsScreen() {
   };
 
   const handleResetData = () => {
-    Alert.alert(
+    showAlert(
       'Réinitialiser toutes les données',
       'Cette action effacera tout votre historique d’entraînement et restaurera les programmes par défaut. Cette action est irréversible !',
       [
@@ -322,7 +322,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetDatabase();
-            Alert.alert('Réinitialisé', 'La base de données a été remise à zéro.');
+            showAlert('Réinitialisé', 'La base de données a été remise à zéro.');
           },
         },
       ]

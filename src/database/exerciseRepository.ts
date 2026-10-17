@@ -28,6 +28,10 @@ export async function createCustomExercise(
      VALUES (?, ?, ?, ?, ?, 1)`,
     [id, exercise.name, exercise.description, exercise.target_muscle, exercise.equipment_needed]
   );
+  try {
+    const { syncCustomCatalogToCloud } = await import('../services/cloudSyncService');
+    void syncCustomCatalogToCloud();
+  } catch {}
   return {
     id,
     ...exercise,
@@ -38,6 +42,12 @@ export async function createCustomExercise(
 export async function deleteCustomExercise(id: string): Promise<boolean> {
   const db = await getDatabase();
   const result = await db.runAsync('DELETE FROM exercises WHERE id = ? AND is_custom = 1', [id]);
+  if (result.changes > 0) {
+    try {
+      const { deleteCustomEntityFromCloud } = await import('../services/cloudSyncService');
+      void deleteCustomEntityFromCloud(id);
+    } catch {}
+  }
   return result.changes > 0;
 }
 

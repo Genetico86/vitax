@@ -146,9 +146,9 @@ export async function deleteWeightLog(id: string): Promise<boolean> {
   const db = await getDatabase();
   const res = await db.runAsync('DELETE FROM body_weights WHERE id = ?', [id]);
   if (res.changes > 0) {
-    // Mettre à jour la sauvegarde cloud après suppression
-    const { syncBodyWeightsToCloud } = await import('../services/cloudSyncService');
-    void syncBodyWeightsToCloud();
+    // Mettre à jour la sauvegarde cloud et marquer l'ID comme supprimé
+    const { deleteWeightLogFromCloud } = await import('../services/cloudSyncService');
+    void deleteWeightLogFromCloud(id);
   }
   return res.changes > 0;
 }
@@ -207,7 +207,14 @@ export async function getWeightStats(heightCm?: number): Promise<WeightProgressS
   let bmi: number | null = null;
   if (heightCm && heightCm > 50 && heightCm < 250) {
     const heightM = heightCm / 100;
-    bmi = Math.round((current / (heightM * heightM)) * 10) / 10;
+    let currentKg = current;
+    try {
+      const { useSettingsStore } = await import('../stores/settingsStore');
+      if (useSettingsStore.getState().weight_unit === 'lbs' && current > 110) {
+        currentKg = current / 2.20462;
+      }
+    } catch {}
+    bmi = Math.round((currentKg / (heightM * heightM)) * 10) / 10;
   }
 
   return {

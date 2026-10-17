@@ -14,9 +14,14 @@ export async function saveWorkoutSession(
   const db = await getDatabase();
 
   // Calcul du volume total et du nombre de séries
-  const totalVolume = sets
+  const fallbackVolume = sets
     .filter((s) => s.completed === 1)
     .reduce((acc, curr) => acc + curr.weight * curr.reps, 0);
+
+  const totalVolume =
+    typeof session.total_volume === 'number' && session.total_volume >= 0
+      ? session.total_volume
+      : fallbackVolume;
 
   const completedSetsCount = sets.filter((s) => s.completed === 1).length;
 
