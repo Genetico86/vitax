@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,11 @@ import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { ExerciseIllustration } from '../common/ExerciseIllustration';
 import { getExerciseGuide, RiskLevel } from '../../services/exerciseGuideService';
+import {
+  detectExerciseCategory,
+  getBiomechanicsMetadata,
+} from '../common/exercise-animation/biomechanicalEngine';
+import { PrecisionBiomechanicsStudioModal } from '../common/exercise-animation/PrecisionBiomechanicsStudioModal';
 
 interface ExerciseGuideModalProps {
   visible: boolean;
@@ -69,10 +74,15 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
   onClose,
   exercise,
 }) => {
+  const [studioVisible, setStudioVisible] = useState(false);
+
   if (!exercise) return null;
 
   const guide = getExerciseGuide(exercise);
   const riskStyle = getRiskStyle(guide.niveauRisque);
+
+  const category = detectExerciseCategory(guide.id, guide.target_muscle);
+  const bioMetadata = getBiomechanicsMetadata(category, guide.name);
 
   return (
     <Modal
@@ -112,6 +122,7 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
                 exerciseId={guide.id}
                 targetMuscle={guide.target_muscle}
                 size={70}
+                exerciseName={guide.name}
               />
               <View style={styles.heroInfo}>
                 <Text style={styles.heroName}>{guide.name}</Text>
@@ -135,6 +146,54 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
               </View>
             </View>
           </Card>
+
+          {/* BANNIÈRE DÉMONSTRATION BIOMÉCANIQUE 360° */}
+          <TouchableOpacity
+            style={[
+              styles.biomechanicActionBanner,
+              { borderColor: bioMetadata.colorTheme.primary + '55' },
+            ]}
+            onPress={() => setStudioVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.biomechanicIconCircle,
+                { backgroundColor: bioMetadata.colorTheme.primary + '25' },
+              ]}
+            >
+              <Text style={styles.biomechanicActionIcon}>🎬</Text>
+            </View>
+            <View style={{ flex: 1, marginHorizontal: 10 }}>
+              <View style={styles.biomechanicTagRow}>
+                <Text
+                  style={[
+                    styles.biomechanicActionSuper,
+                    { color: bioMetadata.colorTheme.primary },
+                  ]}
+                >
+                  ANIMATION PRÉCISE 360°
+                </Text>
+                <View style={styles.ralentiPill}>
+                  <Text style={styles.ralentiPillText}>RALENTI & TRAJECTOIRE</Text>
+                </View>
+              </View>
+              <Text style={styles.biomechanicActionTitle}>
+                Ouvrir le Studio Biomécanique
+              </Text>
+              <Text style={styles.biomechanicActionDesc}>
+                Analysez le geste au ralenti, observez la trajectoire laser et les angles articulaires
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.biomechanicActionArrow,
+                { color: bioMetadata.colorTheme.primary },
+              ]}
+            >
+              ➔
+            </Text>
+          </TouchableOpacity>
 
           {/* 1. OBJECTIF */}
           <View style={styles.sectionBox}>
@@ -243,6 +302,15 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
             style={styles.actionButton}
           />
         </ScrollView>
+
+        {/* MODAL DU STUDIO BIOMÉCANIQUE EN PLEIN ÉCRAN */}
+        <PrecisionBiomechanicsStudioModal
+          visible={studioVisible}
+          onClose={() => setStudioVisible(false)}
+          category={category}
+          metadata={bioMetadata}
+          exerciseName={guide.name}
+        />
       </SafeAreaView>
     </Modal>
   );
@@ -434,5 +502,62 @@ const styles = StyleSheet.create({
   actionButton: {
     marginTop: 10,
     marginBottom: 20,
+  },
+  biomechanicActionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F1A2C',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1.5,
+    marginBottom: 16,
+  },
+  biomechanicIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  biomechanicActionIcon: {
+    fontSize: 20,
+  },
+  biomechanicTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  biomechanicActionSuper: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  ralentiPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  ralentiPillText: {
+    color: '#94A3B8',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  biomechanicActionTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  biomechanicActionDesc: {
+    color: '#94A3B8',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  biomechanicActionArrow: {
+    fontSize: 16,
+    fontWeight: '900',
+    paddingHorizontal: 4,
   },
 });
