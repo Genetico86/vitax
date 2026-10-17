@@ -1,11 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient';
+import { getSupabaseClient, isSupabaseConfigured, setSupabaseActiveUserId } from './supabaseClient';
 import { TrainerProfile, AuthSession } from '../types/social';
 import { useSettingsStore } from '../stores/settingsStore';
+import {
+  hashPasswordPBKDF2,
+  verifyPasswordSecure,
+  isHashedPassword,
+} from '../utils/cryptoSecurity';
 
 export const STORAGE_KEY_AUTH_SESSION = '@vitax_auth_session';
 export const STORAGE_KEY_PROFILE = '@vitax_trainer_profile';
 export const STORAGE_KEY_CREDENTIALS = '@vitax_local_creds';
+
+const AUTH_SELECT_COLUMNS =
+  'id, username, password, password_hash, friend_code, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league, total_xp, total_workouts, avatar_url, created_at';
+
+const AUTH_SELECT_COLUMNS_FALLBACK =
+  'id, username, password, friend_code, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league, total_xp, total_workouts, avatar_url, created_at';
 
 /**
  * Nettoie le nom d'utilisateur pour construire l'identifiant interne
@@ -61,7 +72,11 @@ export async function getPersistedSession(): Promise<AuthSession | null> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY_AUTH_SESSION);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed: AuthSession = JSON.parse(raw);
+    if (parsed?.userId) {
+      setSupabaseActiveUserId(parsed.userId);
+    }
+    return parsed;
   } catch (e) {
     console.error('Erreur lecture session persistée:', e);
     return null;
@@ -72,12 +87,86 @@ export async function getPersistedSession(): Promise<AuthSession | null> {
  * Sauvegarde la session persistée
  */
 export async function savePersistedSession(session: AuthSession): Promise<void> {
+  if (session?.userId) {
+    setSupabaseActiveUserId(session.userId);
+  }
   await AsyncStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(session));
 }
 
 /**
+ * Synchronise de manière transparente une session Supabase Auth (JWT) à partir du hash PBKDF2
+ * afin d'alimenter auth.uid() lorsque Supabase Auth est activé sur le projet.
+ */
+async function syncSupabaseNativeAuth(
+  cleanUser: string,
+  userId: string,
+  username: string,
+  passwordHash: string,
+  isRegistration: boolean
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  const syntheticEmail = `${cleanUser}@auth.vitax.app`;
+  const derivedAuthSecret = `Vtx!${passwordHash.slice(-28)}`;
+
+  try {
+    if (isRegistration) {
+      await supabase.auth.signUp({
+        email: syntheticEmail,
+        password: derivedAuthSecret,
+        options: {
+          data: {
+            vitax_user_id: userId,
+            username,
+          },
+        },
+      });
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: syntheticEmail,
+        password: derivedAuthSecret,
+      });
+      if (error && error.message?.toLowerCase().includes('invalid login credentials')) {
+        await supabase.auth.signUp({
+          email: syntheticEmail,
+          password: derivedAuthSecret,
+          options: {
+            data: {
+              vitax_user_id: userId,
+              username,
+            },
+          },
+        });
+      }
+    }
+  } catch {
+    // Non-bloquant si Supabase Auth email/password est désactivé ou soumis à confirmation email
+  }
+}
+
+/**
+ * Migre silencieusement d'éventuels anciens identifiants locaux stockés en clair vers PBKDF2
+ */
+async function migrateLegacyLocalCredentialsIfNeeded(): Promise<void> {
+  try {
+    const rawCreds = await AsyncStorage.getItem(STORAGE_KEY_CREDENTIALS);
+    if (!rawCreds) return;
+    const creds = JSON.parse(rawCreds);
+    if (creds && creds.username && creds.password && !creds.passwordHash) {
+      const passwordHash = await hashPasswordPBKDF2(creds.password, creds.username);
+      await AsyncStorage.setItem(
+        STORAGE_KEY_CREDENTIALS,
+        JSON.stringify({ username: creds.username, passwordHash })
+      );
+    }
+  } catch {}
+}
+
+/**
  * Inscription d'un Athlète avec Nom d'utilisateur + Mot de passe
- * Enregistre le compte et son mot de passe directement dans public.profiles (consultable par l'administrateur dans Supabase)
+ * Le mot de passe est systématiquement haché en PBKDF2-HMAC-SHA256 avant tout stockage ou envoi réseau.
  */
 export async function registerTrainer(
   username: string,
@@ -94,6 +183,9 @@ export async function registerTrainer(
   const cleanUser = sanitizeUsername(trimmedName);
   const friendCode = await generateUniqueFriendCode();
   const userId = `vtx_${cleanUser}`;
+  const passwordHash = await hashPasswordPBKDF2(password, trimmedName);
+
+  setSupabaseActiveUserId(userId);
 
   const initialProfile: TrainerProfile = {
     id: userId,
@@ -109,7 +201,7 @@ export async function registerTrainer(
     createdAt: new Date().toISOString(),
   };
 
-  // 1. Enregistrement central dans Supabase (table public.profiles avec mot de passe lisible)
+  // 1. Enregistrement central sécurisé dans Supabase (condensat PBKDF2 uniquement, jamais de mot de passe en clair)
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -127,93 +219,129 @@ export async function registerTrainer(
           };
         }
 
-        // Insérer le profil avec son mot de passe
-        const insertPayload: any = {
-          id: userId,
-          username: trimmedName,
-          password: password,
-          friend_code: friendCode,
-          trainer_title: initialProfile.trainerTitle,
-          avatar_pokemon_id: initialProfile.avatarPokemonId,
-          avatar_pokemon_emoji: initialProfile.avatarPokemonEmoji,
-          current_league: initialProfile.currentLeague,
-          total_xp: 0,
-          total_workouts: 0,
-          created_at: initialProfile.createdAt,
-          updated_at: initialProfile.createdAt,
-        };
-        if (initialProfile.avatarUrl) {
-          insertPayload.avatar_url = initialProfile.avatarUrl;
-        }
+        // Tenter d'abord l'inscription via la fonction RPC sécurisée côté serveur (SECURITY DEFINER)
+        const { error: rpcErr } = await supabase.rpc('register_trainer_secure', {
+          p_id: userId,
+          p_username: trimmedName,
+          p_password_hash: passwordHash,
+          p_friend_code: friendCode,
+          p_trainer_title: initialProfile.trainerTitle,
+          p_avatar_url: initialProfile.avatarUrl || null,
+        });
 
-        let { error: insertErr } = await supabase.from('profiles').insert(insertPayload);
-        if (insertErr && (insertErr.message?.includes('avatar_url') || insertErr.code === '42703')) {
-          delete insertPayload.avatar_url;
-          const retry = await supabase.from('profiles').insert(insertPayload);
-          insertErr = retry.error;
-        }
+        // Si la fonction RPC n'est pas encore déployée sur la base Supabase, repli sécurisé avec hash PBKDF2
+        if (rpcErr) {
+          const isRpcMissing =
+            rpcErr.code === '42883' ||
+            rpcErr.code === 'PGRST202' ||
+            rpcErr.message?.includes('register_trainer_secure');
 
-        if (insertErr) {
-          if (
-            insertErr.code === '23505' ||
-            insertErr.message?.includes('unique') ||
-            insertErr.message?.includes('duplicate')
-          ) {
-            return {
-              success: false,
-              error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
-            };
-          }
-
-          if (insertErr.code === '42501') {
-            return {
-              success: false,
-              error:
-                'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
-            };
-          }
-
-          console.warn('Erreur insertion profil Supabase:', insertErr.message);
-          // Si la colonne password n'existe pas encore dans Supabase, tenter sans bloquer
-          if (insertErr.message?.includes('password')) {
-            const { error: fallbackErr } = await supabase.from('profiles').insert({
-              id: userId,
-              username: trimmedName,
-              friend_code: friendCode,
-              trainer_title: initialProfile.trainerTitle,
-              avatar_pokemon_id: initialProfile.avatarPokemonId,
-              avatar_pokemon_emoji: initialProfile.avatarPokemonEmoji,
-              current_league: initialProfile.currentLeague,
-              total_xp: 0,
-              total_workouts: 0,
-            });
-
-            if (fallbackErr && (fallbackErr.code === '23505' || fallbackErr.message?.includes('unique'))) {
+          if (!isRpcMissing) {
+            if (
+              rpcErr.code === '23505' ||
+              rpcErr.message?.includes('unique') ||
+              rpcErr.message?.includes('duplicate') ||
+              rpcErr.message?.includes('USERNAME_TAKEN')
+            ) {
               return {
                 success: false,
                 error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
               };
             }
-            if (fallbackErr && fallbackErr.code === '42501') {
+          }
+
+          const insertPayload: Record<string, any> = {
+            id: userId,
+            username: trimmedName,
+            password: passwordHash,
+            password_hash: passwordHash,
+            friend_code: friendCode,
+            trainer_title: initialProfile.trainerTitle,
+            avatar_pokemon_id: initialProfile.avatarPokemonId,
+            avatar_pokemon_emoji: initialProfile.avatarPokemonEmoji,
+            current_league: initialProfile.currentLeague,
+            total_xp: 0,
+            total_workouts: 0,
+            created_at: initialProfile.createdAt,
+            updated_at: initialProfile.createdAt,
+          };
+          if (initialProfile.avatarUrl) {
+            insertPayload.avatar_url = initialProfile.avatarUrl;
+          }
+
+          let { error: insertErr } = await supabase.from('profiles').insert(insertPayload);
+
+          // Si la colonne password_hash ou avatar_url n'existe pas encore sur le schéma distant
+          if (
+            insertErr &&
+            (insertErr.message?.includes('password_hash') ||
+              insertErr.message?.includes('avatar_url') ||
+              insertErr.code === '42703')
+          ) {
+            delete insertPayload.password_hash;
+            if (insertErr.message?.includes('avatar_url')) {
+              delete insertPayload.avatar_url;
+            }
+            const retry = await supabase.from('profiles').insert(insertPayload);
+            insertErr = retry.error;
+          }
+
+          if (insertErr) {
+            if (
+              insertErr.code === '23505' ||
+              insertErr.message?.includes('unique') ||
+              insertErr.message?.includes('duplicate')
+            ) {
+              return {
+                success: false,
+                error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
+              };
+            }
+
+            if (insertErr.code === '42501') {
               return {
                 success: false,
                 error:
-                  'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
+                  'Accès base de données refusé par la politique RLS. Veuillez mettre à jour le script SQL dans Supabase.',
               };
             }
-            if (fallbackErr) {
+
+            console.warn('Erreur insertion profil Supabase:', insertErr.message);
+            if (insertErr.message?.includes('password')) {
+              const { error: fallbackErr } = await supabase.from('profiles').insert({
+                id: userId,
+                username: trimmedName,
+                friend_code: friendCode,
+                trainer_title: initialProfile.trainerTitle,
+                avatar_pokemon_id: initialProfile.avatarPokemonId,
+                avatar_pokemon_emoji: initialProfile.avatarPokemonEmoji,
+                current_league: initialProfile.currentLeague,
+                total_xp: 0,
+                total_workouts: 0,
+              });
+
+              if (fallbackErr && (fallbackErr.code === '23505' || fallbackErr.message?.includes('unique'))) {
+                return {
+                  success: false,
+                  error: 'Ce nom d’utilisateur existe déjà. Veuillez vous connecter ou choisir un autre nom.',
+                };
+              }
+              if (fallbackErr) {
+                return {
+                  success: false,
+                  error: `Impossible d'enregistrer le profil dans Supabase : ${fallbackErr.message}`,
+                };
+              }
+            } else {
               return {
                 success: false,
-                error: `Impossible d'enregistrer le profil dans Supabase : ${fallbackErr.message}`,
+                error: `Impossible d'enregistrer le compte dans la base de données : ${insertErr.message}`,
               };
             }
-          } else {
-            return {
-              success: false,
-              error: `Impossible d'enregistrer le compte dans la base de données : ${insertErr.message}`,
-            };
           }
         }
+
+        void syncSupabaseNativeAuth(cleanUser, userId, trimmedName, passwordHash, true);
       } catch (err: any) {
         console.warn('Exception inscription Supabase:', err?.message);
         return {
@@ -239,7 +367,7 @@ export async function registerTrainer(
     }
   } catch {}
 
-  // 2. Persistance locale
+  // 2. Persistance locale sécurisée (aucun mot de passe en clair stocké)
   const session: AuthSession = {
     userId: initialProfile.id,
     username: trimmedName,
@@ -252,7 +380,7 @@ export async function registerTrainer(
   await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(initialProfile));
   await AsyncStorage.setItem(
     STORAGE_KEY_CREDENTIALS,
-    JSON.stringify({ username: trimmedName, password })
+    JSON.stringify({ username: trimmedName, passwordHash })
   );
 
   try {
@@ -270,7 +398,7 @@ export async function registerTrainer(
 
 /**
  * Connexion d'un Athlète avec Nom d'utilisateur + Mot de passe
- * Vérifie les identifiants directement dans la table public.profiles de Supabase
+ * Vérifie le condensat cryptographique PBKDF2 et migre automatiquement tout ancien mot de passe en clair.
  */
 export async function loginTrainer(
   username: string,
@@ -282,49 +410,146 @@ export async function loginTrainer(
   }
 
   const cleanUser = sanitizeUsername(trimmedName);
+  const candidatePasswordHash = await hashPasswordPBKDF2(password, trimmedName);
 
   // 1. Vérification dans la base centrale Supabase
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data: rows, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .ilike('username', trimmedName);
+        let userRecord: any = null;
+        let authenticatedViaRpc = false;
 
-        if (error) {
-          console.warn('Erreur connexion Supabase profiles:', error.message);
-          if (error.code === '42501') {
-            return {
-              success: false,
-              error:
-                'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
-            };
-          }
+        // 1a. Tenter d'abord la vérification serveur RPC SECURITY DEFINER (sans exposer les colonnes de hash)
+        const { data: rpcRows, error: rpcErr } = await supabase.rpc('authenticate_trainer_secure', {
+          p_username: trimmedName,
+          p_password_hash: candidatePasswordHash,
+          p_legacy_plaintext: password,
+        });
+
+        if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
+          userRecord = rpcRows[0];
+          authenticatedViaRpc = true;
+        } else if (rpcErr && rpcErr.message?.includes('INVALID_CREDENTIALS')) {
+          return { success: false, error: 'Mot de passe incorrect.' };
+        } else if (rpcErr && rpcErr.message?.includes('PASSWORD_RESET_REQUIRED')) {
           return {
             success: false,
-            error: `Erreur de connexion à la base de données : ${error.message}`,
+            error: 'Ce compte nécessite une mise à jour de sécurité depuis son appareil d’origine.',
           };
         }
 
-        if (rows && rows.length > 0) {
-          const userRecord = rows[0];
+        // 1b. Repli si la fonction RPC n'est pas encore installée sur Supabase
+        if (!authenticatedViaRpc) {
+          let { data: rows, error } = await supabase
+            .from('profiles')
+            .select(AUTH_SELECT_COLUMNS)
+            .ilike('username', trimmedName);
 
-          // Si un mot de passe est enregistré dans Supabase, le vérifier
-          if (userRecord.password && userRecord.password !== password) {
-            return { success: false, error: 'Mot de passe incorrect.' };
+          if (error && (error.message?.includes('password_hash') || error.code === '42703')) {
+            const retry = await supabase
+              .from('profiles')
+              .select(AUTH_SELECT_COLUMNS_FALLBACK)
+              .ilike('username', trimmedName);
+            rows = retry.data as any;
+            error = retry.error;
           }
 
-          // Si aucun mot de passe n'était encore renseigné (compte déjà existant), on l'enregistre maintenant
-          if (!userRecord.password) {
-            try {
-              await supabase
-                .from('profiles')
-                .update({ password })
-                .eq('id', userRecord.id);
-            } catch {}
+          if (error) {
+            console.warn('Erreur connexion Supabase profiles:', error.message);
+            if (error.code === '42501') {
+              return {
+                success: false,
+                error:
+                  'Accès base de données refusé par la politique RLS. Veuillez exécuter le script SQL mis à jour dans Supabase.',
+              };
+            }
+            return {
+              success: false,
+              error: `Erreur de connexion à la base de données : ${error.message}`,
+            };
           }
+
+          if (rows && rows.length > 0) {
+            userRecord = rows[0];
+            const storedSecret: string | null =
+              userRecord.password_hash || userRecord.password || null;
+
+            if (storedSecret) {
+              const canonicalUsername = userRecord.username || trimmedName;
+              const { valid, needsMigration } = await verifyPasswordSecure(
+                password,
+                canonicalUsername,
+                storedSecret
+              );
+
+              if (!valid) {
+                return { success: false, error: 'Mot de passe incorrect.' };
+              }
+
+              // Migration transparente et immédiate d'un ancien mot de passe en clair vers PBKDF2-SHA256
+              if (needsMigration || !isHashedPassword(userRecord.password)) {
+                try {
+                  setSupabaseActiveUserId(userRecord.id);
+                  const migratedHash = await hashPasswordPBKDF2(password, canonicalUsername);
+                  const updatePayload: Record<string, any> = {
+                    password: migratedHash,
+                    password_hash: migratedHash,
+                    updated_at: new Date().toISOString(),
+                  };
+                  const { error: migErr } = await supabase
+                    .from('profiles')
+                    .update(updatePayload)
+                    .eq('id', userRecord.id);
+                  if (migErr && (migErr.message?.includes('password_hash') || migErr.code === '42703')) {
+                    await supabase
+                      .from('profiles')
+                      .update({ password: migratedHash, updated_at: new Date().toISOString() })
+                      .eq('id', userRecord.id);
+                  }
+                } catch {}
+              }
+            } else {
+              // Protection contre l'Account Takeover :
+              // Si aucun mot de passe n'était défini sur le profil, seul l'appareil possédant DÉJÀ
+              // une session authentifiée active pour cet identifiant peut initialiser son condensat.
+              const existingSession = await getPersistedSession();
+              const isLegitimateDeviceOwner = Boolean(
+                existingSession?.isLoggedIn && existingSession.userId === userRecord.id
+              );
+
+              if (!isLegitimateDeviceOwner) {
+                return {
+                  success: false,
+                  error:
+                    'Ce compte ne possède pas encore d’empreinte de sécurité active. Connectez-vous depuis l’appareil d’origine du compte.',
+                };
+              }
+
+              try {
+                setSupabaseActiveUserId(userRecord.id);
+                const canonicalHash = await hashPasswordPBKDF2(
+                  password,
+                  userRecord.username || trimmedName
+                );
+                await supabase
+                  .from('profiles')
+                  .update({ password: canonicalHash })
+                  .eq('id', userRecord.id);
+              } catch {}
+            }
+          }
+        }
+
+        if (userRecord) {
+          setSupabaseActiveUserId(userRecord.id);
+          void syncSupabaseNativeAuth(
+            cleanUser,
+            userRecord.id,
+            userRecord.username || trimmedName,
+            candidatePasswordHash,
+            false
+          );
 
           const safeCode =
             userRecord.friend_code && userRecord.friend_code !== '10000'
@@ -382,13 +607,14 @@ export async function loginTrainer(
             createdAt: new Date().toISOString(),
           };
 
+          const canonicalHash = await hashPasswordPBKDF2(password, loadedProfile.username);
           await savePersistedSession(session);
           await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(loadedProfile));
           await AsyncStorage.setItem(
             STORAGE_KEY_CREDENTIALS,
-            JSON.stringify({ username: trimmedName, password })
+            JSON.stringify({ username: loadedProfile.username, passwordHash: canonicalHash })
           );
-          await useSettingsStore.getState().setUserName(trimmedName);
+          await useSettingsStore.getState().setUserName(loadedProfile.username);
 
           // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris, courses, réglages)
           try {
@@ -415,25 +641,6 @@ export async function loginTrainer(
 
           return { success: true, profile: loadedProfile };
         } else {
-          // Si aucun profil trouvé, vérifier si la sécurité RLS bloque les requêtes
-          try {
-            const { error: probeErr } = await supabase.from('profiles').insert({
-              id: '__vtx_rls_probe__',
-              username: '__probe__',
-              friend_code: '__probe__',
-            });
-            if (probeErr && probeErr.code === '42501') {
-              return {
-                success: false,
-                error:
-                  'Accès base de données refusé (sécurité RLS Supabase active). Veuillez exécuter le script SQL de déblocage dans le SQL Editor de Supabase.',
-              };
-            }
-            if (!probeErr) {
-              await supabase.from('profiles').delete().eq('id', '__vtx_rls_probe__');
-            }
-          } catch {}
-
           return {
             success: false,
             error: 'Compte introuvable. Veuillez vérifier le nom d’utilisateur ou appuyer sur "Créer un compte".',
@@ -445,46 +652,48 @@ export async function loginTrainer(
     }
   }
 
-  // 2. Vérification locale hors-ligne
+  // 2. Vérification locale hors-ligne (via condensat PBKDF2 uniquement)
   try {
+    await migrateLegacyLocalCredentialsIfNeeded();
     const rawCreds = await AsyncStorage.getItem(STORAGE_KEY_CREDENTIALS);
     if (rawCreds) {
       const creds = JSON.parse(rawCreds);
-      if (
-        sanitizeUsername(creds.username) === cleanUser &&
-        creds.password === password
-      ) {
-        const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
-        let prof: TrainerProfile;
-        if (rawProf) {
-          prof = JSON.parse(rawProf);
-        } else {
-          prof = {
-            id: `vtx_${cleanUser}`,
-            username: trimmedName,
-            friendCode: generateFriendCode(),
-            trainerTitle: 'Athlète Vitax',
-            avatarPokemonId: 'athlete',
-            avatarPokemonEmoji: '⚡',
-            currentLeague: 'pierre',
-            totalXp: 0,
-            totalWorkouts: 0,
+      const storedSecret = creds.passwordHash || creds.password;
+      if (creds.username && sanitizeUsername(creds.username) === cleanUser && storedSecret) {
+        const { valid } = await verifyPasswordSecure(password, creds.username, storedSecret);
+        if (valid) {
+          const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+          let prof: TrainerProfile;
+          if (rawProf) {
+            prof = JSON.parse(rawProf);
+          } else {
+            prof = {
+              id: `vtx_${cleanUser}`,
+              username: trimmedName,
+              friendCode: generateFriendCode(),
+              trainerTitle: 'Athlète Vitax',
+              avatarPokemonId: 'athlete',
+              avatarPokemonEmoji: '⚡',
+              currentLeague: 'pierre',
+              totalXp: 0,
+              totalWorkouts: 0,
+              createdAt: new Date().toISOString(),
+            };
+            await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(prof));
+          }
+
+          const session: AuthSession = {
+            userId: prof.id,
+            username: prof.username,
+            friendCode: prof.friendCode,
+            isLoggedIn: true,
             createdAt: new Date().toISOString(),
           };
-          await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(prof));
+
+          await savePersistedSession(session);
+          await useSettingsStore.getState().setUserName(trimmedName);
+          return { success: true, profile: prof };
         }
-
-        const session: AuthSession = {
-          userId: prof.id,
-          username: prof.username,
-          friendCode: prof.friendCode,
-          isLoggedIn: true,
-          createdAt: new Date().toISOString(),
-        };
-
-        await savePersistedSession(session);
-        await useSettingsStore.getState().setUserName(trimmedName);
-        return { success: true, profile: prof };
       }
     }
   } catch (err) {
@@ -502,9 +711,14 @@ export async function loginTrainer(
  */
 export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
   try {
+    await migrateLegacyLocalCredentialsIfNeeded();
     const session = await getPersistedSession();
     if (!session || !session.isLoggedIn) {
       return null;
+    }
+
+    if (session.userId) {
+      setSupabaseActiveUserId(session.userId);
     }
 
     // 1. Tenter de rafraîchir en direct le profil depuis la base centrale Supabase
@@ -534,6 +748,7 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
               trainerTitle: row.trainer_title || 'Athlète Vitax',
               avatarPokemonId: row.avatar_pokemon_id || 'athlete',
               avatarPokemonEmoji: row.avatar_pokemon_emoji || '⚡',
+              avatarUrl: row.avatar_url || useSettingsStore.getState().avatar_url,
               currentLeague: row.current_league || 'pierre',
               totalXp: row.total_xp || 0,
               totalWorkouts: row.total_workouts || 0,
@@ -589,7 +804,7 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
 }
 
 /**
- * Déconnexion du compte athlète
+ * Déconnexion du compte athlète et purge intégrale des secrets de session locaux
  */
 export async function logoutTrainer(): Promise<void> {
   try {
@@ -606,7 +821,9 @@ export async function logoutTrainer(): Promise<void> {
       }
     }
 
-    // 2. Nettoyer les données utilisateur locales pour garantir l'isolation entre comptes
+    setSupabaseActiveUserId(null);
+
+    // 2. Nettoyer les données utilisateur locales et les identifiants stockés pour garantir l'isolation entre comptes
     try {
       const { clearUserLocalData } = await import('../database/db');
       await clearUserLocalData();
@@ -615,6 +832,7 @@ export async function logoutTrainer(): Promise<void> {
     await AsyncStorage.multiRemove([
       STORAGE_KEY_AUTH_SESSION,
       STORAGE_KEY_PROFILE,
+      STORAGE_KEY_CREDENTIALS,
       '@vitax_deleted_ids',
       '@vitax_active_workout_draft',
       '@vitax_favorite_exercise_ids',

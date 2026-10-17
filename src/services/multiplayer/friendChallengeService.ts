@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FriendChallenge } from '../../types/social';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabaseClient';
 import { getOrCreateTrainerProfile, updateTrainerProfileXpAndStats } from './profileService';
+import { sanitizePostgrestIdentifier } from '../../utils/cryptoSecurity';
 
 export const STORAGE_KEY_FRIEND_CHALLENGES = '@vitax_friend_challenges';
 
@@ -23,10 +24,20 @@ export async function getFriendChallenges(): Promise<FriendChallenge[]> {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
+        const safeProfileId = sanitizePostgrestIdentifier(profile.id);
+        const safeFriendCode = sanitizePostgrestIdentifier(profile.friendCode);
+        const clauses = ['target_friend_code.eq.all'];
+        if (safeFriendCode) {
+          clauses.unshift(`target_friend_code.eq.${safeFriendCode}`);
+        }
+        if (safeProfileId) {
+          clauses.push(`creator_id.eq.${safeProfileId}`);
+        }
+
         const { data, error } = await supabase
           .from('friend_challenges')
           .select('*')
-          .or(`target_friend_code.eq.${profile.friendCode},creator_id.eq.${profile.id},target_friend_code.eq.all`)
+          .or(clauses.join(','))
           .order('created_at', { ascending: false });
 
         if (!error && data && Array.isArray(data)) {

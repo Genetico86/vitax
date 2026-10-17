@@ -7,6 +7,7 @@ import {
   PUBLIC_PROFILE_COLUMNS,
   isAnonymousProfileId,
 } from './profileService';
+import { sanitizePostgrestIdentifier } from '../../utils/cryptoSecurity';
 
 export const STORAGE_KEY_FRIENDS = '@vitax_friends_list';
 export const STORAGE_KEY_FRIEND_REQUESTS = '@vitax_friend_requests';
@@ -290,14 +291,22 @@ export async function removeFriend(friendId: string): Promise<void> {
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     const profile = await getOrCreateTrainerProfile();
-    if (supabase) {
+    const safeUserId = sanitizePostgrestIdentifier(profile.id);
+    const safeFriendId = sanitizePostgrestIdentifier(friendId);
+    if (supabase && safeUserId && safeFriendId) {
       try {
-        await supabase
-          .from('friends')
-          .delete()
-          .or(
-            `and(user_id.eq.${profile.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${profile.id})`
-          );
+        await Promise.all([
+          supabase
+            .from('friends')
+            .delete()
+            .eq('user_id', safeUserId)
+            .eq('friend_id', safeFriendId),
+          supabase
+            .from('friends')
+            .delete()
+            .eq('user_id', safeFriendId)
+            .eq('friend_id', safeUserId),
+        ]);
       } catch (e) {
         console.warn('Erreur suppression ami Supabase:', e);
       }
@@ -321,18 +330,26 @@ export async function getPendingFriendRequests(): Promise<FriendRequest[]> {
     console.warn('Erreur lecture local friend requests:', err);
   }
 
+  const safeProfileId = sanitizePostgrestIdentifier(profile.id);
+  const safeFriendCode = sanitizePostgrestIdentifier(profile.friendCode);
+
   if (
     isSupabaseConfigured() &&
-    profile.id &&
-    !isAnonymousProfileId(profile.id)
+    safeProfileId &&
+    !isAnonymousProfileId(safeProfileId)
   ) {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
+        const filterClauses = [`receiver_id.eq.${safeProfileId}`];
+        if (safeFriendCode) {
+          filterClauses.push(`receiver_code.eq.${safeFriendCode}`);
+        }
+
         const { data, error } = await supabase
           .from('friend_requests')
           .select('*')
-          .or(`receiver_id.eq.${profile.id},receiver_code.eq.${profile.friendCode}`)
+          .or(filterClauses.join(','))
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
 
