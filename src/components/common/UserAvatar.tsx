@@ -22,6 +22,12 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   accessibilityLabel = 'Photo de profil',
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [prevAvatarUrl, setPrevAvatarUrl] = useState(avatarUrl);
+
+  if (prevAvatarUrl !== avatarUrl) {
+    setPrevAvatarUrl(avatarUrl);
+    setImageError(false);
+  }
 
   const borderRadius = size / 2;
   const badgeSize = Math.max(18, Math.round(size * 0.36));

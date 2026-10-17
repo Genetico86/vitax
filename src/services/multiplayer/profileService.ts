@@ -153,16 +153,14 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       username: profile.username || 'Athlète Vitax',
       friend_code: friendCode,
       trainer_title: profile.trainerTitle || 'Athlète Vitax',
-      avatar_pokemon_id: profile.avatarPokemonId || 'pikachu',
+      avatar_pokemon_id: profile.avatarPokemonId || 'athlete',
       avatar_pokemon_emoji: profile.avatarPokemonEmoji || '⚡',
       current_league: profile.currentLeague || 'pierre',
       total_xp: profile.totalXp || 0,
       total_workouts: profile.totalWorkouts || 0,
+      avatar_url: profile.avatarUrl || null,
       updated_at: new Date().toISOString(),
     };
-    if (profile.avatarUrl) {
-      profilePayload.avatar_url = profile.avatarUrl;
-    }
 
     let { error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
     if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
