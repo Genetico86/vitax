@@ -825,7 +825,7 @@ export const arenaStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  inviteApkCard: {
+  inviteWebCard: {
     backgroundColor: '#0F172A',
     borderWidth: 1.5,
     borderColor: '#00E5FF44',
@@ -833,12 +833,12 @@ export const arenaStyles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
   },
-  inviteApkTopRow: {
+  inviteWebTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
-  inviteApkIconBox: {
+  inviteWebIconBox: {
     width: 42,
     height: 42,
     borderRadius: 12,
@@ -848,23 +848,23 @@ export const arenaStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inviteApkBadgeRow: {
+  inviteWebBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  inviteApkTitle: {
+  inviteWebTitle: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
   },
-  inviteApkSub: {
+  inviteWebSub: {
     color: Colors.textMuted,
     fontSize: 12,
     lineHeight: 16,
   },
-  inviteApkLinkBox: {
+  inviteWebLinkBox: {
     backgroundColor: '#090E1A',
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -873,22 +873,22 @@ export const arenaStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1E293B',
   },
-  inviteApkUrlText: {
+  inviteWebUrlText: {
     color: '#00E5FF',
     fontSize: 11,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  inviteApkButtonsRow: {
+  inviteWebButtonsRow: {
     marginTop: 10,
   },
-  inviteApkShareBtn: {
+  inviteWebShareBtn: {
     backgroundColor: '#00E5FF',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inviteApkShareBtnText: {
+  inviteWebShareBtnText: {
     color: '#090E1A',
     fontSize: 13,
     fontWeight: '900',

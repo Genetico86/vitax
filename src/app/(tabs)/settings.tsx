@@ -8,12 +8,10 @@ import {
   Switch,
   TextInput,
   Share,
-  Linking,
   Platform,
 } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
 import { showAlert } from '../../utils/alert';
-import * as Updates from 'expo-updates';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { exportAllData, importDataFromFile } from '../../database/backupService';
 import { exportExercisesToJson, importExercisesFromJson } from '../../services/exerciseExportService';
@@ -123,65 +121,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
-
-  const handleCheckUpdate = async () => {
-    if (!Updates.isEnabled) {
-      showAlert(
-        'Mises à jour non actives',
-        'Cette version installée sur votre smartphone ne contient pas le module natif de mise à jour automatique. Veuillez installer l’APK autonome officiel généré par EAS pour activer les mises à jour automatiques.',
-        [
-          { text: 'Compris' },
-          {
-            text: 'Télécharger le bon APK',
-            onPress: () =>
-              Linking.openURL(
-                'https://expo.dev/artifacts/eas/06idgnR7W-kUUaqdLC_8CLekX2jVI1aYRSOOj-nKw1c.apk'
-              ),
-          },
-        ]
-      );
-      return;
-    }
-
-    setCheckingUpdate(true);
-    try {
-      const update = await Updates.checkForUpdateAsync();
-      if (update.isAvailable) {
-        showAlert(
-          'Mise à jour trouvée ! 🚀',
-          'Une nouvelle version est disponible sur le serveur. Téléchargement et application...',
-          [
-            {
-              text: 'Installer maintenant',
-              onPress: async () => {
-                try {
-                  await Updates.fetchUpdateAsync();
-                  await Updates.reloadAsync();
-                } catch (err: any) {
-                  showAlert('Erreur', err.message || 'Échec du téléchargement.');
-                }
-              },
-            },
-          ]
-        );
-      } else {
-        showAlert(
-          'Application à jour ✅',
-          `Vous utilisez déjà la dernière version disponible sur le canal « ${Updates.channel || 'preview'} ».\n(ID: ${
-            Updates.updateId ? Updates.updateId.substring(0, 10) : 'Version initiale'
-          })`
-        );
-      }
-    } catch (err: any) {
-      showAlert(
-        'Erreur de vérification',
-        err.message || 'Impossible de contacter le serveur de mise à jour.'
-      );
-    } finally {
-      setCheckingUpdate(false);
-    }
-  };
 
   const [draftName, setDraftName] = useState<string | null>(null);
   const currentName = draftName !== null ? draftName : (user_name || '');
@@ -899,45 +838,6 @@ export default function SettingsScreen() {
                 style={{ marginTop: 10 }}
               />
 
-              {/* Bloc 3 : Mises à jour en direct (EAS OTA sur Mobile) */}
-              {Platform.OS !== 'web' && (
-                <>
-                  <View style={styles.innerDivider} />
-
-                  <View style={styles.subBlockHeaderRow}>
-                    <Text style={styles.subBlockTitle}>🚀 Mises à jour OTA (EAS)</Text>
-                    <Badge
-                      label={Updates.isEnabled ? 'Prêt' : 'Non actif'}
-                      color={Updates.isEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
-                      textColor={Updates.isEnabled ? Colors.success : Colors.danger}
-                    />
-                  </View>
-
-                  <Text style={styles.sublabel}>
-                    Vérifiez et appliquez les nouveaux correctifs et mises à jour en direct.
-                  </Text>
-
-                  <View style={styles.updateInfoBox}>
-                    <Text style={styles.updateInfoRow}>
-                      Canal : <Text style={styles.updateInfoVal}>{Updates.channel || 'preview'}</Text>
-                    </Text>
-                    <Text style={styles.updateInfoRow}>
-                      Version Runtime : <Text style={styles.updateInfoVal}>{Updates.runtimeVersion || '1.0.0'}</Text>
-                    </Text>
-                    <Text style={styles.updateInfoRow}>
-                      Mise à jour active : <Text style={styles.updateInfoVal}>{Updates.updateId ? `${Updates.updateId.substring(0, 10)}...` : 'Version de base'}</Text>
-                    </Text>
-                  </View>
-
-                  <Button
-                    title={checkingUpdate ? 'Recherche en cours...' : '🔄 Vérifier les mises à jour en direct'}
-                    variant="primary"
-                    onPress={handleCheckUpdate}
-                    disabled={checkingUpdate}
-                    style={{ marginTop: 12 }}
-                  />
-                </>
-              )}
             </View>
           )}
         </Card>
@@ -1429,24 +1329,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
-  updateInfoBox: {
-    backgroundColor: '#0B1320',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#1B293C',
-    gap: 4,
-    marginTop: 4,
-  },
-  updateInfoRow: {
-    fontSize: 11.5,
-    color: Colors.textMuted,
-    fontWeight: '600',
-  },
-  updateInfoVal: {
-    color: '#00E5FF',
-    fontWeight: '800',
-  },
+
   footer: {
     alignItems: 'center',
     marginTop: 20,

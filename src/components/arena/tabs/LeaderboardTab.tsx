@@ -171,36 +171,36 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
         </Text>
       </View>
 
-      {/* MODULE D'INVITATION À INSTALLER L'APPLICATION AVEC LIEN WEB */}
-      <Card style={styles.inviteApkCard}>
-        <View style={styles.inviteApkTopRow}>
-          <View style={styles.inviteApkIconBox}>
-            <Text style={{ fontSize: 22 }}>📲</Text>
+      {/* MODULE D'INVITATION À REJOINDRE L'APPLICATION AVEC LIEN WEB */}
+      <Card style={styles.inviteWebCard}>
+        <View style={styles.inviteWebTopRow}>
+          <View style={styles.inviteWebIconBox}>
+            <Text style={{ fontSize: 22 }}>🌐</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <View style={styles.inviteApkBadgeRow}>
-              <Text style={styles.inviteApkTitle}>Inviter des amis sur Vitax</Text>
-              <Badge label="App Web & Mobile" color="rgba(0, 229, 255, 0.2)" textColor="#00E5FF" />
+            <View style={styles.inviteWebBadgeRow}>
+              <Text style={styles.inviteWebTitle}>Inviter des amis sur Vitax</Text>
+              <Badge label="App Web PWA" color="rgba(0, 229, 255, 0.2)" textColor="#00E5FF" />
             </View>
-            <Text style={styles.inviteApkSub}>
-              Partagez l’application web à vos partenaires de sport pour qu’ils vous rejoignent directement sur mobile ou ordinateur et vous défient dans l’arène.
+            <Text style={styles.inviteWebSub}>
+              Partagez l’application web à vos partenaires de sport pour qu’ils vous rejoignent directement sur smartphone ou ordinateur et vous défient dans l’arène.
             </Text>
           </View>
         </View>
 
-        <View style={styles.inviteApkLinkBox}>
-          <Text style={styles.inviteApkUrlText} numberOfLines={1}>
+        <View style={styles.inviteWebLinkBox}>
+          <Text style={styles.inviteWebUrlText} numberOfLines={1}>
             {WEB_APP_URL}
           </Text>
         </View>
 
-        <View style={styles.inviteApkButtonsRow}>
+        <View style={styles.inviteWebButtonsRow}>
           <TouchableOpacity
-            style={styles.inviteApkShareBtn}
+            style={styles.inviteWebShareBtn}
             onPress={onShareWebInvite}
             activeOpacity={0.8}
           >
-            <Text style={styles.inviteApkShareBtnText}>
+            <Text style={styles.inviteWebShareBtnText}>
               📤 Envoyer l’invitation (Lien Web + Code Ami)
             </Text>
           </TouchableOpacity>

@@ -7,7 +7,6 @@ import { initDatabase } from '../database/db';
 import { useSettingsStore } from '../stores/settingsStore';
 import { restoreSessionSilently } from '../services/authService';
 import { Colors } from '../constants/colors';
-import * as Updates from 'expo-updates';
 import { FriendInviteNotificationBanner } from '../components/social/FriendInviteNotificationBanner';
 
 export default function RootLayout() {
@@ -57,18 +56,6 @@ export default function RootLayout() {
           console.warn('Sync cloud initial:', syncErr);
         }
 
-        // Vérification automatique et transparente des mises à jour OTA en arrière-plan
-        if (Platform.OS !== 'web' && Updates.isEnabled && !__DEV__) {
-          try {
-            const check = await Updates.checkForUpdateAsync();
-            if (check.isAvailable) {
-              await Updates.fetchUpdateAsync();
-              await Updates.reloadAsync();
-            }
-          } catch {
-            // Silencieux si hors-ligne
-          }
-        }
       } catch (err: any) {
         console.error('Erreur initialisation Vitax:', err);
         if (!isCancelled) {

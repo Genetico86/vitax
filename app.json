@@ -8,23 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0D1117",
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.vitax.app"
-    },
-    "android": {
-      "package": "com.vitax.app",
-      "adaptiveIcon": {
-        "backgroundColor": "#0D1117",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
@@ -42,7 +25,6 @@
       "expo-sqlite",
       "expo-sharing",
       "expo-document-picker",
-      "expo-updates",
       [
         "expo-image-picker",
         {
@@ -53,15 +35,8 @@
     ],
     "extra": {
       "router": {},
-      "eas": {
-        "projectId": "c436d299-e9bd-4fae-a4e9-54fea42a8835"
-      },
       "supabaseUrl": "https://ssotxhjqdoayzutvwbvy.supabase.co",
       "supabaseAnonKey": "sb_publishable_dZztFWFSoawAVnJaRhdB7g_jk0-2bld"
-    },
-    "owner": "pymatth",
-    "updates": {
-      "url": "https://u.expo.dev/c436d299-e9bd-4fae-a4e9-54fea42a8835"
     }
   }
 }
