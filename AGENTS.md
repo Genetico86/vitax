@@ -8,17 +8,22 @@ Expo ships breaking changes every SDK release. APIs you remember are likely rena
 2. Fetch the matching versioned docs: `https://docs.expo.dev/versions/v<major>.0.0/`
 3. For anything else, fetch https://docs.expo.dev/llms.txt — an index of all Expo docs with corrections to common LLM misconceptions. Follow its links to the specific page you need; never answer from memory.
 
+## Architecture & Déploiement : Web PWA (Vercel) & Supabase
+
+L'application est exploitée et distribuée en version **Web en ligne (PWA) déployée sur Vercel** avec backend temps réel **Supabase** et gestion de version GitHub. La version Android / APK autonome (EAS Build) n'est plus utilisée.
+
+- **Build Web & Vercel** : Le build est exécuté via `npm run build` (`expo export -p web`), produisant les fichiers statiques dans le dossier `dist/` pour Vercel.
+- **Backend & Temps réel** : Supabase PostgreSQL, Auth & Realtime Channels.
+- **PWA & Offline** : Mode standalone configuré pour navigateurs mobiles et desktop.
+
 ## Commands
 
-Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
-
 ```bash
-npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
-npx expo lint               # lint
-npx tsc --noEmit            # typecheck
-npx expo-doctor             # diagnose dependency and config issues
-npx expo install --fix      # fix incompatible package versions
+npx expo install <package>  # Utiliser pour installer des dépendances compatibles SDK
+npm run start / npm run web # Lancer le serveur de développement web
+npm run build               # Exporter l'application web pour Vercel (expo export -p web)
+npm run lint                # Linter
+npx tsc --noEmit            # Vérification des types TypeScript
 ```
 
 Run lint and typecheck before declaring any task done.
@@ -28,17 +33,6 @@ Run lint and typecheck before declaring any task done.
 - Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md
-
-## Building with EAS
-
-Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
-Docs: https://docs.expo.dev/eas/index.md
-
-## Rules
-
-- If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
-- Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
 
 ## Méthodologie Git & Déploiements Vercel
 
