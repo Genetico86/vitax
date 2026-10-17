@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { getAllPrograms } from '../../database/programRepository';
@@ -46,16 +47,29 @@ import { showAlert } from '../../utils/alert';
 
 export default function HomeScreen() {
   const { height: screenHeight } = useWindowDimensions();
+  const [containerHeight, setContainerHeight] = useState<number>(0);
 
-  const isSmallScreen = screenHeight < 720;
-  const isMediumScreen = screenHeight >= 720 && screenHeight < 820;
-  // screenHeight >= 820 : Grands smartphones modernes (Pixel 10a natif, Galaxy S23/S24, iPhone Pro Max, desktop)
+  const handleContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = Math.round(e.nativeEvent.layout.height);
+    if (h > 0 && Math.abs(h - containerHeight) > 1) {
+      setContainerHeight(h);
+    }
+  }, [containerHeight]);
+
+  // Hauteur exploitable pour la page d'accueil entre le header (~54dp) et la barre d'onglets (~76dp)
+  const fallbackHeight = Math.max(480, screenHeight - 130);
+  const effectiveHeight = containerHeight > 0 ? containerHeight : fallbackHeight;
+
+  const isCompactHeight = effectiveHeight < 580;
+  const isMediumHeight = effectiveHeight >= 580 && effectiveHeight < 680;
+  const isLargeHeight = effectiveHeight >= 680 && effectiveHeight < 780;
+  // Tier 4 implicite : effectiveHeight >= 780 (grands smartphones et formats allongés)
 
   const dynamic = useMemo(() => {
     // -------------------------------------------------------------
-    // TIER 1 : PETITS ÉCRANS (< 720 dp, ex: iPhone SE)
+    // TIER 1 : PETITS ÉCRANS (< 580 dp utilisables, ex: iPhone SE)
     // -------------------------------------------------------------
-    if (isSmallScreen) {
+    if (isCompactHeight) {
       return {
         scrollContent: {
           paddingHorizontal: 12,
@@ -63,7 +77,7 @@ export default function HomeScreen() {
           paddingBottom: 8,
         },
         topXpCard: {
-          paddingVertical: 8,
+          paddingVertical: 7,
           paddingHorizontal: 10,
           marginBottom: 6,
           borderRadius: 12,
@@ -111,14 +125,22 @@ export default function HomeScreen() {
           minHeight: 40,
           gap: 6,
         },
-        prioritySection: {
+        tilesContainer: {
+          flex: 1,
+          justifyContent: 'space-between' as const,
+          gap: 6,
           marginBottom: 6,
         },
+        prioritySection: {
+          marginBottom: 0,
+        },
         heroCoachCard: {
+          flex: 1.15,
+          minHeight: 64,
+          maxHeight: 95,
           paddingVertical: 8,
           paddingHorizontal: 10,
-          marginBottom: 6,
-          minHeight: 64,
+          marginBottom: 0,
           gap: 8,
           borderRadius: 13,
         },
@@ -154,14 +176,19 @@ export default function HomeScreen() {
           fontWeight: '900' as const,
         },
         rowSpacing: {
+          flex: 1,
+          flexDirection: 'row' as const,
           gap: 6,
-          marginBottom: 6,
+          marginBottom: 0,
         },
         cardRow: {
-          paddingVertical: 7,
+          flex: 1,
+          height: '100%' as const,
+          minHeight: 56,
+          maxHeight: 85,
+          paddingVertical: 6,
           paddingHorizontal: 8,
           gap: 7,
-          minHeight: 58,
           borderRadius: 13,
         },
         iconCircle: {
@@ -181,17 +208,17 @@ export default function HomeScreen() {
           marginTop: 1,
         },
         weeklyFitnessCard: {
-          paddingVertical: 8,
+          paddingVertical: 7,
           paddingHorizontal: 10,
-          marginBottom: 6,
+          marginBottom: 2,
           borderRadius: 12,
         },
         weeklyFitnessHeader: {
-          marginBottom: 5,
+          marginBottom: 4,
         },
         weeklyTitleIconSize: 14,
         weeklyFitnessTitle: {
-          fontSize: 15,
+          fontSize: 14.5,
           fontWeight: '900' as const,
         },
         weeklyFitnessBadge: {
@@ -224,20 +251,20 @@ export default function HomeScreen() {
     }
 
     // -------------------------------------------------------------
-    // TIER 2 : ÉCRANS STANDARDS (720 <= screenHeight < 820 dp)
+    // TIER 2 : ÉCRANS STANDARDS (580 <= effectiveHeight < 680 dp)
     // EX: PIXEL, GALAXY, IPHONE EN NAVIGATEUR MOBILE
     // -------------------------------------------------------------
-    if (isMediumScreen) {
+    if (isMediumHeight) {
       return {
         scrollContent: {
           paddingHorizontal: 14,
-          paddingTop: 8,
+          paddingTop: 7,
           paddingBottom: 10,
         },
         topXpCard: {
-          paddingVertical: 10,
+          paddingVertical: 9,
           paddingHorizontal: 12,
-          marginBottom: 8,
+          marginBottom: 7,
           borderRadius: 14,
         },
         topUserHeader: {
@@ -277,20 +304,28 @@ export default function HomeScreen() {
           fontWeight: '900' as const,
         },
         activeBanner: {
-          paddingVertical: 8,
+          paddingVertical: 7,
           paddingHorizontal: 10,
-          marginBottom: 8,
-          minHeight: 46,
-          gap: 8,
+          marginBottom: 7,
+          minHeight: 44,
+          gap: 7,
+        },
+        tilesContainer: {
+          flex: 1,
+          justifyContent: 'space-between' as const,
+          gap: 7,
+          marginBottom: 7,
         },
         prioritySection: {
-          marginBottom: 8,
+          marginBottom: 0,
         },
         heroCoachCard: {
+          flex: 1.15,
+          minHeight: 74,
+          maxHeight: 115,
           paddingVertical: 10,
           paddingHorizontal: 12,
-          marginBottom: 8,
-          minHeight: 74,
+          marginBottom: 0,
           gap: 10,
           borderRadius: 15,
         },
@@ -299,9 +334,9 @@ export default function HomeScreen() {
           height: 44,
           borderRadius: 12,
         },
-        heroCoachIconSize: 26,
+        heroCoachIconSize: 25,
         heroCoachTitle: {
-          fontSize: 18.5,
+          fontSize: 18,
           fontWeight: '900' as const,
         },
         heroCoachTag: {
@@ -326,14 +361,19 @@ export default function HomeScreen() {
           fontWeight: '900' as const,
         },
         rowSpacing: {
+          flex: 1,
+          flexDirection: 'row' as const,
           gap: 7,
-          marginBottom: 7,
+          marginBottom: 0,
         },
         cardRow: {
-          paddingVertical: 9,
+          flex: 1,
+          height: '100%' as const,
+          minHeight: 66,
+          maxHeight: 105,
+          paddingVertical: 8,
           paddingHorizontal: 10,
           gap: 8,
-          minHeight: 68,
           borderRadius: 15,
         },
         iconCircle: {
@@ -353,13 +393,13 @@ export default function HomeScreen() {
           marginTop: 1,
         },
         weeklyFitnessCard: {
-          paddingVertical: 10,
+          paddingVertical: 9,
           paddingHorizontal: 12,
-          marginBottom: 8,
+          marginBottom: 4,
           borderRadius: 14,
         },
         weeklyFitnessHeader: {
-          marginBottom: 6,
+          marginBottom: 5,
         },
         weeklyTitleIconSize: 15,
         weeklyFitnessTitle: {
@@ -379,8 +419,8 @@ export default function HomeScreen() {
           marginBottom: 3,
         },
         dayPill: {
-          width: 30,
-          height: 30,
+          width: 29,
+          height: 29,
           borderRadius: 7,
         },
         dayPillText: {
@@ -396,27 +436,211 @@ export default function HomeScreen() {
     }
 
     // -------------------------------------------------------------
-    // TIER 3 : GRANDS SMARTPHONES MODERNES (screenHeight >= 820 dp)
-    // EX: PIXEL EN PLEIN ÉCRAN, IPHONE PRO/MAX, S24
-    // TOUT TIENT SANS AUCUN SCROLLING TOUT EN RESTANT TRÈS LISIBLE
+    // TIER 3 : GRANDS SMARTPHONES MODERNES (680 <= effectiveHeight < 780 dp)
+    // EX: PIXEL EN PLEIN ÉCRAN, IPHONE 14/15/16, S23/S24
+    // -------------------------------------------------------------
+    if (isLargeHeight) {
+      return {
+        scrollContent: {
+          paddingHorizontal: 15,
+          paddingTop: 8,
+          paddingBottom: 12,
+        },
+        topXpCard: {
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          marginBottom: 8,
+          borderRadius: 16,
+        },
+        topUserHeader: {
+          marginBottom: 6,
+        },
+        userGreetingText: {
+          fontSize: 19.5,
+          fontWeight: '900' as const,
+        },
+        userSubDot: {
+          fontSize: 13,
+        },
+        userSubText: {
+          fontSize: 14,
+          fontWeight: '800' as const,
+        },
+        athleteHeaderBadge: {
+          paddingHorizontal: 9,
+          paddingVertical: 4,
+          borderRadius: 9,
+        },
+        athleteHeaderBadgeText: {
+          fontSize: 13,
+          fontWeight: '900' as const,
+        },
+        xpTrack: {
+          height: 7,
+          borderRadius: 4,
+          marginBottom: 3,
+        },
+        xpNumbersText: {
+          fontSize: 12,
+          fontWeight: '700' as const,
+        },
+        xpPercentText: {
+          fontSize: 12,
+          fontWeight: '900' as const,
+        },
+        activeBanner: {
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          marginBottom: 8,
+          minHeight: 48,
+          gap: 8,
+        },
+        tilesContainer: {
+          flex: 1,
+          justifyContent: 'space-between' as const,
+          gap: 8,
+          marginBottom: 8,
+        },
+        prioritySection: {
+          marginBottom: 0,
+        },
+        heroCoachCard: {
+          flex: 1.15,
+          minHeight: 84,
+          maxHeight: 135,
+          paddingVertical: 11,
+          paddingHorizontal: 14,
+          marginBottom: 0,
+          gap: 12,
+          borderRadius: 16,
+        },
+        heroCoachIconBox: {
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+        },
+        heroCoachIconSize: 28,
+        heroCoachTitle: {
+          fontSize: 19.5,
+          fontWeight: '900' as const,
+        },
+        heroCoachTag: {
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+        },
+        heroCoachTagText: {
+          fontSize: 10.5,
+          fontWeight: '900' as const,
+        },
+        heroCoachSubtitle: {
+          fontSize: 13,
+          marginTop: 2,
+        },
+        heroCoachActionPill: {
+          paddingHorizontal: 13,
+          paddingVertical: 7,
+          borderRadius: 10,
+        },
+        heroCoachActionText: {
+          fontSize: 13.5,
+          fontWeight: '900' as const,
+        },
+        rowSpacing: {
+          flex: 1,
+          flexDirection: 'row' as const,
+          gap: 8,
+          marginBottom: 0,
+        },
+        cardRow: {
+          flex: 1,
+          height: '100%' as const,
+          minHeight: 76,
+          maxHeight: 120,
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+          gap: 9,
+          borderRadius: 16,
+        },
+        iconCircle: {
+          width: 42,
+          height: 42,
+          borderRadius: 13,
+        },
+        cardIconSize: 23,
+        cardTitle: {
+          fontSize: 16,
+          fontWeight: '900' as const,
+          lineHeight: 19,
+        },
+        cardSub: {
+          fontSize: 12,
+          fontWeight: '700' as const,
+          marginTop: 2,
+        },
+        weeklyFitnessCard: {
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          marginBottom: 6,
+          borderRadius: 16,
+        },
+        weeklyFitnessHeader: {
+          marginBottom: 6,
+        },
+        weeklyTitleIconSize: 16,
+        weeklyFitnessTitle: {
+          fontSize: 17,
+          fontWeight: '900' as const,
+        },
+        weeklyFitnessBadge: {
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: 8,
+        },
+        weeklyFitnessBadgeText: {
+          fontSize: 12.5,
+          fontWeight: '800' as const,
+        },
+        weeklyDaysRow: {
+          marginBottom: 4,
+        },
+        dayPill: {
+          width: 31,
+          height: 31,
+          borderRadius: 8,
+        },
+        dayPillText: {
+          fontSize: 11.5,
+          fontWeight: '800' as const,
+        },
+        showWeeklyFooter: true,
+        weeklyStatsSummaryText: {
+          fontSize: 12,
+          fontWeight: '700' as const,
+        },
+      };
+    }
+
+    // -------------------------------------------------------------
+    // TIER 4 : TRÈS GRANDS SMARTPHONES & FORMATS ALLONGÉS (effectiveHeight >= 780 dp)
+    // EX: IPHONE PRO MAX, S24 ULTRA, PIXEL PRO, ÉCRANS 20:9 OU TABLETTES
     // -------------------------------------------------------------
     return {
       scrollContent: {
-        paddingHorizontal: 15,
+        paddingHorizontal: 16,
         paddingTop: 10,
         paddingBottom: 14,
       },
       topXpCard: {
-        paddingVertical: 11,
-        paddingHorizontal: 14,
-        marginBottom: 8,
-        borderRadius: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginBottom: 10,
+        borderRadius: 18,
       },
       topUserHeader: {
         marginBottom: 6,
       },
       userGreetingText: {
-        fontSize: 20,
+        fontSize: 21,
         fontWeight: '900' as const,
       },
       userSubDot: {
@@ -427,132 +651,145 @@ export default function HomeScreen() {
         fontWeight: '800' as const,
       },
       athleteHeaderBadge: {
-        paddingHorizontal: 9,
-        paddingVertical: 4,
-        borderRadius: 9,
+        paddingHorizontal: 10,
+        paddingVertical: 4.5,
+        borderRadius: 10,
       },
       athleteHeaderBadgeText: {
-        fontSize: 13,
+        fontSize: 13.5,
         fontWeight: '900' as const,
       },
       xpTrack: {
-        height: 7,
+        height: 8,
         borderRadius: 4,
         marginBottom: 3,
       },
       xpNumbersText: {
-        fontSize: 12,
+        fontSize: 12.5,
         fontWeight: '700' as const,
       },
       xpPercentText: {
-        fontSize: 12,
+        fontSize: 12.5,
         fontWeight: '900' as const,
       },
       activeBanner: {
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        marginBottom: 8,
-        minHeight: 48,
-        gap: 8,
+        paddingVertical: 9,
+        paddingHorizontal: 13,
+        marginBottom: 9,
+        minHeight: 50,
+        gap: 9,
+      },
+      tilesContainer: {
+        flex: 1,
+        justifyContent: 'space-between' as const,
+        gap: 10,
+        marginBottom: 10,
       },
       prioritySection: {
-        marginBottom: 8,
+        marginBottom: 0,
       },
       heroCoachCard: {
-        paddingVertical: 12,
-        paddingHorizontal: 14,
-        marginBottom: 8,
-        minHeight: 82,
-        gap: 12,
-        borderRadius: 16,
+        flex: 1.15,
+        minHeight: 94,
+        maxHeight: 150,
+        paddingVertical: 13,
+        paddingHorizontal: 16,
+        marginBottom: 0,
+        gap: 14,
+        borderRadius: 18,
       },
       heroCoachIconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: 52,
+        height: 52,
+        borderRadius: 16,
       },
-      heroCoachIconSize: 28,
+      heroCoachIconSize: 30,
       heroCoachTitle: {
-        fontSize: 20,
+        fontSize: 21,
         fontWeight: '900' as const,
       },
       heroCoachTag: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        paddingHorizontal: 7,
+        paddingVertical: 2.5,
       },
       heroCoachTagText: {
-        fontSize: 10.5,
+        fontSize: 11,
         fontWeight: '900' as const,
       },
       heroCoachSubtitle: {
-        fontSize: 13.5,
+        fontSize: 14,
         marginTop: 2,
       },
       heroCoachActionPill: {
-        paddingHorizontal: 13,
-        paddingVertical: 8,
-        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        borderRadius: 11,
       },
       heroCoachActionText: {
-        fontSize: 13.5,
+        fontSize: 14,
         fontWeight: '900' as const,
       },
       rowSpacing: {
-        gap: 8,
-        marginBottom: 8,
+        flex: 1,
+        flexDirection: 'row' as const,
+        gap: 10,
+        marginBottom: 0,
       },
       cardRow: {
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        gap: 9,
-        minHeight: 74,
-        borderRadius: 16,
+        flex: 1,
+        height: '100%' as const,
+        minHeight: 84,
+        maxHeight: 135,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        gap: 10,
+        borderRadius: 18,
       },
       iconCircle: {
-        width: 42,
-        height: 42,
-        borderRadius: 13,
+        width: 46,
+        height: 46,
+        borderRadius: 14,
       },
-      cardIconSize: 24,
+      cardIconSize: 25,
       cardTitle: {
-        fontSize: 16.5,
+        fontSize: 17,
         fontWeight: '900' as const,
-        lineHeight: 20,
+        lineHeight: 21,
       },
       cardSub: {
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: '700' as const,
         marginTop: 2,
       },
       weeklyFitnessCard: {
-        paddingVertical: 11,
-        paddingHorizontal: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
         marginBottom: 8,
-        borderRadius: 16,
+        borderRadius: 18,
       },
       weeklyFitnessHeader: {
         marginBottom: 7,
       },
-      weeklyTitleIconSize: 16,
+      weeklyTitleIconSize: 17,
       weeklyFitnessTitle: {
-        fontSize: 17.5,
+        fontSize: 18,
         fontWeight: '900' as const,
       },
       weeklyFitnessBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        paddingHorizontal: 9,
+        paddingVertical: 3.5,
         borderRadius: 8,
       },
       weeklyFitnessBadgeText: {
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: '800' as const,
       },
       weeklyDaysRow: {
         marginBottom: 5,
       },
       dayPill: {
-        width: 32,
-        height: 32,
+        width: 33,
+        height: 33,
         borderRadius: 8,
       },
       dayPillText: {
@@ -565,7 +802,7 @@ export default function HomeScreen() {
         fontWeight: '700' as const,
       },
     };
-  }, [isSmallScreen, isMediumScreen]);
+  }, [isCompactHeight, isMediumHeight, isLargeHeight]);
 
   const [programs, setPrograms] = useState<Program[]>([]);
   const [favoriteExercises, setFavoriteExercises] = useState<Exercise[]>([]);
@@ -778,9 +1015,15 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handleContainerLayout}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, dynamic.scrollContent]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          dynamic.scrollContent,
+          {
+            minHeight: effectiveHeight > 0 ? effectiveHeight : '100%',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         bounces={false}
         overScrollMode="never"
@@ -941,9 +1184,9 @@ export default function HomeScreen() {
         )}
 
         {/* ======================================================== */}
-        {/* 2. LE TRIO PRIORITAIRE (COACH / EXERCICE CIBLÉ / FAVORIS) */}
+        {/* 2. SECTION DES TUILES D'ACTION ADAPTABLES À L'ÉCRAN      */}
         {/* ======================================================== */}
-        <View style={[styles.prioritySection, dynamic.prioritySection]}>
+        <View style={[styles.tilesContainer, dynamic.tilesContainer]}>
           {/* CARTE HERO COMPACTE : LANCER LE COACH */}
           <TouchableOpacity
             style={[styles.heroCoachCard, dynamic.heroCoachCard]}
@@ -969,9 +1212,9 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* RANGÉE 2 TUILES JUMELLES : EXERCICE CIBLÉ & FAVORIS */}
-          <View style={[styles.priorityTwinRow, dynamic.rowSpacing]}>
-            {/* TUILE 2 : EXERCICE CIBLÉ */}
+          {/* RANGÉE 1 TUILES JUMELLES : EXERCICE CIBLÉ & FAVORIS */}
+          <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
+            {/* TUILE : EXERCICE CIBLÉ */}
             <TouchableOpacity
               style={[styles.priorityTwinCard, styles.targetMuscleCard, dynamic.cardRow]}
               onPress={() => router.push('/programs/target-muscle')}
@@ -986,7 +1229,7 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* TUILE 3 : FAVORIS & CATALOGUE */}
+            {/* TUILE : FAVORIS & CATALOGUE */}
             <TouchableOpacity
               style={[styles.priorityTwinCard, styles.favoritesCard, dynamic.cardRow]}
               onPress={() => router.push(favoriteCount > 0 ? '/exercises?filter=favorites' : '/exercises')}
@@ -1006,100 +1249,96 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* ======================================================== */}
-        {/* 3. ACTIONS RAPIDES : SÉANCE LIBRE & MES PROGRAMMES        */}
-        {/* ======================================================== */}
-        <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
-          {/* 1. SÉANCE LIBRE */}
-          <TouchableOpacity
-            style={[styles.secondaryColCard, dynamic.cardRow]}
-            onPress={handleStartFree}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.secondaryIconCircle, dynamic.iconCircle]}>
-              <Text style={{ fontSize: dynamic.cardIconSize }}>⚡</Text>
-            </View>
-            <View style={styles.cardTextCol}>
-              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={2}>Séance Libre</Text>
-              <Text style={[styles.secondaryColSub, { color: Colors.primary }, dynamic.cardSub]} numberOfLines={1}>
-                1 Clic • Direct
-              </Text>
-            </View>
-          </TouchableOpacity>
+          {/* RANGÉE 2 : SÉANCE LIBRE & MES PROGRAMMES */}
+          <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
+            {/* 1. SÉANCE LIBRE */}
+            <TouchableOpacity
+              style={[styles.secondaryColCard, dynamic.cardRow]}
+              onPress={handleStartFree}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.secondaryIconCircle, dynamic.iconCircle]}>
+                <Text style={{ fontSize: dynamic.cardIconSize }}>⚡</Text>
+              </View>
+              <View style={styles.cardTextCol}>
+                <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={2}>Séance Libre</Text>
+                <Text style={[styles.secondaryColSub, { color: Colors.primary }, dynamic.cardSub]} numberOfLines={1}>
+                  1 Clic • Direct
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-          {/* 2. MES PROGRAMMES */}
-          <TouchableOpacity
-            style={[styles.secondaryColCard, dynamic.cardRow]}
-            onPress={() => router.push('/programs')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.secondaryIconCircle, styles.programIconCircle, dynamic.iconCircle]}>
-              <Text style={{ fontSize: dynamic.cardIconSize }}>📂</Text>
-            </View>
-            <View style={styles.cardTextCol}>
-              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={2}>Programmes</Text>
-              <Text style={[styles.secondaryColSub, { color: '#60A5FA' }, dynamic.cardSub]} numberOfLines={1}>
-                {compatibleProgramsCount} disponible{compatibleProgramsCount > 1 ? 's' : ''}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+            {/* 2. MES PROGRAMMES */}
+            <TouchableOpacity
+              style={[styles.secondaryColCard, dynamic.cardRow]}
+              onPress={() => router.push('/programs')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.secondaryIconCircle, styles.programIconCircle, dynamic.iconCircle]}>
+                <Text style={{ fontSize: dynamic.cardIconSize }}>📂</Text>
+              </View>
+              <View style={styles.cardTextCol}>
+                <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={2}>Programmes</Text>
+                <Text style={[styles.secondaryColSub, { color: '#60A5FA' }, dynamic.cardSub]} numberOfLines={1}>
+                  {compatibleProgramsCount} disponible{compatibleProgramsCount > 1 ? 's' : ''}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
-        {/* ======================================================== */}
-        {/* 4. RANGÉE 3 : MULTIJOUEUR & CARDIO (ARÈNE & COURSE)      */}
-        {/* ======================================================== */}
-        <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
-          {/* ARÈNE */}
-          <TouchableOpacity
-            style={[styles.secondaryColCard, styles.arenaCard, dynamic.cardRow]}
-            onPress={() => router.push('/arena')}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Ouvrir l'Arène Vitax"
-          >
-            <View style={[styles.secondaryIconCircle, styles.arenaIconCircle, dynamic.iconCircle]}>
-              <Text style={{ fontSize: dynamic.cardIconSize }}>⚔️</Text>
-              {pendingInvitesCount > 0 && (
-                <View style={styles.arenaBadgePulse}>
-                  <Text style={styles.arenaBadgePulseText}>{pendingInvitesCount}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.cardTextCol}>
-              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Arène</Text>
-              <Text
-                style={[
-                  styles.secondaryColSub,
-                  { color: pendingInvitesCount > 0 ? '#F87171' : '#C084FC' },
-                  dynamic.cardSub,
-                ]}
-                numberOfLines={1}
-              >
-                {pendingInvitesCount > 0 ? `🔔 ${pendingInvitesCount} invit.` : 'Ligue & Défis'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+          {/* RANGÉE 3 : MULTIJOUEUR & CARDIO (ARÈNE & COURSE) */}
+          <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
+            {/* ARÈNE */}
+            <TouchableOpacity
+              style={[styles.secondaryColCard, styles.arenaCard, dynamic.cardRow]}
+              onPress={() => router.push('/arena')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Ouvrir l'Arène Vitax"
+            >
+              <View style={[styles.secondaryIconCircle, styles.arenaIconCircle, dynamic.iconCircle]}>
+                <Text style={{ fontSize: dynamic.cardIconSize }}>⚔️</Text>
+                {pendingInvitesCount > 0 && (
+                  <View style={styles.arenaBadgePulse}>
+                    <Text style={styles.arenaBadgePulseText}>{pendingInvitesCount}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.cardTextCol}>
+                <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Arène</Text>
+                <Text
+                  style={[
+                    styles.secondaryColSub,
+                    { color: pendingInvitesCount > 0 ? '#F87171' : '#C084FC' },
+                    dynamic.cardSub,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {pendingInvitesCount > 0 ? `🔔 ${pendingInvitesCount} invit.` : 'Ligue & Défis'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
-          {/* COURSE & MARCHE */}
-          <TouchableOpacity
-            style={[styles.secondaryColCard, dynamic.cardRow, { borderColor: '#10B98155' }]}
-            onPress={() => router.push('/running')}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Ouvrir le suivi de course à pied et marche"
-          >
-            <View style={[styles.secondaryIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: '#10B981' }, dynamic.iconCircle]}>
-              <Text style={{ fontSize: dynamic.cardIconSize }}>🏃‍♂️</Text>
-            </View>
-            <View style={styles.cardTextCol}>
-              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Course & Marche</Text>
-              <Text style={[styles.secondaryColSub, { color: '#34D399' }, dynamic.cardSub]} numberOfLines={1}>
-                Chrono • Allure • Km
-              </Text>
-            </View>
-          </TouchableOpacity>
+            {/* COURSE & MARCHE */}
+            <TouchableOpacity
+              style={[styles.secondaryColCard, dynamic.cardRow, { borderColor: '#10B98155' }]}
+              onPress={() => router.push('/running')}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Ouvrir le suivi de course à pied et marche"
+            >
+              <View style={[styles.secondaryIconCircle, { backgroundColor: 'rgba(16, 185, 129, 0.16)', borderColor: '#10B981' }, dynamic.iconCircle]}>
+                <Text style={{ fontSize: dynamic.cardIconSize }}>🏃‍♂️</Text>
+              </View>
+              <View style={styles.cardTextCol}>
+                <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Course & Marche</Text>
+                <Text style={[styles.secondaryColSub, { color: '#34D399' }, dynamic.cardSub]} numberOfLines={1}>
+                  Chrono • Allure • Km
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ======================================================== */}
@@ -1820,10 +2059,14 @@ const styles = StyleSheet.create({
   },
 
   /* ======================================================== */
-  /* TRIO PRIORITAIRE COMPACT                                 */
+  /* SECTION DES TUILES ADAPTABLES                            */
   /* ======================================================== */
+  tilesContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   prioritySection: {
-    marginBottom: 12,
+    marginBottom: 0,
   },
   heroCoachCard: {
     flexDirection: 'row',
@@ -1832,16 +2075,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: Colors.primary,
     borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    gap: 14,
-    minHeight: 124,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
+    minHeight: 64,
   },
   heroCoachIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 85, 0, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1855,7 +2097,7 @@ const styles = StyleSheet.create({
   },
   heroCoachTitle: {
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
   },
   heroCoachTag: {
@@ -1873,34 +2115,34 @@ const styles = StyleSheet.create({
   },
   heroCoachSubtitle: {
     color: Colors.textSecondary,
-    fontSize: 14.5,
-    marginTop: 3,
+    fontSize: 13.5,
+    marginTop: 2,
   },
   heroCoachActionPill: {
     backgroundColor: Colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 11,
   },
   heroCoachActionText: {
     color: Colors.primaryText,
-    fontSize: 14.5,
+    fontSize: 13.5,
     fontWeight: '900',
   },
   priorityTwinRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   priorityTwinCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: 18,
-    paddingVertical: 15,
-    paddingHorizontal: 14,
-    gap: 11,
-    minHeight: 104,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 10,
+    minHeight: 56,
   },
   targetMuscleCard: {
     borderColor: 'rgba(0, 229, 255, 0.35)',
@@ -1911,9 +2153,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
   },
   priorityTwinIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     backgroundColor: 'rgba(0, 229, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1927,14 +2169,14 @@ const styles = StyleSheet.create({
   },
   priorityTwinTitle: {
     color: '#FFFFFF',
-    fontSize: 18.5,
+    fontSize: 16,
     fontWeight: '900',
     letterSpacing: 0.2,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   priorityTwinSub: {
     color: Colors.textMuted,
-    fontSize: 13.5,
+    fontSize: 12,
     fontWeight: '700',
     marginTop: 2,
   },
@@ -1949,8 +2191,8 @@ const styles = StyleSheet.create({
   /* ======================================================== */
   secondaryRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 0,
   },
   secondaryColCard: {
     flex: 1,
@@ -1959,11 +2201,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
     borderWidth: 1.5,
     borderColor: '#1E293B',
-    borderRadius: 18,
-    paddingVertical: 15,
-    paddingHorizontal: 14,
-    gap: 11,
-    minHeight: 104,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 10,
+    minHeight: 56,
   },
   secondaryIconCircle: {
     width: 48,
