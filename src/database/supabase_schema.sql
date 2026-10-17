@@ -280,20 +280,59 @@ CREATE INDEX IF NOT EXISTS idx_friend_challenges_creator ON public.friend_challe
 -- =========================================================================
 -- SÉCURITÉ & PERMISSIONS POUR LA SYNCHRONISATION DE TOUS LES APPAREILS
 -- =========================================================================
-ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workout_sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workout_sets DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_favorites DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.body_weights DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.fitness_goals DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.running_sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.weekly_leaderboards DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friends DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.trades DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.raid_contributions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friend_requests DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friend_gifts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friend_challenges DISABLE ROW LEVEL SECURITY;
 
+-- 1. DÉSACTIVER LE ROW LEVEL SECURITY SUR TOUTES LES TABLES VITAX
+ALTER TABLE IF EXISTS public.profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.workout_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.workout_sets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.user_favorites DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.body_weights DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.fitness_goals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.running_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.weekly_leaderboards DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friends DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.trades DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.raid_contributions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friend_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friend_gifts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.friend_challenges DISABLE ROW LEVEL SECURITY;
+
+-- 2. AJOUTER DES POLITIQUES PERMISSIVES UNIVERSELLES
+-- (Garantit que même si Supabase réactive automatiquement le RLS,
+-- l'application client avec clé anon ne sera JAMAIS bloquée en lecture ou écriture)
+DO $$
+DECLARE
+  t text;
+  tables text[] := ARRAY[
+    'profiles',
+    'workout_sessions',
+    'workout_sets',
+    'user_favorites',
+    'body_weights',
+    'fitness_goals',
+    'running_sessions',
+    'weekly_leaderboards',
+    'friends',
+    'trades',
+    'raid_contributions',
+    'friend_requests',
+    'friend_gifts',
+    'friend_challenges'
+  ];
+BEGIN
+  FOREACH t IN ARRAY tables
+  LOOP
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = t) THEN
+      EXECUTE format('DROP POLICY IF EXISTS "vitax_universal_access" ON public.%I', t);
+      EXECUTE format('CREATE POLICY "vitax_universal_access" ON public.%I FOR ALL TO public USING (true) WITH CHECK (true)', t);
+    END IF;
+  END LOOP;
+END $$;
+
+-- 3. PERMISSIONS GLOBALES POUR LES RÔLES CLIENTS (ANON, AUTHENTICATED)
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
 
