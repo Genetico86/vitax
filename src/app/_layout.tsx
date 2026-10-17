@@ -20,22 +20,18 @@ export default function RootLayout() {
     let isCancelled = false;
     let cleanupRealtime = () => {};
 
+    // Chien de garde (watchdog) : garantit que l'écran de chargement ne reste jamais bloqué plus de 2.5s
+    const watchdog = setTimeout(() => {
+      if (!isCancelled) {
+        setIsReady(true);
+      }
+    }, 2500);
+
     async function setup() {
       try {
         await initDatabase();
         await loadSettings();
         await restoreSessionSilently();
-
-        // Synchronisation temps réel avec Supabase + écouteurs de fermeture d'application / arrière-plan
-        try {
-          const { syncCloudAndLocal, registerRealtimeLifecycleSync } = await import(
-            '../services/cloudSyncService'
-          );
-          cleanupRealtime = registerRealtimeLifecycleSync();
-          await syncCloudAndLocal();
-        } catch (syncErr) {
-          console.warn('Sync cloud initial:', syncErr);
-        }
 
         // Restauration automatique d'une séance en cours si l'application avait été fermée
         try {
@@ -43,8 +39,22 @@ export default function RootLayout() {
           await useWorkoutSessionStore.getState().restoreActiveWorkoutIfAny();
         } catch {}
 
+        // Le stockage local et la session sont initialisés : ouverture immédiate de l'interface
         if (!isCancelled) {
           setIsReady(true);
+        }
+
+        // Synchronisation temps réel avec Supabase en tâche de fond (non-bloquante)
+        try {
+          const { syncCloudAndLocal, registerRealtimeLifecycleSync } = await import(
+            '../services/cloudSyncService'
+          );
+          cleanupRealtime = registerRealtimeLifecycleSync();
+          void syncCloudAndLocal().catch((syncErr) => {
+            console.warn('Sync cloud initial en arrière-plan:', syncErr);
+          });
+        } catch (syncErr) {
+          console.warn('Sync cloud initial:', syncErr);
         }
 
         // Vérification automatique et transparente des mises à jour OTA en arrière-plan
@@ -72,6 +82,7 @@ export default function RootLayout() {
 
     return () => {
       isCancelled = true;
+      clearTimeout(watchdog);
       cleanupRealtime();
     };
   }, [loadSettings, retryKey]);

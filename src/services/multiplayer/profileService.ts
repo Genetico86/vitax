@@ -4,6 +4,7 @@ import { getUserGamificationStats } from '../gamificationService';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabaseClient';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { getPersistedSession, savePersistedSession, generateFriendCode, STORAGE_KEY_AUTH_SESSION } from '../authService';
+import { processImageToHdSquare } from '../../utils/imageUtils';
 
 export const STORAGE_KEY_PROFILE = '@vitax_trainer_profile';
 
@@ -97,7 +98,13 @@ export function isAnonymousProfileId(id?: string | null): boolean {
   return false;
 }
 
-export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Promise<boolean> {
+let inFlightSyncPromise: Promise<boolean> | null = null;
+let pendingSyncProfile: TrainerProfile | null = null;
+
+/**
+ * Exécute la synchronisation réelle du profil vers Supabase avec protection anti-timeout et compression
+ */
+async function executeSyncTrainerProfile(profile: TrainerProfile): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
   const session = await getPersistedSession();
   // Ne synchroniser que les profils de comptes réels (pas les invités anonymes non connectés)
@@ -116,12 +123,20 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       }
     }
 
-    // Récupérer le profil Supabase existant pour garantir l'absence absolue de régression
-    const { data: cloudRow } = await supabase
-      .from('profiles')
-      .select(PUBLIC_PROFILE_COLUMNS)
-      .eq('id', profile.id)
-      .maybeSingle();
+    const timeoutPromise = <T>(ms: number, message: string): Promise<T> =>
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ data: null, error: { message } } as any), ms)
+      );
+
+    // Récupérer le profil Supabase existant avec un timeout de 4s max pour ne jamais bloquer
+    const { data: cloudRow } = await Promise.race([
+      supabase
+        .from('profiles')
+        .select(PUBLIC_PROFILE_COLUMNS)
+        .eq('id', profile.id)
+        .maybeSingle(),
+      timeoutPromise<any>(4000, 'Timeout récupération profil cloud'),
+    ]);
 
     if (cloudRow) {
       if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
@@ -145,8 +160,24 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       profile.friendCode = friendCode;
     }
 
+    // Optimisation et protection HD : si l'avatar dépasse 150 Ko (photo brute de caméra),
+    // le compresser automatiquement en carré HD 600x600 (< 80 Ko)
+    if (profile.avatarUrl && profile.avatarUrl.length > 150000) {
+      try {
+        const compressedAvatar = await processImageToHdSquare(profile.avatarUrl);
+        if (compressedAvatar && compressedAvatar.length < profile.avatarUrl.length) {
+          profile.avatarUrl = compressedAvatar;
+        }
+      } catch {}
+    }
+
     // Mettre à jour l'AsyncStorage local avec les données consolidées
     await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+
+    // Si après compression l'avatar dépasse toujours 350 Ko (ex: base64 natif sans canvas),
+    // ne pas envoyer le payload géant pour éviter d'exploser le timeout Postgres statement_timeout
+    const avatarToSend =
+      profile.avatarUrl && profile.avatarUrl.length > 350000 ? null : (profile.avatarUrl || null);
 
     const profilePayload: any = {
       id: profile.id,
@@ -158,19 +189,31 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       current_league: profile.currentLeague || 'pierre',
       total_xp: profile.totalXp || 0,
       total_workouts: profile.totalWorkouts || 0,
-      avatar_url: profile.avatarUrl || null,
+      avatar_url: avatarToSend,
       updated_at: new Date().toISOString(),
     };
 
-    let { error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+    let { error } = await Promise.race([
+      supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }),
+      timeoutPromise<any>(5000, 'Timeout upsert profil cloud'),
+    ]);
+
     if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
       delete profilePayload.avatar_url;
-      const retry = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+      const retry = await Promise.race([
+        supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }),
+        timeoutPromise<any>(5000, 'Timeout retry upsert profil cloud'),
+      ]);
       error = retry.error;
     }
 
     if (error) {
-      if (error.code !== '23505' && !error.message?.includes('unique constraint')) {
+      if (
+        error.code !== '23505' &&
+        !error.message?.includes('unique constraint') &&
+        !error.message?.includes('statement timeout') &&
+        !error.message?.includes('Timeout')
+      ) {
         console.warn('Erreur Supabase upsert profil:', error.message);
       }
       return false;
@@ -180,6 +223,32 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
     console.warn('Exception syncTrainerProfileToSupabase:', err);
     return false;
   }
+}
+
+/**
+ * Synchronise le profil athlète avec Supabase de façon non-bloquante,
+ * avec fusion des appels simultanés (in-flight deduplication) pour éviter les blocages de verrous Postgres.
+ */
+export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Promise<boolean> {
+  if (inFlightSyncPromise) {
+    pendingSyncProfile = profile;
+    return inFlightSyncPromise;
+  }
+
+  inFlightSyncPromise = (async () => {
+    try {
+      return await executeSyncTrainerProfile(profile);
+    } finally {
+      inFlightSyncPromise = null;
+      if (pendingSyncProfile) {
+        const nextProfile = pendingSyncProfile;
+        pendingSyncProfile = null;
+        void syncTrainerProfileToSupabase(nextProfile);
+      }
+    }
+  })();
+
+  return inFlightSyncPromise;
 }
 
 /**
