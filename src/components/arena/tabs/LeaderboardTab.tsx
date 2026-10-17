@@ -45,6 +45,7 @@ interface LeaderboardTabProps {
   onSimulateGift: () => void;
   onClaimGift: (gift: FriendGift) => void;
   onRemoveFriend: (id: string, name: string) => void;
+  onInviteAthlete?: (entry: LeaderboardEntry) => void;
 }
 
 export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
@@ -65,6 +66,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   onSimulateGift,
   onClaimGift,
   onRemoveFriend,
+  onInviteAthlete,
 }) => {
   return (
     <View>
@@ -493,6 +495,18 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
           const isPromoted =
             leaderboardFilter === 'global' &&
             entry.rank <= leaderboardData.league.promotionSpots;
+
+          const isAlreadyFriend =
+            entry.isFriend ||
+            friendsList.some(
+              (f) =>
+                f.friendId === entry.userId ||
+                (entry.friendCode && f.friendCode === entry.friendCode)
+            );
+
+          const displayedXp =
+            entry.totalXp !== undefined ? entry.totalXp : entry.weeklyXp;
+
           return (
             <View
               key={entry.userId}
@@ -551,7 +565,12 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               </View>
 
               <View style={styles.xpCol}>
-                <Text style={styles.xpValue}>{entry.weeklyXp} XP</Text>
+                <Text style={styles.xpValue}>{displayedXp.toLocaleString()} XP</Text>
+                {entry.weeklyXp > 0 ? (
+                  <Text style={styles.weeklyXpSub}>+{entry.weeklyXp} hebdo</Text>
+                ) : (
+                  <Text style={styles.weeklyXpSubMuted}>Total profil</Text>
+                )}
                 {isPromoted && <Text style={styles.promotedBadge}>▲ Promu</Text>}
               </View>
 
@@ -564,6 +583,24 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                 >
                   <Text style={{ fontSize: 16 }}>🗑️</Text>
                 </TouchableOpacity>
+              )}
+
+              {leaderboardFilter === 'global' && !entry.isCurrentUser && (
+                isAlreadyFriend ? (
+                  <View style={styles.friendBadge}>
+                    <Text style={styles.friendBadgeText}>✓ Ami</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.inviteAthleteBtn}
+                    onPress={() => onInviteAthlete ? onInviteAthlete(entry) : null}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Inviter ${entry.username} en ami`}
+                  >
+                    <Text style={styles.inviteAthleteBtnText}>+ Inviter</Text>
+                  </TouchableOpacity>
+                )
               )}
             </View>
           );

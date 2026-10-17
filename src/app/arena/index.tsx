@@ -58,6 +58,7 @@ export default function ArenaScreen() {
     handleShareFriendCode,
     handleShareWebInvite,
     handleAddFriend,
+    handleInviteAthlete,
     handleAcceptRequest,
     handleDeclineRequest,
     handleSimulateInvite,
@@ -165,6 +166,7 @@ export default function ArenaScreen() {
             onSimulateGift={handleSimulateGift}
             onClaimGift={onClaimGiftAndCelebrate}
             onRemoveFriend={handleRemoveFriend}
+            onInviteAthlete={handleInviteAthlete}
           />
         )}
 

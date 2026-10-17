@@ -71,14 +71,17 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
   const currentUserEntry: Omit<LeaderboardEntry, 'rank'> = {
     userId: profile.id,
     username: profile.username || 'Vous',
+    friendCode: profile.friendCode,
     trainerTitle: profile.trainerTitle,
     avatarPokemonEmoji: profile.avatarPokemonEmoji,
     avatarUrl: profile.avatarUrl,
     weeklyXp: userStats.weeklyXp,
+    totalXp: profile.totalXp || 0,
     totalTonnageKg: userStats.totalTonnageKg,
     cardioMinutes: userStats.cardioMinutes,
     workoutsCount: userStats.workoutsCount,
     isCurrentUser: true,
+    isFriend: false,
     trend: 'same',
   };
 
@@ -123,31 +126,41 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
     const friends = await getFriendsList();
     const friendEntries: Omit<LeaderboardEntry, 'rank'>[] = [];
 
-    // Récupérer les stats réelles de la semaine pour ces amis depuis Supabase
+    // Récupérer les stats réelles de la semaine et les profils consolidés pour ces amis depuis Supabase
     if (isSupabaseConfigured() && friends.length > 0) {
       const supabase = getSupabaseClient();
       if (supabase) {
         try {
           const friendIds = friends.map((f) => f.friendId);
-          const { data: statsData } = await supabase
-            .from('weekly_leaderboards')
-            .select('*')
-            .eq('week_id', weekId)
-            .in('user_id', friendIds);
+          const [{ data: statsData }, { data: profilesData }] = await Promise.all([
+            supabase
+              .from('weekly_leaderboards')
+              .select('*')
+              .eq('week_id', weekId)
+              .in('user_id', friendIds),
+            supabase
+              .from('profiles')
+              .select('id, total_xp, friend_code, avatar_url, current_league, total_workouts')
+              .in('id', friendIds),
+          ]);
 
           for (const f of friends) {
             const stat = statsData?.find((s: any) => s.user_id === f.friendId);
+            const pData = profilesData?.find((p: any) => p.id === f.friendId);
             friendEntries.push({
               userId: f.friendId,
               username: f.username,
+              friendCode: f.friendCode || pData?.friend_code,
               trainerTitle: f.trainerTitle,
               avatarPokemonEmoji: f.avatarPokemonEmoji,
-              avatarUrl: f.avatarUrl || stat?.avatar_url,
+              avatarUrl: f.avatarUrl || pData?.avatar_url || stat?.avatar_url,
               weeklyXp: stat?.weekly_xp || 0,
+              totalXp: pData?.total_xp ?? f.totalXp ?? (stat?.weekly_xp || 0),
               totalTonnageKg: stat?.total_tonnage_kg || 0,
               cardioMinutes: stat?.cardio_minutes || 0,
-              workoutsCount: stat?.workouts_count || 0,
+              workoutsCount: stat?.workouts_count || pData?.total_workouts || 0,
               isCurrentUser: false,
+              isFriend: true,
               trend: 'same',
             });
           }
@@ -162,21 +175,29 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
         friendEntries.push({
           userId: f.friendId,
           username: f.username,
+          friendCode: f.friendCode,
           trainerTitle: f.trainerTitle,
           avatarPokemonEmoji: f.avatarPokemonEmoji,
           avatarUrl: f.avatarUrl,
           weeklyXp: 0,
+          totalXp: f.totalXp || 0,
           totalTonnageKg: 0,
           cardioMinutes: 0,
           workoutsCount: 0,
           isCurrentUser: false,
+          isFriend: true,
           trend: 'same',
         });
       }
     }
 
     const combinedFriends = [...friendEntries, currentUserEntry];
-    combinedFriends.sort((a, b) => b.weeklyXp - a.weeklyXp);
+    combinedFriends.sort((a, b) => {
+      if (b.weeklyXp !== a.weeklyXp) {
+        return b.weeklyXp - a.weeklyXp;
+      }
+      return (b.totalXp || 0) - (a.totalXp || 0);
+    });
 
     let rankCounter = 1;
     let userRank = 1;
@@ -196,7 +217,7 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
   }
 
   // -----------------------------------------------------------
-  // OPTION B : CLASSEMENT GÉNÉRAL (Vrais athlètes Vitax uniquement)
+  // OPTION B : CLASSEMENT GÉNÉRAL (Tous les Athlètes de la communauté)
   // -----------------------------------------------------------
   const realLeaderboardEntries: Omit<LeaderboardEntry, 'rank' | 'isCurrentUser'>[] = [];
 
@@ -204,42 +225,50 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('weekly_leaderboards')
-          .select('*')
-          .eq('week_id', weekId)
-          .eq('current_league', profile.currentLeague)
-          .neq('user_id', profile.id)
-          .order('weekly_xp', { ascending: false })
+        // 1. Récupérer TOUS les vrais profils d'athlètes enregistrés dans Supabase
+        const { data: allProfiles, error: profErr } = await supabase
+          .from('profiles')
+          .select('id, username, friend_code, trainer_title, avatar_pokemon_emoji, avatar_url, current_league, total_xp, total_workouts')
+          .neq('id', profile.id)
+          .order('total_xp', { ascending: false })
           .limit(50);
 
-        if (!error && data && data.length > 0) {
-          // Récupérer également les photos de profil depuis la table profiles
-          const competitorIds = data.map((d: any) => d.user_id);
-          const { data: profilesMap } = await supabase
-            .from('profiles')
-            .select('id, avatar_url')
-            .in('id', competitorIds);
+        if (!profErr && allProfiles && allProfiles.length > 0) {
+          const competitorIds = allProfiles.map((p: any) => p.id);
 
-          const avatarByUserId = new Map<string, string>();
-          if (profilesMap) {
-            for (const p of profilesMap) {
-              if (p.avatar_url) avatarByUserId.set(p.id, p.avatar_url);
+          // 2. Récupérer les stats hebdomadaires correspondantes si existantes
+          let weeklyMap = new Map<string, any>();
+          try {
+            const { data: weeklyData } = await supabase
+              .from('weekly_leaderboards')
+              .select('*')
+              .eq('week_id', weekId)
+              .in('user_id', competitorIds);
+
+            if (weeklyData) {
+              for (const w of weeklyData) {
+                weeklyMap.set(w.user_id, w);
+              }
             }
+          } catch (wErr) {
+            console.warn('Lecture stats hebdo concurrents:', wErr);
           }
 
-          for (const d of data) {
-            const avatarUrl = d.avatar_url || avatarByUserId.get(d.user_id);
+          for (const p of allProfiles) {
+            const w = weeklyMap.get(p.id);
             realLeaderboardEntries.push({
-              userId: d.user_id,
-              username: d.username,
-              trainerTitle: d.trainer_title || 'Athlète',
-              avatarPokemonEmoji: d.avatar_pokemon_emoji || '⚡',
-              avatarUrl,
-              weeklyXp: d.weekly_xp || 0,
-              totalTonnageKg: d.total_tonnage_kg || 0,
-              cardioMinutes: d.cardio_minutes || 0,
-              workoutsCount: d.workouts_count || 0,
+              userId: p.id,
+              username: p.username || 'Athlète Vitax',
+              friendCode: p.friend_code,
+              trainerTitle: p.trainer_title || 'Athlète',
+              avatarPokemonEmoji: p.avatar_pokemon_emoji || '⚡',
+              avatarUrl: p.avatar_url,
+              weeklyXp: w?.weekly_xp || 0,
+              totalXp: p.total_xp || 0,
+              totalTonnageKg: w?.total_tonnage_kg || 0,
+              cardioMinutes: w?.cardio_minutes || 0,
+              workoutsCount: w?.workouts_count || p.total_workouts || 0,
+              isFriend: false,
               trend: 'same',
             });
           }
@@ -251,7 +280,14 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
   }
 
   const combined = [...realLeaderboardEntries.map((p) => ({ ...p, isCurrentUser: false })), currentUserEntry];
-  combined.sort((a, b) => b.weeklyXp - a.weeklyXp);
+  combined.sort((a, b) => {
+    // 1. Priorité aux athlètes ayant marqué des points cette semaine
+    if (b.weeklyXp !== a.weeklyXp) {
+      return b.weeklyXp - a.weeklyXp;
+    }
+    // 2. À égalité de points hebdo, classer par XP totale du profil
+    return (b.totalXp || 0) - (a.totalXp || 0);
+  });
 
   let userRank = 1;
   const entries: LeaderboardEntry[] = combined.map((item, idx) => {
