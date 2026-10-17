@@ -1251,6 +1251,15 @@ export async function fullCloudSyncToLocal(): Promise<{
     const cloudFavorites = await fetchFavoritesFromCloud();
     if (cloudFavorites.length > 0) {
       await AsyncStorage.setItem('@vitax_favorite_exercise_ids', JSON.stringify(cloudFavorites));
+      try {
+        const now = new Date().toISOString();
+        for (const exId of cloudFavorites) {
+          await db.runAsync(
+            'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
+            [exId, now]
+          );
+        }
+      } catch {}
     }
 
     // 4. Récupérer l'ensemble des poids historisés
@@ -1541,12 +1550,26 @@ export async function pushLocalToCloud(): Promise<void> {
     await syncActiveWorkoutDraftToCloud();
 
     // 7. Envoyer les favoris locaux
-    const rawFavs = await AsyncStorage.getItem('@vitax_favorite_exercise_ids');
-    if (rawFavs) {
-      const favIds = JSON.parse(rawFavs);
-      if (Array.isArray(favIds) && favIds.length > 0) {
-        await syncFavoritesToCloud(favIds);
+    let favIds: string[] = [];
+    try {
+      const favRows = await db.getAllAsync<{ exercise_id: string }>(
+        'SELECT exercise_id FROM exercise_favorites'
+      );
+      if (favRows && favRows.length > 0) {
+        favIds = favRows.map((r) => r.exercise_id);
       }
+    } catch {}
+
+    if (favIds.length === 0) {
+      const rawFavs = await AsyncStorage.getItem('@vitax_favorite_exercise_ids');
+      if (rawFavs) {
+        const parsed = JSON.parse(rawFavs);
+        if (Array.isArray(parsed)) favIds = parsed;
+      }
+    }
+
+    if (favIds.length > 0) {
+      await syncFavoritesToCloud(favIds);
     }
 
     // 8. Envoyer les Pokémon et œufs locaux

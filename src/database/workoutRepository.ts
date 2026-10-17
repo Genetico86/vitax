@@ -148,7 +148,10 @@ export async function getWorkoutSessionDetails(
 
   if (sets.length === 0) {
     const remote = await fetchWorkoutDetailsFromCloud(id);
-    if (remote && remote.sets.length > 0) {
+    if (remote && remote.sets && remote.sets.length > 0) {
+      try {
+        await saveWorkoutSession(remote, remote.sets);
+      } catch {}
       return remote;
     }
   }

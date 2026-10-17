@@ -142,6 +142,7 @@ export async function seedDatabase(db?: SQLite.SQLiteDatabase): Promise<void> {
 export async function resetDatabase(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(`
+    DROP TABLE IF EXISTS exercise_favorites;
     DROP TABLE IF EXISTS running_sessions;
     DROP TABLE IF EXISTS fitness_goals;
     DROP TABLE IF EXISTS body_weights;
@@ -163,6 +164,7 @@ export async function resetDatabase(): Promise<void> {
 export async function clearUserLocalData(): Promise<void> {
   const db = await getDatabase();
   await db.execAsync(`
+    DELETE FROM exercise_favorites;
     DELETE FROM workout_sets;
     DELETE FROM workout_sessions;
     DELETE FROM body_weights;
