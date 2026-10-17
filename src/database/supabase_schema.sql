@@ -115,8 +115,12 @@ CREATE TABLE IF NOT EXISTS public.weekly_leaderboards (
   total_tonnage_kg INTEGER DEFAULT 0,
   cardio_minutes INTEGER DEFAULT 0,
   workouts_count INTEGER DEFAULT 0,
+  avatar_url TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Assurer que la colonne avatar_url existe si la table a déjà été créée
+ALTER TABLE public.weekly_leaderboards ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_leaderboards_week_league ON public.weekly_leaderboards(week_id, current_league, weekly_xp DESC);
 

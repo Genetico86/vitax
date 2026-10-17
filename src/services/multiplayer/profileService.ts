@@ -112,7 +112,7 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
     // Récupérer le profil Supabase existant pour garantir l'absence absolue de régression
     const { data: cloudRow } = await supabase
       .from('profiles')
-      .select('friend_code, total_xp, total_workouts, username, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league')
+      .select('friend_code, total_xp, total_workouts, username, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, avatar_url, current_league')
       .eq('id', profile.id)
       .maybeSingle();
 
@@ -130,6 +130,7 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
       if (!profile.trainerTitle && cloudRow.trainer_title) profile.trainerTitle = cloudRow.trainer_title;
       if (!profile.avatarPokemonId && cloudRow.avatar_pokemon_id) profile.avatarPokemonId = cloudRow.avatar_pokemon_id;
       if (!profile.avatarPokemonEmoji && cloudRow.avatar_pokemon_emoji) profile.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
+      if (!profile.avatarUrl && cloudRow.avatar_url) profile.avatarUrl = cloudRow.avatar_url;
     }
 
     if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {

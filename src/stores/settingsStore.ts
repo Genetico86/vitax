@@ -40,6 +40,15 @@ async function persistAndSyncSettings(state: SettingsState): Promise<void> {
     const { syncUserSettingsToCloud } = await import('../services/cloudSyncService');
     void syncUserSettingsToCloud();
   } catch {}
+  try {
+    const { getOrCreateTrainerProfile, syncTrainerProfileToSupabase } = await import(
+      '../services/multiplayer/profileService'
+    );
+    const prof = await getOrCreateTrainerProfile();
+    prof.avatarUrl = state.avatar_url;
+    if (state.user_name) prof.username = state.user_name;
+    void syncTrainerProfileToSupabase(prof);
+  } catch {}
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
