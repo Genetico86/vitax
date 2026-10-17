@@ -38,6 +38,7 @@ export async function getFriendsList(): Promise<FriendEntry[]> {
                 friendCode: p.friend_code,
                 trainerTitle: p.trainer_title || 'Athlète Vitax',
                 avatarPokemonEmoji: p.avatar_pokemon_emoji || '⚡',
+                avatarUrl: p.avatar_url,
                 currentLeague: (p.current_league as LeagueTier) || 'pierre',
                 totalXp: p.total_xp || 0,
                 addedAt: friendship?.created_at || new Date().toISOString(),
@@ -221,6 +222,7 @@ export async function addFriendByCode(
       friendCode: targetProfile.friend_code,
       trainerTitle: targetProfile.trainer_title || 'Athlète Vitax',
       avatarPokemonEmoji: targetProfile.avatar_pokemon_emoji || '⚡',
+      avatarUrl: targetProfile.avatar_url,
       currentLeague: (targetProfile.current_league as LeagueTier) || 'pierre',
       totalXp: targetProfile.total_xp || 0,
       addedAt: new Date().toISOString(),
@@ -332,12 +334,26 @@ export async function getPendingFriendRequests(): Promise<FriendRequest[]> {
           .order('created_at', { ascending: false });
 
         if (!error && data && Array.isArray(data)) {
+          const senderIds = data.map((d: any) => d.sender_id);
+          const { data: sendersProfiles } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', senderIds);
+
+          const senderAvatarMap = new Map<string, string>();
+          if (sendersProfiles) {
+            for (const sp of sendersProfiles) {
+              if (sp.avatar_url) senderAvatarMap.set(sp.id, sp.avatar_url);
+            }
+          }
+
           const cloudRequests: FriendRequest[] = data.map((d: any) => ({
             id: d.id,
             senderId: d.sender_id,
             senderName: d.sender_name || 'Athlète Vitax',
             senderCode: d.sender_code,
             senderAvatarEmoji: d.sender_avatar || '⚡',
+            senderAvatarUrl: d.sender_avatar_url || senderAvatarMap.get(d.sender_id),
             senderTrainerTitle: d.sender_title || 'Athlète Vitax',
             receiverId: d.receiver_id,
             receiverCode: d.receiver_code,
@@ -390,6 +406,7 @@ export async function acceptFriendRequest(
       friendCode: req.senderCode,
       trainerTitle: req.senderTrainerTitle,
       avatarPokemonEmoji: req.senderAvatarEmoji,
+      avatarUrl: req.senderAvatarUrl,
       currentLeague: 'pierre',
       totalXp: 0,
       addedAt: new Date().toISOString(),

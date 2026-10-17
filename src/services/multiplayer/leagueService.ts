@@ -73,6 +73,7 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
     username: profile.username || 'Vous',
     trainerTitle: profile.trainerTitle,
     avatarPokemonEmoji: profile.avatarPokemonEmoji,
+    avatarUrl: profile.avatarUrl,
     weeklyXp: userStats.weeklyXp,
     totalTonnageKg: userStats.totalTonnageKg,
     cardioMinutes: userStats.cardioMinutes,
@@ -85,24 +86,33 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
   if (isSupabaseConfigured()) {
     const supabase = getSupabaseClient();
     if (supabase) {
-      void Promise.resolve(
-        supabase
-          .from('weekly_leaderboards')
-          .upsert({
-            id: `${weekId}_${profile.id}`,
-            week_id: weekId,
-            user_id: profile.id,
-            username: profile.username,
-            trainer_title: profile.trainerTitle,
-            avatar_pokemon_emoji: profile.avatarPokemonEmoji,
-            current_league: profile.currentLeague,
-            weekly_xp: userStats.weeklyXp,
-            total_tonnage_kg: userStats.totalTonnageKg,
-            cardio_minutes: userStats.cardioMinutes,
-            workouts_count: userStats.workoutsCount,
-            updated_at: new Date().toISOString(),
-          })
-      ).catch(() => {});
+      const lbPayload: any = {
+        id: `${weekId}_${profile.id}`,
+        week_id: weekId,
+        user_id: profile.id,
+        username: profile.username,
+        trainer_title: profile.trainerTitle,
+        avatar_pokemon_emoji: profile.avatarPokemonEmoji,
+        current_league: profile.currentLeague,
+        weekly_xp: userStats.weeklyXp,
+        total_tonnage_kg: userStats.totalTonnageKg,
+        cardio_minutes: userStats.cardioMinutes,
+        workouts_count: userStats.workoutsCount,
+        updated_at: new Date().toISOString(),
+      };
+      if (profile.avatarUrl) {
+        lbPayload.avatar_url = profile.avatarUrl;
+      }
+
+      void (async () => {
+        try {
+          const { error } = await supabase.from('weekly_leaderboards').upsert(lbPayload);
+          if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
+            delete lbPayload.avatar_url;
+            await supabase.from('weekly_leaderboards').upsert(lbPayload);
+          }
+        } catch {}
+      })();
     }
   }
 
@@ -132,6 +142,7 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
               username: f.username,
               trainerTitle: f.trainerTitle,
               avatarPokemonEmoji: f.avatarPokemonEmoji,
+              avatarUrl: f.avatarUrl || stat?.avatar_url,
               weeklyXp: stat?.weekly_xp || 0,
               totalTonnageKg: stat?.total_tonnage_kg || 0,
               cardioMinutes: stat?.cardio_minutes || 0,
@@ -153,6 +164,7 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
           username: f.username,
           trainerTitle: f.trainerTitle,
           avatarPokemonEmoji: f.avatarPokemonEmoji,
+          avatarUrl: f.avatarUrl,
           weeklyXp: 0,
           totalTonnageKg: 0,
           cardioMinutes: 0,
@@ -202,12 +214,28 @@ export async function getLeagueLeaderboard(filter: 'global' | 'friends' = 'globa
           .limit(50);
 
         if (!error && data && data.length > 0) {
+          // Récupérer également les photos de profil depuis la table profiles
+          const competitorIds = data.map((d: any) => d.user_id);
+          const { data: profilesMap } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', competitorIds);
+
+          const avatarByUserId = new Map<string, string>();
+          if (profilesMap) {
+            for (const p of profilesMap) {
+              if (p.avatar_url) avatarByUserId.set(p.id, p.avatar_url);
+            }
+          }
+
           for (const d of data) {
+            const avatarUrl = d.avatar_url || avatarByUserId.get(d.user_id);
             realLeaderboardEntries.push({
               userId: d.user_id,
               username: d.username,
               trainerTitle: d.trainer_title || 'Athlète',
               avatarPokemonEmoji: d.avatar_pokemon_emoji || '⚡',
+              avatarUrl,
               weeklyXp: d.weekly_xp || 0,
               totalTonnageKg: d.total_tonnage_kg || 0,
               cardioMinutes: d.cardio_minutes || 0,

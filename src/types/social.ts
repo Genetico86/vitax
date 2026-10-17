@@ -80,6 +80,7 @@ export interface FriendEntry {
   friendCode: string; // e.g. "48219" (code à 5 chiffres)
   trainerTitle: string;
   avatarPokemonEmoji: string;
+  avatarUrl?: string;
   currentLeague: LeagueTier;
   totalXp: number;
   addedAt: string;
@@ -100,6 +101,7 @@ export interface RaidParticipant {
   userId: string;
   username: string;
   avatarPokemonEmoji: string;
+  avatarUrl?: string;
   contributionValue: number;
   percentage: number;
   isCurrentUser: boolean;
@@ -155,6 +157,7 @@ export interface FriendRequest {
   senderName: string;
   senderCode: string;
   senderAvatarEmoji: string;
+  senderAvatarUrl?: string;
   senderTrainerTitle: string;
   receiverId: string;
   receiverCode: string;
@@ -167,6 +170,7 @@ export interface FriendGift {
   senderId: string;
   senderName: string;
   senderAvatarEmoji: string;
+  senderAvatarUrl?: string;
   receiverId: string;
   receiverName: string;
   receiverFriendCode: string;
