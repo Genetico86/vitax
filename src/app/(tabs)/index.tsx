@@ -986,19 +986,22 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
 
-            {/* TUILE 3 : FAVORIS */}
+            {/* TUILE 3 : FAVORIS & CATALOGUE */}
             <TouchableOpacity
               style={[styles.priorityTwinCard, styles.favoritesCard, dynamic.cardRow]}
-              onPress={() => router.push('/exercises?filter=favorites')}
+              onPress={() => router.push(favoriteCount > 0 ? '/exercises?filter=favorites' : '/exercises')}
               activeOpacity={0.85}
+              accessibilityLabel={favoriteCount > 0 ? 'Mes exercices favoris' : 'Catalogue complet des exercices'}
             >
               <View style={[styles.priorityTwinIconCircle, styles.favoritesIconCircle, dynamic.iconCircle]}>
-                <Text style={{ fontSize: dynamic.cardIconSize }}>⭐</Text>
+                <Text style={{ fontSize: dynamic.cardIconSize }}>{favoriteCount > 0 ? '⭐' : '📖'}</Text>
               </View>
               <View style={styles.cardTextCol}>
-                <Text style={[styles.priorityTwinTitle, dynamic.cardTitle]} numberOfLines={2}>Favoris</Text>
+                <Text style={[styles.priorityTwinTitle, dynamic.cardTitle]} numberOfLines={1}>
+                  {favoriteCount > 0 ? 'Favoris' : 'Catalogue'}
+                </Text>
                 <Text style={[styles.priorityTwinSub, { color: '#FBBF24' }, dynamic.cardSub]} numberOfLines={1}>
-                  {favoriteCount} favori{favoriteCount > 1 ? 's' : ''}
+                  {favoriteCount > 0 ? `${favoriteCount} favori${favoriteCount > 1 ? 's' : ''}` : '103 exercices'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1045,7 +1048,7 @@ export default function HomeScreen() {
         </View>
 
         {/* ======================================================== */}
-        {/* 4. RANGÉE 3 : ARÈNE & FORME SEMAINE                      */}
+        {/* 4. RANGÉE 3 : MULTIJOUEUR & CARDIO (ARÈNE & COURSE)      */}
         {/* ======================================================== */}
         <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
           {/* ARÈNE */}
@@ -1053,6 +1056,8 @@ export default function HomeScreen() {
             style={[styles.secondaryColCard, styles.arenaCard, dynamic.cardRow]}
             onPress={() => router.push('/arena')}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir l'Arène Vitax"
           >
             <View style={[styles.secondaryIconCircle, styles.arenaIconCircle, dynamic.iconCircle]}>
               <Text style={{ fontSize: dynamic.cardIconSize }}>⚔️</Text>
@@ -1077,64 +1082,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* FORME SEMAINE */}
-          <TouchableOpacity
-            style={[styles.secondaryColCard, styles.weeklyFitnessCompactCard, dynamic.cardRow]}
-            onPress={() => router.push('/(tabs)/history')}
-            activeOpacity={0.8}
-            accessibilityLabel="Forme de la semaine"
-          >
-            <View style={[styles.secondaryIconCircle, styles.fitnessIconCircle, dynamic.iconCircle]}>
-              <Text style={{ fontSize: dynamic.cardIconSize }}>🔥</Text>
-            </View>
-            <View style={styles.cardTextCol}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Forme</Text>
-                <Text
-                  style={[
-                    styles.weeklyCompactBadgeText,
-                    {
-                      color:
-                        (weeklyFitness?.fitnessScorePercent || 0) >= 75
-                          ? '#34D399'
-                          : Colors.primary,
-                    },
-                  ]}
-                >
-                  {weeklyFitness?.fitnessScorePercent || 0}%
-                </Text>
-              </View>
-              {/* Mini barre de progression dynamique Forme */}
-              <View style={styles.weeklyFitnessMiniTrack}>
-                <View
-                  style={[
-                    styles.weeklyFitnessMiniFill,
-                    {
-                      width: `${Math.min(
-                        100,
-                        Math.max((weeklyFitness?.fitnessScorePercent || 0) > 0 ? 8 : 0, weeklyFitness?.fitnessScorePercent || 0)
-                      )}%`,
-                      backgroundColor:
-                        (weeklyFitness?.fitnessScorePercent || 0) >= 75
-                          ? '#10B981'
-                          : (weeklyFitness?.fitnessScorePercent || 0) >= 25
-                          ? Colors.primary
-                          : '#F59E0B',
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={[styles.secondaryColSub, { color: '#34D399' }, dynamic.cardSub]} numberOfLines={1}>
-                {weeklyFitness?.weekWorkoutsCount || 0}/{weeklyFitness?.targetWeeklyWorkouts || 4} séances
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ======================================================== */}
-        {/* 5. RANGÉE 4 : COURSE / MARCHE & SUIVI DU POIDS           */}
-        {/* ======================================================== */}
-        <View style={[styles.secondaryRow, dynamic.rowSpacing]}>
+          {/* COURSE & MARCHE */}
           <TouchableOpacity
             style={[styles.secondaryColCard, dynamic.cardRow, { borderColor: '#10B98155' }]}
             onPress={() => router.push('/running')}
@@ -1152,24 +1100,115 @@ export default function HomeScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+        </View>
 
-          <TouchableOpacity
-            style={[styles.secondaryColCard, dynamic.cardRow, { borderColor: '#3B82F655' }]}
-            onPress={() => router.push('/exercises')}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Ouvrir le catalogue complet des exercices"
-          >
-            <View style={[styles.secondaryIconCircle, { backgroundColor: 'rgba(59, 130, 246, 0.16)', borderColor: '#3B82F6' }, dynamic.iconCircle]}>
-              <Text style={{ fontSize: dynamic.cardIconSize }}>📖</Text>
-            </View>
-            <View style={styles.cardTextCol}>
-              <Text style={[styles.secondaryColTitle, dynamic.cardTitle]} numberOfLines={1}>Catalogue</Text>
-              <Text style={[styles.secondaryColSub, { color: '#60A5FA' }, dynamic.cardSub]} numberOfLines={1}>
-                Guides & Postures
+        {/* ======================================================== */}
+        {/* 5. MOTIVATEUR HEBDOMADAIRE : FORME & OBJECTIF DE LA SEMAINE */}
+        {/* ======================================================== */}
+        <View style={[styles.weeklyFitnessCard, dynamic.weeklyFitnessCard]}>
+          {/* Header de motivation : Titre + Badge d'élan */}
+          <View style={[styles.weeklyFitnessHeader, dynamic.weeklyFitnessHeader]}>
+            <View style={styles.weeklyFitnessTitleRow}>
+              <Text style={{ fontSize: dynamic.weeklyTitleIconSize }}>🔥</Text>
+              <Text style={[styles.weeklyFitnessTitle, dynamic.weeklyFitnessTitle]}>
+                Forme de la semaine
+              </Text>
+              <Text style={styles.weeklyFitnessSubInfo}>
+                • {weeklyFitness?.weekWorkoutsCount || 0}/{weeklyFitness?.targetWeeklyWorkouts || 4} séances
               </Text>
             </View>
-          </TouchableOpacity>
+
+            <View
+              style={[
+                styles.weeklyFitnessBadge,
+                (weeklyFitness?.weekWorkoutsCount || 0) >= (weeklyFitness?.targetWeeklyWorkouts || 4) &&
+                  styles.weeklyFitnessBadgeHigh,
+                dynamic.weeklyFitnessBadge,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.weeklyFitnessBadgeText,
+                  (weeklyFitness?.weekWorkoutsCount || 0) >= (weeklyFitness?.targetWeeklyWorkouts || 4) &&
+                    styles.weeklyFitnessBadgeTextHigh,
+                  dynamic.weeklyFitnessBadgeText,
+                ]}
+              >
+                {weeklyFitness?.fitnessLabel || 'Prêt à démarrer ! 💪'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Jauge de régularité hebdo */}
+          <View style={styles.weeklyTrackContainer}>
+            <View style={styles.weeklyTrack}>
+              <View
+                style={[
+                  styles.weeklyTrackFill,
+                  {
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        (weeklyFitness?.weekWorkoutsCount || 0) > 0 ? 12 : 0,
+                        Math.round(
+                          ((weeklyFitness?.weekWorkoutsCount || 0) /
+                            (weeklyFitness?.targetWeeklyWorkouts || 4)) *
+                            100
+                        )
+                      )
+                    )}%`,
+                    backgroundColor:
+                      (weeklyFitness?.weekWorkoutsCount || 0) >=
+                      (weeklyFitness?.targetWeeklyWorkouts || 4)
+                        ? '#10B981'
+                        : (weeklyFitness?.weekWorkoutsCount || 0) > 0
+                        ? Colors.primary
+                        : '#334155',
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          {/* Rangée des 7 jours (L M M J V S D) avec validation des séances */}
+          <View style={[styles.weeklyDaysRow, dynamic.weeklyDaysRow]}>
+            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((dayLabel, idx) => {
+              const isTrained = weeklyFitness?.activeDays?.[idx] || false;
+              const isToday = (weeklyFitness?.currentDayIndex ?? -1) === idx;
+              return (
+                <View
+                  key={`day-${idx}`}
+                  style={[
+                    styles.dayPill,
+                    dynamic.dayPill,
+                    isTrained && styles.dayPillActive,
+                    isToday && styles.dayPillToday,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayPillText,
+                      dynamic.dayPillText,
+                      isTrained && styles.dayPillTextActive,
+                      isToday && !isTrained && styles.dayPillTextToday,
+                    ]}
+                  >
+                    {isTrained ? '✓' : dayLabel}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Citation / Message d'encouragement dynamique */}
+          {dynamic.showWeeklyFooter && (
+            <View style={styles.weeklyFitnessFooter}>
+              <Text style={styles.weeklyMotivationQuote} numberOfLines={1}>
+                {weeklyFitness?.motivationalQuote ||
+                  'Chaque séance vous rapproche de votre meilleur niveau !'}
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -1968,29 +2007,6 @@ const styles = StyleSheet.create({
   progressIconCircle: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
-  weeklyFitnessCompactCard: {
-    borderColor: 'rgba(239, 68, 68, 0.35)',
-    backgroundColor: '#111827',
-  },
-  fitnessIconCircle: {
-    backgroundColor: 'rgba(239, 68, 68, 0.16)',
-  },
-  weeklyCompactBadgeText: {
-    fontSize: 13,
-    fontWeight: '900',
-    marginRight: 4,
-  },
-  weeklyFitnessMiniTrack: {
-    height: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 3,
-    marginVertical: 4,
-    overflow: 'hidden',
-  },
-  weeklyFitnessMiniFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
   modalIncubatorHint: {
     backgroundColor: '#162235',
     paddingVertical: 8,
@@ -2008,16 +2024,16 @@ const styles = StyleSheet.create({
   },
 
   /* ======================================================== */
-  /* JAUGE DE FORME HEBDOMADAIRE                              */
+  /* MOTIVATEUR DE FORME HEBDOMADAIRE                         */
   /* ======================================================== */
   weeklyFitnessCard: {
     backgroundColor: '#111827',
     borderWidth: 1.5,
-    borderColor: Colors.surfaceBorder,
+    borderColor: 'rgba(255, 85, 0, 0.25)',
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   weeklyFitnessHeader: {
     flexDirection: 'row',
@@ -2094,11 +2110,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayPillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primaryLight,
+    backgroundColor: 'rgba(255, 85, 0, 0.22)',
+    borderColor: Colors.primary,
   },
   dayPillToday: {
-    borderColor: Colors.accent,
+    borderColor: '#FBBF24',
     borderWidth: 1.5,
   },
   dayPillText: {
@@ -2107,11 +2123,12 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
   },
   dayPillTextActive: {
-    color: Colors.primaryText,
+    color: '#FF8A50',
     fontWeight: '900',
   },
   dayPillTextToday: {
     color: '#FBBF24',
+    fontWeight: '900',
   },
   weeklyFitnessFooter: {
     borderTopWidth: 1,
