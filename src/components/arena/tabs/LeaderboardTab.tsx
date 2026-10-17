@@ -5,6 +5,7 @@ import { showAlert } from '../../../utils/alert';
 import { Card } from '../../common/Card';
 import { Badge } from '../../common/Badge';
 import { Button } from '../../common/Button';
+import { UserAvatar } from '../../common/UserAvatar';
 import {
   LeaderboardEntry,
   LeagueConfig,
@@ -514,8 +515,13 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                 </Text>
               </View>
 
-              <View style={styles.entryAvatar}>
-                <Text style={{ fontSize: 20 }}>{entry.avatarPokemonEmoji}</Text>
+              <View style={[styles.entryAvatar, { overflow: 'hidden', padding: 0 }]}>
+                <UserAvatar
+                  avatarUrl={entry.avatarUrl}
+                  fallbackEmoji={entry.avatarPokemonEmoji || '⚡'}
+                  size={36}
+                  style={{ borderWidth: 0 }}
+                />
               </View>
 
               <View style={{ flex: 1 }}>

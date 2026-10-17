@@ -124,6 +124,7 @@ export interface ExerciseHistoryPoint {
 
 export interface UserPreferences {
   user_name?: string;
+  avatar_url?: string;
   user_height_cm?: number;
   available_equipments?: Equipment[];
   filter_by_available_equipment?: boolean;

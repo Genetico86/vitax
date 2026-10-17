@@ -24,6 +24,8 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { Colors } from '../../constants/colors';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { UserAvatar } from '../../components/common/UserAvatar';
+import { AvatarPickerModal } from '../../components/common/AvatarPickerModal';
 import {
   getUserGamificationStats,
   LevelInfo,
@@ -591,8 +593,9 @@ export default function HomeScreen() {
 
   // Modal Badges & Pokémon Hub
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
-  const { user_name, available_equipments, filter_by_available_equipment } = useSettingsStore();
+  const { user_name, avatar_url, setAvatarUrl, available_equipments, filter_by_available_equipment } = useSettingsStore();
 
   const compatibleProgramsCount = useMemo(() => {
     if (!filter_by_available_equipment) return programs.length;
@@ -809,6 +812,12 @@ export default function HomeScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.userGreetingRow}>
+                <UserAvatar
+                  avatarUrl={avatar_url}
+                  fallbackEmoji={effectiveLevelInfo?.badgeEmoji || '👤'}
+                  size={32}
+                  style={{ borderWidth: 1, borderColor: '#38BDF8' }}
+                />
                 <Text style={[styles.userGreetingText, dynamic.userGreetingText]} numberOfLines={1}>
                   Bonjour {user_name ? user_name : 'l’athlète'} 👋
                 </Text>
@@ -1400,6 +1409,22 @@ export default function HomeScreen() {
             {isUserLoggedIn ? (
               <View>
                 <View style={styles.loggedInProfileBox}>
+                  <TouchableOpacity
+                    onPress={() => setAvatarPickerVisible(true)}
+                    activeOpacity={0.8}
+                    style={{ alignItems: 'center', marginBottom: 10 }}
+                    accessibilityLabel="Modifier ma photo de profil"
+                  >
+                    <UserAvatar
+                      avatarUrl={avatar_url}
+                      fallbackEmoji="👤"
+                      size={68}
+                      showEditBadge
+                    />
+                    <Text style={{ color: '#38BDF8', fontSize: 12.5, fontWeight: '700', marginTop: 6 }}>
+                      📷 Modifier la photo ❯
+                    </Text>
+                  </TouchableOpacity>
                   <Text style={styles.loggedInBadge}>✓ Compte Connecté</Text>
                   <Text style={styles.loggedInUsername}>{user_name}</Text>
                   <Text style={styles.loggedInSubtitle}>
@@ -1522,6 +1547,15 @@ export default function HomeScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <AvatarPickerModal
+        visible={avatarPickerVisible}
+        currentAvatarUrl={avatar_url}
+        onClose={() => setAvatarPickerVisible(false)}
+        onAvatarSelected={async (url) => {
+          await setAvatarUrl(url);
+        }}
+      />
     </View>
   );
 }
