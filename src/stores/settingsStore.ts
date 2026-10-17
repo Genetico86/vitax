@@ -7,6 +7,7 @@ interface SettingsState extends UserPreferences {
   isLoaded: boolean;
   loadSettings: () => Promise<void>;
   setUserName: (name: string) => Promise<void>;
+  setAvatarUrl: (url?: string) => Promise<void>;
   setUserHeight: (heightCm: number) => Promise<void>;
   setAvailableEquipments: (equipments: Equipment[]) => Promise<void>;
   toggleAvailableEquipment: (equipment: Equipment) => Promise<void>;
@@ -25,6 +26,7 @@ async function persistAndSyncSettings(state: SettingsState): Promise<void> {
     SETTINGS_KEY,
     JSON.stringify({
       user_name: state.user_name,
+      avatar_url: state.avatar_url,
       user_height_cm: state.user_height_cm,
       available_equipments: state.available_equipments,
       filter_by_available_equipment: state.filter_by_available_equipment,
@@ -42,6 +44,7 @@ async function persistAndSyncSettings(state: SettingsState): Promise<void> {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   user_name: '',
+  avatar_url: undefined,
   user_height_cm: undefined,
   available_equipments: EQUIPMENTS,
   filter_by_available_equipment: true,
@@ -58,6 +61,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         const parsed = JSON.parse(data);
         set({
           user_name: parsed.user_name ?? '',
+          avatar_url: parsed.avatar_url ?? undefined,
           user_height_cm: parsed.user_height_cm ?? undefined,
           available_equipments: Array.isArray(parsed.available_equipments)
             ? (parsed.available_equipments as Equipment[]).filter((eq) =>
@@ -82,6 +86,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setUserName: async (name: string) => {
     const trimmed = name.trim();
     set({ user_name: trimmed });
+    await persistAndSyncSettings(get());
+  },
+
+  setAvatarUrl: async (url?: string) => {
+    set({ avatar_url: url });
     await persistAndSyncSettings(get());
   },
 

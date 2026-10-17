@@ -4,6 +4,8 @@ import { TrainerProfile } from '../../types/social';
 import { arenaStyles as styles } from './styles/arenaStyles';
 import { ArenaTab } from './hooks/useArenaData';
 
+import { UserAvatar } from '../common/UserAvatar';
+
 interface ArenaHeaderProps {
   profile: TrainerProfile | null;
   leagueName?: string;
@@ -31,11 +33,17 @@ export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
       {profile && (
         <View style={styles.profileHeader}>
           <TouchableOpacity
-            style={styles.profileAvatarBox}
+            style={[styles.profileAvatarBox, { padding: 0, overflow: 'hidden' }]}
             onPress={onOpenAuth}
             activeOpacity={0.8}
+            accessibilityLabel="Gérer mon profil athlète"
           >
-            <Text style={styles.profileAvatarEmoji}>{profile.avatarPokemonEmoji}</Text>
+            <UserAvatar
+              avatarUrl={profile.avatarUrl}
+              fallbackEmoji={profile.avatarPokemonEmoji || '⚡'}
+              size={48}
+              style={{ borderWidth: 0 }}
+            />
           </TouchableOpacity>
 
           <View style={{ flex: 1 }}>

@@ -17,6 +17,7 @@ export interface TrainerProfile {
   trainerTitle: string;
   avatarPokemonId: string;
   avatarPokemonEmoji: string;
+  avatarUrl?: string;
   currentLeague: LeagueTier;
   totalXp: number;
   totalWorkouts: number;
@@ -29,6 +30,7 @@ export interface LeaderboardEntry {
   username: string;
   trainerTitle: string;
   avatarPokemonEmoji: string;
+  avatarUrl?: string;
   weeklyXp: number;
   totalTonnageKg: number;
   cardioMinutes: number;

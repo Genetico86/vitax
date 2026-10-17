@@ -18,12 +18,14 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   current_league TEXT DEFAULT 'pierre',
   total_xp INTEGER DEFAULT 0,
   total_workouts INTEGER DEFAULT 0,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Assurer que la colonne password existe si la table a déjà été créée
+-- Assurer que la colonne password et avatar_url existent si la table a déjà été créée
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- UNICITÉ STRICTE DES PSEUDOS (insensible à la casse : impossible d'avoir des doublons 'Matthieu' et 'matthieu')
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique_lower ON public.profiles (LOWER(TRIM(username)));

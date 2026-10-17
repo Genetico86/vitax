@@ -42,7 +42,14 @@
       "expo-sqlite",
       "expo-sharing",
       "expo-document-picker",
-      "expo-updates"
+      "expo-updates",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autoriser Vitax à accéder à vos photos pour définir votre photo de profil.",
+          "cameraPermission": "Autoriser Vitax à utiliser votre appareil photo pour prendre un selfie de profil."
+        }
+      ]
     ],
     "extra": {
       "router": {},
