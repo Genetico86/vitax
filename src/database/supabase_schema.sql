@@ -102,6 +102,21 @@ CREATE TABLE IF NOT EXISTS public.fitness_goals (
 
 CREATE INDEX IF NOT EXISTS idx_fitness_goals_user ON public.fitness_goals(user_id);
 
+-- 6b. TABLE DES SESSIONS DE COURSE & MARCHE (CARDIO)
+CREATE TABLE IF NOT EXISTS public.running_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  date TEXT NOT NULL,
+  distance_km REAL NOT NULL,
+  duration_seconds INTEGER NOT NULL,
+  pace_seconds_per_km REAL NOT NULL,
+  notes TEXT,
+  calories INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_running_sessions_user_date ON public.running_sessions(user_id, date DESC);
+
 -- 7. TABLE DES CLASSEMENTS HEBDOMADAIRES
 CREATE TABLE IF NOT EXISTS public.weekly_leaderboards (
   id TEXT PRIMARY KEY,
@@ -217,6 +232,7 @@ ALTER TABLE public.workout_sets DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_favorites DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.body_weights DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fitness_goals DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.running_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.weekly_leaderboards DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.friends DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades DISABLE ROW LEVEL SECURITY;

@@ -28,6 +28,14 @@ export async function exportAllData(): Promise<{ success: boolean; filePath?: st
     const pokemon_eggs = await db.getAllAsync<PokemonEgg>('SELECT * FROM pokemon_eggs');
     const body_weights = await db.getAllAsync<BodyWeightLog>('SELECT * FROM body_weights');
     const fitness_goals = await db.getAllAsync<FitnessGoal>('SELECT * FROM fitness_goals');
+    const running_sessions = await db.getAllAsync<any>('SELECT * FROM running_sessions');
+    let favorite_exercise_ids: string[] = [];
+    try {
+      const favRows = await db.getAllAsync<{ exercise_id: string }>(
+        'SELECT exercise_id FROM exercise_favorites'
+      );
+      favorite_exercise_ids = favRows.map((r) => r.exercise_id);
+    } catch {}
 
     const userPrefs = useSettingsStore.getState();
     const backup: BackupData = {
@@ -42,6 +50,8 @@ export async function exportAllData(): Promise<{ success: boolean; filePath?: st
       pokemon_eggs,
       body_weights,
       fitness_goals,
+      running_sessions,
+      favorite_exercise_ids,
       preferences: {
         user_name: userPrefs.user_name,
         user_height_cm: userPrefs.user_height_cm,
@@ -280,6 +290,54 @@ export async function importDataFromFile(): Promise<{
         );
       }
     }
+
+    // Importer les sessions de course / marche
+    if (Array.isArray(backupData.running_sessions)) {
+      for (const rs of backupData.running_sessions) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO running_sessions (
+             id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, calories, created_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            rs.id,
+            rs.date,
+            rs.distance_km,
+            rs.duration_seconds,
+            rs.pace_seconds_per_km,
+            rs.notes || null,
+            rs.calories || null,
+            rs.created_at || new Date().toISOString(),
+          ]
+        );
+      }
+    }
+
+    // Importer les exercices favoris
+    if (Array.isArray(backupData.favorite_exercise_ids) && backupData.favorite_exercise_ids.length > 0) {
+      const now = new Date().toISOString();
+      for (const exId of backupData.favorite_exercise_ids) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
+          [exId, now]
+        );
+      }
+      try {
+        const { STORAGE_KEY_FAVORITES } = await import('../services/favoritesService');
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+        await AsyncStorage.setItem(
+          STORAGE_KEY_FAVORITES,
+          JSON.stringify(backupData.favorite_exercise_ids)
+        );
+        const { syncFavoritesToCloud } = await import('../services/cloudSyncService');
+        void syncFavoritesToCloud(backupData.favorite_exercise_ids);
+      } catch {}
+    }
+
+    // Déclencher une synchronisation d'arrière-plan vers Supabase pour sécuriser l'import
+    try {
+      const { pushLocalToCloud } = await import('../services/cloudSyncService');
+      void pushLocalToCloud();
+    } catch {}
 
     if (backupData.preferences) {
       if (backupData.preferences.user_name) {

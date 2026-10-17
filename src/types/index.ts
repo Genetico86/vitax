@@ -146,6 +146,8 @@ export interface BackupData {
   pokemon_eggs?: PokemonEgg[];
   body_weights?: BodyWeightLog[];
   fitness_goals?: FitnessGoal[];
+  running_sessions?: RunningSession[];
+  favorite_exercise_ids?: string[];
   preferences?: UserPreferences;
 }
 

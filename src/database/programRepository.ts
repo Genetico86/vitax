@@ -3,7 +3,7 @@ import { Program, ProgramExerciseDetail, DifficultyLevel } from '../types';
 
 export async function getAllPrograms(): Promise<Program[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<Program>(`
+  let rows = await db.getAllAsync<Program>(`
     SELECT
       p.*,
       COUNT(pe.id) AS exercises_count,
@@ -14,6 +14,27 @@ export async function getAllPrograms(): Promise<Program[]> {
     GROUP BY p.id
     ORDER BY p.is_custom DESC, p.name ASC
   `);
+
+  // Si aucun programme personnalisé n'est présent localement, tenter de synchroniser depuis le Cloud
+  const hasCustom = rows.some((p) => p.is_custom === 1);
+  if (!hasCustom) {
+    try {
+      const { fetchCustomCatalogFromCloud } = await import('../services/cloudSyncService');
+      await fetchCustomCatalogFromCloud();
+      rows = await db.getAllAsync<Program>(`
+        SELECT
+          p.*,
+          COUNT(pe.id) AS exercises_count,
+          GROUP_CONCAT(DISTINCT e.equipment_needed) AS required_equipments
+        FROM programs p
+        LEFT JOIN program_exercises pe ON pe.program_id = p.id
+        LEFT JOIN exercises e ON e.id = pe.exercise_id
+        GROUP BY p.id
+        ORDER BY p.is_custom DESC, p.name ASC
+      `);
+    } catch {}
+  }
+
   return rows;
 }
 
@@ -21,8 +42,15 @@ export async function getProgramById(
   id: string
 ): Promise<{ program: Program; exercises: ProgramExerciseDetail[] } | null> {
   const db = await getDatabase();
-  const program = await db.getFirstAsync<Program>('SELECT * FROM programs WHERE id = ?', [id]);
-  if (!program) return null;
+  let program = await db.getFirstAsync<Program>('SELECT * FROM programs WHERE id = ?', [id]);
+  if (!program) {
+    try {
+      const { fetchCustomCatalogFromCloud } = await import('../services/cloudSyncService');
+      await fetchCustomCatalogFromCloud();
+      program = await db.getFirstAsync<Program>('SELECT * FROM programs WHERE id = ?', [id]);
+    } catch {}
+    if (!program) return null;
+  }
 
   const exercises = await db.getAllAsync<ProgramExerciseDetail>(
     `SELECT
