@@ -10,7 +10,6 @@ import {
   ProgramExercise,
   WorkoutSession,
   WorkoutSet,
-  PokemonEgg,
   BodyWeightLog,
   FitnessGoal,
 } from '../types';
@@ -25,7 +24,6 @@ export async function exportAllData(): Promise<{ success: boolean; filePath?: st
     const program_exercises = await db.getAllAsync<ProgramExercise>('SELECT * FROM program_exercises');
     const workout_sessions = await db.getAllAsync<WorkoutSession>('SELECT * FROM workout_sessions');
     const workout_sets = await db.getAllAsync<WorkoutSet>('SELECT * FROM workout_sets');
-    const pokemon_eggs = await db.getAllAsync<PokemonEgg>('SELECT * FROM pokemon_eggs');
     const body_weights = await db.getAllAsync<BodyWeightLog>('SELECT * FROM body_weights');
     const fitness_goals = await db.getAllAsync<FitnessGoal>('SELECT * FROM fitness_goals');
     const running_sessions = await db.getAllAsync<any>('SELECT * FROM running_sessions');
@@ -47,7 +45,6 @@ export async function exportAllData(): Promise<{ success: boolean; filePath?: st
       program_exercises,
       workout_sessions,
       workout_sets,
-      pokemon_eggs,
       body_weights,
       fitness_goals,
       running_sessions,
@@ -218,36 +215,6 @@ export async function importDataFromFile(): Promise<{
             st.created_at || nowIso,
           ]
         );
-      }
-
-      // Import des œufs de Pokémon si présents
-      if (backupData.pokemon_eggs && Array.isArray(backupData.pokemon_eggs)) {
-        for (const egg of backupData.pokemon_eggs) {
-          await db.runAsync(
-            `INSERT OR REPLACE INTO pokemon_eggs (
-               id, name, rarity, required_xp, current_xp, status, incubator_slot, obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name, pokemon_emoji, pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              egg.id,
-              egg.name,
-              egg.rarity,
-              egg.required_xp,
-              egg.current_xp,
-              egg.status,
-              egg.incubator_slot,
-              egg.obtained_from,
-              egg.obtained_at,
-              egg.hatched_at || null,
-              egg.pokemon_id || null,
-              egg.pokemon_name || null,
-              egg.pokemon_emoji || null,
-              egg.pokemon_type || null,
-              egg.pokemon_cp || null,
-              egg.is_legendary,
-              egg.current_pokemon_xp || 0,
-            ]
-          );
-        }
       }
 
       // Importer les pesées corporelles

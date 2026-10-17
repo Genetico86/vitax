@@ -7,8 +7,6 @@ import {
   Exercise,
   WorkoutSession,
   WorkoutSet,
-  EggHatchResult,
-  PokemonEgg,
 } from '../types';
 import { getProgramById } from '../database/programRepository';
 import {
@@ -16,11 +14,6 @@ import {
   getLastPerformanceForExercises,
 } from '../database/exerciseRepository';
 import { saveWorkoutSession } from '../database/workoutRepository';
-import {
-  distributeWorkoutXpToIncubators,
-  determineWorkoutEggDrop,
-  getActiveBuddyBuff,
-} from '../services/pokemonEggService';
 import { useSettingsStore } from './settingsStore';
 import { computeSetXp, claimDailyWorkoutBonus } from '../services/exerciseWeightingService';
 import { getExerciseUnitInfo } from '../utils/exerciseUnits';
@@ -53,10 +46,6 @@ interface WorkoutSessionState {
   lastCompletedSession: {
     session: WorkoutSession;
     sets: WorkoutSet[];
-    hatchedPokemon?: EggHatchResult[];
-    incubatingEggsProgress?: PokemonEgg[];
-    droppedEgg?: PokemonEgg | null;
-    inventoryFullNotice?: boolean;
   } | null;
 
   // Actions d'initialisation et restauration
@@ -770,61 +759,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       }
     }
 
-    // Bonus du Compagnon Actif (Option A)
-    let buddyBonusXp = 0;
-    try {
-      const buddyBuff = await getActiveBuddyBuff();
-      if (buddyBuff) {
-        if (buddyBuff.type === 'combat') {
-          buddyBonusXp += Math.round(setsXp * 0.10);
-        } else if (
-          buddyBuff.type === 'feu' &&
-          (session.duration_seconds >= 2400 || completedCount >= 10)
-        ) {
-          buddyBonusXp += Math.round(setsXp * 0.10);
-        } else if (buddyBuff.type === 'roche' && (session.total_volume || 0) >= 2000) {
-          const tonnes = Math.floor((session.total_volume || 0) / 2000);
-          buddyBonusXp += tonnes * 50;
-        } else if (buddyBuff.type === 'eau') {
-          buddyBonusXp += Math.round(setsXp * 0.05);
-        } else if (buddyBuff.type === 'plante') {
-          buddyBonusXp += Math.round(setsXp * 0.15);
-        }
-      }
-    } catch (bErr) {
-      console.warn('Erreur calcul buddy buff:', bErr);
-    }
-
-    const totalEarnedXp = setsXp + dailyBonusXp + buddyBonusXp;
-    let hatchedPokemon: EggHatchResult[] = [];
-    let incubatingEggsProgress: PokemonEgg[] = [];
-
-    try {
-      const incubationResult = await distributeWorkoutXpToIncubators(totalEarnedXp);
-      hatchedPokemon = incubationResult.newlyHatched;
-      incubatingEggsProgress = incubationResult.updatedEggs;
-    } catch (err) {
-      console.error('Erreur distribution XP incubateurs:', err);
-    }
-
-    // Drop automatique d'un œuf en fin de séance (Option A)
-    let droppedEgg: PokemonEgg | null = null;
-    let inventoryFullNotice = false;
-    try {
-      const dropRes = await determineWorkoutEggDrop({
-        durationSeconds: session.duration_seconds,
-        completedSets: completedCount,
-        totalVolumeKg: session.total_volume || 0,
-        programName: session.program_name,
-      });
-      if (dropRes.egg) {
-        droppedEgg = dropRes.egg;
-      } else if (dropRes.reason === 'inventory_full') {
-        inventoryFullNotice = true;
-      }
-    } catch (dropErr) {
-      console.warn('Erreur drop œuf fin de séance:', dropErr);
-    }
+    const totalEarnedXp = setsXp + dailyBonusXp;
 
     // Mise à jour immédiate du profil athlète (XP, séances, tonnage & ligue)
     try {
@@ -855,10 +790,6 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       lastCompletedSession: {
         session,
         sets: allSets,
-        hatchedPokemon,
-        incubatingEggsProgress,
-        droppedEgg,
-        inventoryFullNotice,
       },
     });
 

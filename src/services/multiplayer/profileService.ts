@@ -8,13 +8,13 @@ import { getPersistedSession, savePersistedSession, generateFriendCode, STORAGE_
 export const STORAGE_KEY_PROFILE = '@vitax_trainer_profile';
 
 // -------------------------------------------------------------
-// CONFIGURATION DES 5 LIGUES D'ARÈNES POKÉMON
+// CONFIGURATION DES 5 LIGUES D'ATHLÈTES
 // -------------------------------------------------------------
 export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
   pierre: {
     tier: 'pierre',
-    name: 'Ligue Pierre (Argenta)',
-    emoji: '🪨',
+    name: 'Ligue Bronze (Novice)',
+    emoji: '🥉',
     color: '#78716C',
     minXpRequirement: 0,
     promotionSpots: 5,
@@ -22,8 +22,8 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
   },
   cascade: {
     tier: 'cascade',
-    name: 'Ligue Cascade (Azuria)',
-    emoji: '💧',
+    name: 'Ligue Argent (Régulier)',
+    emoji: '🥈',
     color: '#38BDF8',
     minXpRequirement: 500,
     promotionSpots: 5,
@@ -31,8 +31,8 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
   },
   foudre: {
     tier: 'foudre',
-    name: 'Ligue Foudre (Carmin)',
-    emoji: '⚡',
+    name: 'Ligue Or (Confirmé)',
+    emoji: '🥇',
     color: '#FACC15',
     minXpRequirement: 1500,
     promotionSpots: 4,
@@ -40,8 +40,8 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
   },
   volcan: {
     tier: 'volcan',
-    name: 'Ligue Volcan (Cramois’Île)',
-    emoji: '🌋',
+    name: 'Ligue Platine (Élite)',
+    emoji: '🔥',
     color: '#F97316',
     minXpRequirement: 3500,
     promotionSpots: 3,
@@ -49,7 +49,7 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
   },
   maitre: {
     tier: 'maitre',
-    name: 'Ligue Maître (Conseil 4)',
+    name: 'Ligue Diamant (Légende)',
     emoji: '👑',
     color: '#A855F7',
     minXpRequirement: 7000,
@@ -240,7 +240,6 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
       totalXp: 0,
       totalSessions: 0,
       levelInfo: { title: 'Athlète Vitax' },
-      hatchedPokemon: [] as any[],
     };
     try {
       const stats = await getUserGamificationStats();
@@ -249,7 +248,6 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           totalXp: stats.totalXp || 0,
           totalSessions: stats.totalSessions || 0,
           levelInfo: stats.levelInfo || { title: 'Athlète Vitax' },
-          hatchedPokemon: stats.hatchedPokemon || [],
         };
       }
     } catch (gamErr) {
@@ -386,7 +384,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 username: cloudRow.username || session.username || 'Athlète Vitax',
                 friendCode: realCode,
                 trainerTitle: cloudRow.trainer_title || gamification.levelInfo.title,
-                avatarPokemonId: cloudRow.avatar_pokemon_id || 'pikachu',
+                avatarPokemonId: cloudRow.avatar_pokemon_id || 'athlete',
                 avatarPokemonEmoji: cloudRow.avatar_pokemon_emoji || '⚡',
                 avatarUrl: cloudRow.avatar_url || useSettingsStore.getState().avatar_url,
                 currentLeague: (cloudRow.current_league as LeagueTier) || 'pierre',
@@ -421,7 +419,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 username: matched.username,
                 friendCode: matched.friend_code,
                 trainerTitle: matched.trainer_title || gamification.levelInfo.title,
-                avatarPokemonId: matched.avatar_pokemon_id || 'pikachu',
+                avatarPokemonId: matched.avatar_pokemon_id || 'athlete',
                 avatarPokemonEmoji: matched.avatar_pokemon_emoji || '⚡',
                 avatarUrl: matched.avatar_url || useSettingsStore.getState().avatar_url,
                 currentLeague: (matched.current_league as LeagueTier) || 'pierre',
@@ -441,8 +439,6 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           session?.friendCode && session.friendCode !== '10000'
             ? session.friendCode
             : generateFriendCode();
-        const defaultAvatar = gamification.hatchedPokemon[0]?.pokemon_id || 'pikachu';
-        const defaultEmoji = gamification.hatchedPokemon[0]?.pokemon_emoji || '⚡';
         const effectiveName = session?.username || storeName || gamification.levelInfo.title || 'Athlète Vitax';
         const effectiveId = session?.isLoggedIn && session.userId ? session.userId : `vtx_${Date.now()}_${friendCode}`;
 
@@ -451,8 +447,8 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           username: effectiveName,
           friendCode,
           trainerTitle: gamification.levelInfo.title,
-          avatarPokemonId: defaultAvatar,
-          avatarPokemonEmoji: defaultEmoji,
+          avatarPokemonId: 'athlete',
+          avatarPokemonEmoji: '⚡',
           avatarUrl: useSettingsStore.getState().avatar_url,
           currentLeague: 'pierre',
           totalXp: gamification.totalXp,
@@ -473,8 +469,8 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
       id: 'default_trainer',
       username: storeName || 'Athlète Vitax',
       friendCode: generateFriendCode(),
-      trainerTitle: 'Athlète Débutant',
-      avatarPokemonId: 'pikachu',
+      trainerTitle: 'Athlète Novice',
+      avatarPokemonId: 'athlete',
       avatarPokemonEmoji: '⚡',
       currentLeague: 'pierre',
       totalXp: 0,

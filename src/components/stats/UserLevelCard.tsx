@@ -30,21 +30,21 @@ export const UserLevelCard: React.FC<UserLevelCardProps> = ({
         <View style={styles.levelInfo}>
           <View style={styles.levelRow}>
             <View style={styles.tagWrapper}>
-              <Text style={styles.pokeballIcon}>🔴</Text>
-              <Text style={styles.levelTag}>BADGE POKÉMON • NIV. {levelInfo.level}</Text>
+              <Text style={styles.pokeballIcon}>⚡</Text>
+              <Text style={styles.levelTag}>RANG ATHLÈTE • NIV. {levelInfo.level}</Text>
             </View>
             <Text style={styles.xpText}>{levelInfo.currentXp} XP</Text>
           </View>
           <Text style={styles.titleText}>{levelInfo.title}</Text>
-          {levelInfo.city ? (
+          {levelInfo.category ? (
             <Text style={styles.arenaSub}>
-              Arène d’{levelInfo.city} ({levelInfo.champion}) • {levelInfo.type}
+              {levelInfo.category} • {levelInfo.specialty}
             </Text>
           ) : null}
         </View>
       </View>
 
-      {/* Barre de progression XP vers le prochain badge */}
+      {/* Barre de progression XP vers le prochain rang */}
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack}>
           <View
@@ -60,7 +60,7 @@ export const UserLevelCard: React.FC<UserLevelCardProps> = ({
           </Text>
           <Text style={styles.progressRemaining}>
             {isMaxLevel
-              ? '👑 Titre Suprême Obtenu !'
+              ? '👑 Rang Suprême Obtenu !'
               : `Encore ${remainingXp} XP ➔ ${levelInfo.nextBadgeTitle} ${levelInfo.nextBadgeEmoji}`}
           </Text>
         </View>

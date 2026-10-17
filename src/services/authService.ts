@@ -100,7 +100,7 @@ export async function registerTrainer(
     username: trimmedName,
     friendCode,
     trainerTitle: 'Athlète Vitax',
-    avatarPokemonId: 'pikachu',
+    avatarPokemonId: 'athlete',
     avatarPokemonEmoji: '⚡',
     avatarUrl: useSettingsStore.getState().avatar_url,
     currentLeague: 'pierre',
@@ -205,7 +205,6 @@ export async function registerTrainer(
         '@vitax_active_workout_draft',
         '@vitax_favorite_exercise_ids',
         '@vitax_daily_bonus_state',
-        '@vitax_max_unlocked_incubator',
       ]);
     }
   } catch {}
@@ -301,7 +300,7 @@ export async function loginTrainer(
             username: userRecord.username || trimmedName,
             friendCode: safeCode,
             trainerTitle: userRecord.trainer_title || 'Athlète Vitax',
-            avatarPokemonId: userRecord.avatar_pokemon_id || 'pikachu',
+            avatarPokemonId: userRecord.avatar_pokemon_id || 'athlete',
             avatarPokemonEmoji: userRecord.avatar_pokemon_emoji || '⚡',
             avatarUrl: userRecord.avatar_url || useSettingsStore.getState().avatar_url,
             currentLeague: userRecord.current_league || 'pierre',
@@ -326,7 +325,6 @@ export async function loginTrainer(
                 '@vitax_active_workout_draft',
                 '@vitax_favorite_exercise_ids',
                 '@vitax_daily_bonus_state',
-                '@vitax_max_unlocked_incubator',
               ]);
             }
           } catch {}
@@ -347,7 +345,7 @@ export async function loginTrainer(
           );
           await useSettingsStore.getState().setUserName(trimmedName);
 
-          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris, Pokémon, courses, réglages)
+          // Rapatrier immédiatement toutes les données cloud (séances, séries, poids, objectifs, favoris, courses, réglages)
           try {
             const { fullCloudSyncToLocal } = await import('./cloudSyncService');
             await fullCloudSyncToLocal();
@@ -402,7 +400,7 @@ export async function loginTrainer(
             username: trimmedName,
             friendCode: generateFriendCode(),
             trainerTitle: 'Athlète Vitax',
-            avatarPokemonId: 'pikachu',
+            avatarPokemonId: 'athlete',
             avatarPokemonEmoji: '⚡',
             currentLeague: 'pierre',
             totalXp: 0,
@@ -470,7 +468,7 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
               username: row.username || session.username,
               friendCode: safeCode,
               trainerTitle: row.trainer_title || 'Athlète Vitax',
-              avatarPokemonId: row.avatar_pokemon_id || 'pikachu',
+              avatarPokemonId: row.avatar_pokemon_id || 'athlete',
               avatarPokemonEmoji: row.avatar_pokemon_emoji || '⚡',
               currentLeague: row.current_league || 'pierre',
               totalXp: row.total_xp || 0,
@@ -527,7 +525,7 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
 }
 
 /**
- * Déconnexion du compte dresseur
+ * Déconnexion du compte athlète
  */
 export async function logoutTrainer(): Promise<void> {
   try {
@@ -557,7 +555,6 @@ export async function logoutTrainer(): Promise<void> {
       '@vitax_active_workout_draft',
       '@vitax_favorite_exercise_ids',
       '@vitax_daily_bonus_state',
-      '@vitax_max_unlocked_incubator',
     ]);
   } catch (e) {
     console.error('Erreur logout:', e);

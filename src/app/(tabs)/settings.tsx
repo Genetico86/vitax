@@ -508,7 +508,7 @@ export default function SettingsScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.loginBannerTitle}>Compte & Synchronisation Cloud</Text>
                       <Text style={styles.loginBannerSub}>
-                        Connectez-vous pour sauvegarder et restaurer vos séances, statistiques et Pokémon sur tous vos appareils.
+                        Connectez-vous pour sauvegarder et restaurer vos séances et statistiques sur tous vos appareils.
                       </Text>
                     </View>
                   </View>

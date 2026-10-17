@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PokemonEgg } from '../../types';
 import { CoOpRaidBoss, RaidParticipant, RaidMetric } from '../../types/social';
-import { addPokemonEgg } from '../pokemonEggService';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabaseClient';
-import { getOrCreateTrainerProfile, getCurrentWeekBounds } from './profileService';
+import {
+  getOrCreateTrainerProfile,
+  getCurrentWeekBounds,
+  updateTrainerProfileXpAndStats,
+} from './profileService';
 import { getWeeklyUserStats } from './leagueService';
 
 export const STORAGE_KEY_RAID_CLAIMED = '@vitax_raid_claimed_';
@@ -103,11 +105,11 @@ export async function getActiveCoOpRaidBoss(): Promise<CoOpRaidBoss> {
   const isVictory = currentProgress >= targetValue;
 
   return {
-    id: `raid_mewtwo_${start.toISOString()}`,
-    title: 'Raid Boss Co-op de la Semaine',
-    bossName: 'Mewtwo Gigamax',
-    bossEmoji: '🧬',
-    bossType: 'Psy / Légendaire',
+    id: `coop_challenge_${start.toISOString()}`,
+    title: 'Défi Co-op de la Semaine',
+    bossName: 'Défi 50 Tonnes d’Acier',
+    bossEmoji: '🏋️‍♂️',
+    bossType: 'Force Collective',
     description: 'Alliez-vous avec vos partenaires d’arène pour soulever collectivement 50 000 kg avant la fin du week-end !',
     targetMetric,
     targetMetricLabel: 'kg soulevés',
@@ -116,24 +118,24 @@ export async function getActiveCoOpRaidBoss(): Promise<CoOpRaidBoss> {
     startTime: start.toISOString(),
     endTime: end.toISOString(),
     status: isVictory ? 'victory' : 'active',
-    rewardEggRarity: 'legendary',
-    rewardDescription: 'Œuf Légendaire d’Or (éclosion garantie de Mewtwo ou Mew)',
+    rewardXp: 500,
+    rewardDescription: 'Bonus d’équipe : +500 XP de performance sportive',
     participants,
     hasClaimedReward: hasClaimed,
   };
 }
 
-export async function claimRaidVictoryReward(): Promise<PokemonEgg> {
+export async function claimRaidVictoryReward(): Promise<{ rewardXp: number }> {
   const raid = await getActiveCoOpRaidBoss();
   if (raid.status !== 'victory') {
-    throw new Error('Le Boss de Raid n’a pas encore été vaincu.');
+    throw new Error('L’objectif collectif n’a pas encore été atteint.');
   }
 
   const { start } = getCurrentWeekBounds();
   const storageKey = `${STORAGE_KEY_RAID_CLAIMED}_week_${start.toISOString()}`;
 
-  const egg = await addPokemonEgg('legendary', 'Victoire de Raid Co-op : Mewtwo Gigamax', 'mewtwo');
+  await updateTrainerProfileXpAndStats(raid.rewardXp || 500);
   await AsyncStorage.setItem(storageKey, 'true');
 
-  return egg;
+  return { rewardXp: raid.rewardXp || 500 };
 }

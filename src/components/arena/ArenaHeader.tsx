@@ -92,15 +92,6 @@ export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'trades' && styles.tabButtonActive]}
-          onPress={() => onTabChange('trades')}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'trades' && styles.tabButtonTextActive]}>
-            🔄 Échanges
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.tabButton, activeTab === 'raids' && styles.tabButtonActive]}
           onPress={() => onTabChange('raids')}
         >

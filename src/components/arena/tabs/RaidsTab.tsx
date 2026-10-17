@@ -65,7 +65,7 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
               raidsSubTab === 'boss' && styles.raidsSubNavTextActive,
             ]}
           >
-            🧬 Raid Boss Co-op
+            🏋️‍♂️ Défi Co-op 50t
           </Text>
         </TouchableOpacity>
       </View>
@@ -291,7 +291,7 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
                 <Text style={styles.victorySub}>{raidBoss.rewardDescription}</Text>
                 {!raidBoss.hasClaimedReward ? (
                   <Button
-                    title="🎁 Réclamer mon Œuf Légendaire"
+                    title={`🎁 Réclamer mes +${raidBoss.rewardXp || 500} XP`}
                     variant="primary"
                     size="md"
                     onPress={onClaimReward}
