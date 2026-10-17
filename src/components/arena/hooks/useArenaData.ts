@@ -6,7 +6,6 @@ import {
   TrainerProfile,
   LeaderboardEntry,
   LeagueConfig,
-  PokemonTradeOffer,
   CoOpRaidBoss,
   FriendEntry,
   FriendChallenge,
@@ -19,14 +18,10 @@ import {
   claimFriendGift,
   simulateFriendGift,
 } from '../../../services/friendGiftService';
-import { PokemonEgg, Exercise, Program } from '../../../types';
+import { Exercise, Program } from '../../../types';
 import {
   getOrCreateTrainerProfile,
   getLeagueLeaderboard,
-  getTradablePokemon,
-  getCommunityTradeOffers,
-  createTradeOffer,
-  executePokemonTrade,
   getActiveCoOpRaidBoss,
   claimRaidVictoryReward,
   addFriendByCode,
@@ -53,14 +48,12 @@ import { isDurationExercise, getExerciseUnitInfo } from '../../../utils/exercise
 
 export const WEB_APP_URL = 'https://vitaxsport.vercel.app';
 
-export type ArenaTab = 'leaderboard' | 'trades' | 'raids';
+export type ArenaTab = 'leaderboard' | 'raids';
 export type LeaderboardFilter = 'global' | 'friends';
-export type TradeFilter = 'all' | 'friends';
 
 export function useArenaData(initialTab?: ArenaTab) {
   const [activeTab, setActiveTab] = useState<ArenaTab>(initialTab || 'leaderboard');
   const [leaderboardFilter, setLeaderboardFilter] = useState<LeaderboardFilter>('global');
-  const [tradeFilter, setTradeFilter] = useState<TradeFilter>('all');
 
   const [profile, setProfile] = useState<TrainerProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -72,8 +65,6 @@ export function useArenaData(initialTab?: ArenaTab) {
     timeRemainingText: string;
     totalParticipants: number;
   } | null>(null);
-  const [tradablePokemon, setTradablePokemon] = useState<PokemonEgg[]>([]);
-  const [tradeOffers, setTradeOffers] = useState<PokemonTradeOffer[]>([]);
   const [raidBoss, setRaidBoss] = useState<CoOpRaidBoss | null>(null);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,9 +96,7 @@ export function useArenaData(initialTab?: ArenaTab) {
 
       const [
         lb,
-        tradables,
         friends,
-        offers,
         raid,
         chlgList,
         exList,
@@ -116,9 +105,7 @@ export function useArenaData(initialTab?: ArenaTab) {
         giftsData,
       ] = await Promise.all([
         getLeagueLeaderboard(leaderboardFilter),
-        getTradablePokemon(),
         getFriendsList(),
-        getCommunityTradeOffers(tradeFilter),
         getActiveCoOpRaidBoss(),
         getFriendChallenges(),
         getAllExercises(),
@@ -128,9 +115,7 @@ export function useArenaData(initialTab?: ArenaTab) {
       ]);
 
       setLeaderboardData(lb);
-      setTradablePokemon(tradables);
       setFriendsList(friends);
-      setTradeOffers(offers);
       setRaidBoss(raid);
       setFriendChallenges(chlgList);
       setAllExercises(exList);
@@ -140,7 +125,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     } catch (err) {
       console.error('Erreur chargement arène:', err);
     }
-  }, [leaderboardFilter, tradeFilter]);
+  }, [leaderboardFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -197,7 +182,7 @@ export function useArenaData(initialTab?: ArenaTab) {
 
   const handleShareWebInvite = async () => {
     if (!profile) return;
-    const inviteMessage = `🏋️‍♂️ Salut ! Je t'invite à rejoindre Vitax, notre application de musculation & défis sportifs.\n\n🌐 Ouvre l'application web directement ici (sans rien installer) :\n${WEB_APP_URL}\n\n🏆 Dès ton arrivée, ajoute mon Code Athlète pour qu'on partage nos classements et s'échange nos Pokémon : ${profile.friendCode}\n\nÀ très vite dans l'arène ! ⚔️`;
+    const inviteMessage = `🏋️‍♂️ Salut ! Je t'invite à rejoindre Vitax, notre application de musculation & défis sportifs.\n\n🌐 Ouvre l'application web directement ici (sans rien installer) :\n${WEB_APP_URL}\n\n🏆 Dès ton arrivée, ajoute mon Code Athlète pour qu'on partage nos classements et nos défis : ${profile.friendCode}\n\nÀ très vite dans l'arène ! ⚔️`;
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(inviteMessage);
@@ -333,7 +318,7 @@ export function useArenaData(initialTab?: ArenaTab) {
         await loadData();
         showAlert(
           'Compte Athlète créé ! 🏆',
-          `Bienvenue ${u} ! Vos séances, statistiques et Pokémon sont désormais sauvegardés en permanence sur le cloud.`
+          `Bienvenue ${u} ! Vos séances et statistiques sont désormais sauvegardées en permanence sur le cloud.`
         );
         return true;
       } else {
@@ -346,7 +331,7 @@ export function useArenaData(initialTab?: ArenaTab) {
         await loadData();
         showAlert(
           'Rebonjour ! ⚡',
-          `Ravi de vous revoir ${u}. Vos statistiques d’entraînement, séances et Pokémon ont été synchronisés avec succès.`
+          `Ravi de vous revoir ${u}. Vos statistiques d’entraînement et séances ont été synchronisées avec succès.`
         );
         return true;
       } else {
@@ -375,53 +360,13 @@ export function useArenaData(initialTab?: ArenaTab) {
     );
   };
 
-  const handleCreateOffer = async (
-    pokemonEggId: string,
-    requestedCriteriaText: string,
-    friendsOnly: boolean
-  ) => {
-    try {
-      await createTradeOffer({
-        pokemonEggId,
-        requestedCriteriaText: requestedCriteriaText || 'Ouvert à toute proposition équivalente',
-        friendsOnly,
-      });
-      await loadData();
-      showAlert(
-        'Offre publiée ! 📢',
-        friendsOnly
-          ? 'Votre offre est désormais visible exclusivement par votre cercle d’amis ! 👥'
-          : 'Votre Pokémon est désormais disponible à l’échange dans l’Arène générale ! 🌍'
-      );
-      return true;
-    } catch (e: any) {
-      showAlert('Erreur', e.message || 'Impossible de créer l’offre.');
-      return false;
-    }
-  };
-
-  const handleConfirmTrade = async (offerId: string, myPokemonId: string) => {
-    try {
-      const result = await executePokemonTrade(offerId, myPokemonId);
-      await loadData();
-      showAlert(
-        'Félicitations ! 🎉',
-        `L’échange a été validé ! Vous avez obtenu : ${result.receivedPokemonName} ! Il a été ajouté à votre Pokédex.`
-      );
-      return true;
-    } catch (e: any) {
-      showAlert('Erreur', e.message || 'Échec de l’échange.');
-      return false;
-    }
-  };
-
   const handleClaimReward = async () => {
     try {
-      const egg = await claimRaidVictoryReward();
+      const reward = await claimRaidVictoryReward();
       await loadData();
       showAlert(
         'Victoire de Raid ! 🏆',
-        `Vous avez récupéré votre récompense de Raid : ${egg.pokemon_name || 'Œuf Légendaire'} ! Placez-le en incubation.`
+        `Vous avez récupéré votre récompense de Raid : +${reward.rewardXp} XP !`
       );
     } catch (e: any) {
       showAlert('Info', e.message || 'Récompense non disponible.');
@@ -553,16 +498,12 @@ export function useArenaData(initialTab?: ArenaTab) {
     setActiveTab,
     leaderboardFilter,
     setLeaderboardFilter,
-    tradeFilter,
-    setTradeFilter,
     raidsSubTab,
     setRaidsSubTab,
     profile,
     isLoggedIn,
     friendsList,
     leaderboardData,
-    tradablePokemon,
-    tradeOffers,
     raidBoss,
     pendingRequests,
     friendGifts,
@@ -584,8 +525,6 @@ export function useArenaData(initialTab?: ArenaTab) {
     handleSimulateGift,
     handleAuthSubmit,
     handleLogout,
-    handleCreateOffer,
-    handleConfirmTrade,
     handleClaimReward,
     handleCreateChallenge,
     handleTakeOnChallenge,

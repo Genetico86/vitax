@@ -1,20 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase } from '../database/db';
-import { WorkoutSession, IncubatorSlot, PokemonEgg } from '../types';
+import { WorkoutSession } from '../types';
 import { STORAGE_KEY_PROFILE } from './authService';
-import {
-  getAllPokemonEggs,
-  computeIncubatorSlots,
-  syncLegendaryChallengeEggs,
-} from './pokemonEggService';
 import { computeSetXp, STORAGE_KEY_DAILY_BONUS } from './exerciseWeightingService';
 
-export interface PokemonBadgeTier {
+export interface AthleteRankTier {
   level: number;
   badgeName: string;
-  city: string;
-  champion: string;
-  type: string;
+  category: string;
+  specialty: string;
   emoji: string;
   minXp: number;
   nextXp: number;
@@ -26,9 +20,8 @@ export interface LevelInfo {
   title: string;
   badgeName: string;
   badgeEmoji: string;
-  city: string;
-  champion: string;
-  type: string;
+  category: string;
+  specialty: string;
   currentXp: number;
   minXp: number;
   nextLevelXp: number;
@@ -47,12 +40,6 @@ export interface Achievement {
   progress: number;
   maxProgress: number;
   rewardXp: number;
-  legendaryReward?: {
-    speciesId: string;
-    name: string;
-    emoji: string;
-    type: string;
-  };
 }
 
 export interface SessionXpSummary {
@@ -63,37 +50,34 @@ export interface SessionXpSummary {
 }
 
 /**
- * Paliers de progression basés sur les 8 Badges d'Arène Pokémon de Kanto + Maître de la Ligue
+ * Paliers de progression sportive basés sur l'expérience d'entraînement (XP)
  */
-export const POKEMON_BADGE_TIERS: PokemonBadgeTier[] = [
+export const ATHLETE_RANK_TIERS: AthleteRankTier[] = [
   {
     level: 1,
-    badgeName: 'Badge Roche',
-    city: 'Argenta',
-    champion: 'Pierre',
-    type: 'Type Roche',
-    emoji: '🪨',
+    badgeName: 'Athlète Novice',
+    category: 'Fondations',
+    specialty: 'Initiation Force',
+    emoji: '🏋️',
     minXp: 0,
     nextXp: 500,
-    description: 'Le premier badge officiel. Récompense les fondations de la force brute et vos débuts.',
+    description: 'Le premier grade officiel. Récompense les fondations de la force et vos débuts.',
   },
   {
     level: 2,
-    badgeName: 'Badge Cascade',
-    city: 'Azuria',
-    champion: 'Ondine',
-    type: 'Type Eau',
-    emoji: '💧',
+    badgeName: 'Athlète Régulier',
+    category: 'Constance',
+    specialty: 'Discipline & Rythme',
+    emoji: '🔥',
     minXp: 500,
     nextXp: 1200,
-    description: 'Fluidité d’exécution et constance : l’entraînement devient une habitude naturelle.',
+    description: 'Fluidité d’exécution et constance : l’entraînement devient une habitude solide.',
   },
   {
     level: 3,
-    badgeName: 'Badge Foudre',
-    city: 'Carmin sur Mer',
-    champion: 'Major Bob',
-    type: 'Type Électrik',
+    badgeName: 'Athlète Explosif',
+    category: 'Puissance',
+    specialty: 'Surcharge Progressive',
     emoji: '⚡',
     minXp: 1200,
     nextXp: 2200,
@@ -101,79 +85,75 @@ export const POKEMON_BADGE_TIERS: PokemonBadgeTier[] = [
   },
   {
     level: 4,
-    badgeName: 'Badge Prisme',
-    city: 'Céladopole',
-    champion: 'Erika',
-    type: 'Type Plante',
-    emoji: '🌈',
+    badgeName: 'Athlète Complet',
+    category: 'Équilibre',
+    specialty: 'Symétrie Musculaire',
+    emoji: '💪',
     minXp: 2200,
     nextXp: 3500,
     description: 'Développement complet et équilibré de tous les groupes musculaires.',
   },
   {
     level: 5,
-    badgeName: 'Badge Âme',
-    city: 'Parmanie',
-    champion: 'Koga',
-    type: 'Type Poison',
-    emoji: '💜',
+    badgeName: 'Athlète Endurant',
+    category: 'Résistance',
+    specialty: 'Haute Intensité',
+    emoji: '🛡️',
     minXp: 3500,
     nextXp: 5200,
-    description: 'Résistance extrême à l’acide lactique et discipline mentale impénétrable.',
+    description: 'Résistance à l’effort intense et discipline mentale à toute épreuve.',
   },
   {
     level: 6,
-    badgeName: 'Badge Marais',
-    city: 'Safrania',
-    champion: 'Morgane',
-    type: 'Type Psy',
-    emoji: '🔮',
+    badgeName: 'Athlète Expert',
+    category: 'Maîtrise',
+    specialty: 'Connexion Muscle-Esprit',
+    emoji: '🎯',
     minXp: 5200,
     nextXp: 7500,
-    description: 'Connexion esprit-muscle totale : contrôle chirurgical de chaque contraction.',
+    description: 'Connexion esprit-muscle totale : contrôle précis de chaque répétition.',
   },
   {
     level: 7,
-    badgeName: 'Badge Volcan',
-    city: 'Cramois’Île',
-    champion: 'Auguste',
-    type: 'Type Feu',
-    emoji: '🔥',
+    badgeName: 'Athlète Élite',
+    category: 'Performance',
+    specialty: 'Force Pure',
+    emoji: '🏆',
     minXp: 7500,
     nextXp: 10500,
-    description: 'Intensité brûlante à chaque séance, sans jamais faiblir face à la douleur.',
+    description: 'Intensité maximale à chaque séance et maîtrise avancée des charges lourdes.',
   },
   {
     level: 8,
-    badgeName: 'Badge Terre',
-    city: 'Jadielle',
-    champion: 'Giovanni',
-    type: 'Type Sol',
-    emoji: '🌍',
+    badgeName: 'Titan de la Fonte',
+    category: 'Haute Performance',
+    specialty: 'Domination Physique',
+    emoji: '🔱',
     minXp: 10500,
     nextXp: 14500,
-    description: 'Les 8 Badges de Kanto conquis ! Puissance tellurique d’un champion d’exception.',
+    description: 'Volume et régularité d’exception : vous faites partie de l’élite sportive.',
   },
   {
     level: 9,
-    badgeName: 'Maître de la Ligue Pokémon',
-    city: 'Plateau Indigo',
-    champion: 'Conseil 4 & Maître',
-    type: 'Rang Légendaire',
+    badgeName: 'Légende Vitax',
+    category: 'Sommet Athlétique',
+    specialty: 'Rang Suprême',
     emoji: '👑',
     minXp: 14500,
     nextXp: 20000,
-    description: 'Le sommet absolu. Vous régnez en maître incontesté de l’Arène et de la Fonte !',
+    description: 'Le sommet absolu. Vous régnez en maître incontesté de la performance sportive !',
   },
 ];
 
 /**
  * Calcule l'XP gagné sur une séance spécifique
- * NOTE : Suppression du bonus forfaitaire par séance pour éviter le farm abusif.
  * L'XP provient du travail biomécanique réel des séries + du bonus journalier d'entraînement.
  */
-export function calculateSessionXp(session: WorkoutSession, sets?: { weight: number; reps: number; completed?: number }[]): SessionXpSummary {
-  const completionXp = 0; // 0 XP forfaitaire par session
+export function calculateSessionXp(
+  session: WorkoutSession,
+  sets?: { weight: number; reps: number; completed?: number }[]
+): SessionXpSummary {
+  const completionXp = 0;
   let setsXp = 0;
   let volumeXp = 0;
 
@@ -200,21 +180,21 @@ export function calculateSessionXp(session: WorkoutSession, sets?: { weight: num
 }
 
 /**
- * Calcule dynamiquement le niveau, le badge et le pourcentage de progression pour un XP donné
+ * Calcule dynamiquement le niveau, le grade et le pourcentage de progression pour un XP donné
  */
 export function computeLevelInfoForXp(xp: number): LevelInfo {
   let currentTierIndex = 0;
-  for (let i = POKEMON_BADGE_TIERS.length - 1; i >= 0; i--) {
-    if (xp >= POKEMON_BADGE_TIERS[i].minXp) {
+  for (let i = ATHLETE_RANK_TIERS.length - 1; i >= 0; i--) {
+    if (xp >= ATHLETE_RANK_TIERS[i].minXp) {
       currentTierIndex = i;
       break;
     }
   }
 
-  const currentTier = POKEMON_BADGE_TIERS[currentTierIndex];
+  const currentTier = ATHLETE_RANK_TIERS[currentTierIndex];
   const nextTier =
-    currentTierIndex < POKEMON_BADGE_TIERS.length - 1
-      ? POKEMON_BADGE_TIERS[currentTierIndex + 1]
+    currentTierIndex < ATHLETE_RANK_TIERS.length - 1
+      ? ATHLETE_RANK_TIERS[currentTierIndex + 1]
       : null;
 
   const range = currentTier.nextXp - currentTier.minXp;
@@ -229,13 +209,12 @@ export function computeLevelInfoForXp(xp: number): LevelInfo {
     title: currentTier.badgeName,
     badgeName: currentTier.badgeName,
     badgeEmoji: currentTier.emoji,
-    city: currentTier.city,
-    champion: currentTier.champion,
-    type: currentTier.type,
+    category: currentTier.category,
+    specialty: currentTier.specialty,
     currentXp: xp,
     minXp: currentTier.minXp,
     nextLevelXp: currentTier.nextXp,
-    nextBadgeTitle: nextTier ? nextTier.badgeName : 'Maître Suprême',
+    nextBadgeTitle: nextTier ? nextTier.badgeName : 'Rang Suprême',
     nextBadgeEmoji: nextTier ? nextTier.emoji : '👑',
     progressPercent,
   };
@@ -245,20 +224,15 @@ let cachedSetsXpKey = '';
 let cachedSetsBiomechanicalXp = 0;
 
 /**
- * Récupère le total d'XP de l'utilisateur et calcule son niveau de Badge Pokémon
+ * Récupère le total d'XP de l'utilisateur et calcule son niveau d'Athlète et ses trophées
  */
 export async function getUserGamificationStats(): Promise<{
   totalXp: number;
   levelInfo: LevelInfo;
-  allTiers: PokemonBadgeTier[];
+  allTiers: AthleteRankTier[];
   achievements: Achievement[];
   totalSessions: number;
   totalVolumeKg: number;
-  incubatorSlots: IncubatorSlot[];
-  allEggs: PokemonEgg[];
-  hatchedPokemon: PokemonEgg[];
-  incubatingEggs: PokemonEgg[];
-  inventoryEggs: PokemonEgg[];
 }> {
   const db = await getDatabase();
 
@@ -322,17 +296,14 @@ export async function getUserGamificationStats(): Promise<{
     }
   }
 
-  // Calcul du total d'XP accumulé
   let totalXp = 0;
 
-  // Calcul basé sur les séries biomécaniques ou le volume global des séances
   let sessionsFallbackXp = 0;
   sessions.forEach((s) => {
     const summary = calculateSessionXp(s);
     sessionsFallbackXp += summary.totalXp;
   });
 
-  // Utiliser la valeur la plus précise sans jamais perdre d'expérience
   totalXp = Math.max(setsBiomechanicalXp, sessionsFallbackXp);
 
   // Prise en compte des bonus journaliers d'entraînement validés
@@ -362,7 +333,7 @@ export async function getUserGamificationStats(): Promise<{
     // Table non encore migrée si ancien schéma
   }
 
-  // Prise en compte de l'XP et des séances synchronisés sur le profil Supabase (au cas où l'historique complet n'est pas encore téléchargé)
+  // Prise en compte de l'XP et des séances synchronisés sur le profil Supabase
   let cloudWorkoutsCount = 0;
   try {
     const rawProfile = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
@@ -372,7 +343,6 @@ export async function getUserGamificationStats(): Promise<{
       if (parsed.totalXp && parsed.totalXp > totalXp) {
         totalXp = parsed.totalXp;
       } else if (totalXp > (parsed.totalXp || 0)) {
-        // Le stockage SQLite local a plus d'XP : mettre à jour le profil pour ne jamais perdre l'XP gagné
         parsed.totalXp = totalXp;
         profileUpdated = true;
       }
@@ -394,7 +364,7 @@ export async function getUserGamificationStats(): Promise<{
 
   const levelInfo = computeLevelInfoForXp(totalXp);
 
-  // Calcul des trophées de Dresseur
+  // Calcul des trophées d'Athlète
   const totalSessions = Math.max(sessions.length, cloudWorkoutsCount);
   const effectiveSetsCount = Math.max(totalSetsCount, allCompletedSetsCount);
   const hasRack900Session = sessions.some(
@@ -404,9 +374,9 @@ export async function getUserGamificationStats(): Promise<{
   const achievements: Achievement[] = [
     {
       id: 'first_workout',
-      title: 'Premier Combat d’Arène',
-      description: 'Terminer votre toute première séance d’entraînement avec bravoure',
-      icon: '🔴',
+      title: 'Première Séance Validée',
+      description: 'Terminer votre toute première séance d’entraînement avec détermination',
+      icon: '🎯',
       unlocked: totalSessions >= 1,
       progress: Math.min(1, totalSessions),
       maxProgress: 1,
@@ -414,9 +384,9 @@ export async function getUserGamificationStats(): Promise<{
     },
     {
       id: 'iron_regular',
-      title: 'Dresseur Assidu',
+      title: 'Athlète Assidu',
       description: 'Valider 5 séances d’entraînement complètes sans abandonner',
-      icon: '🎒',
+      icon: '🔥',
       unlocked: totalSessions >= 5,
       progress: Math.min(5, totalSessions),
       maxProgress: 5,
@@ -424,35 +394,23 @@ export async function getUserGamificationStats(): Promise<{
     },
     {
       id: 'century_sets',
-      title: 'Attaque Combo (50 Séries)',
+      title: 'Série de Fer (50 Séries)',
       description: 'Enchaîner 50 séries d’efforts validées à pleine puissance',
       icon: '💥',
       unlocked: effectiveSetsCount >= 50,
       progress: Math.min(50, effectiveSetsCount),
       maxProgress: 50,
       rewardXp: 200,
-      legendaryReward: {
-        speciesId: 'sulfura',
-        name: 'Sulfura',
-        emoji: '🔥',
-        type: 'Feu / Vol',
-      },
     },
     {
       id: 'ten_tonnes',
-      title: 'Force de Ronflex (10 Tonnes)',
+      title: 'Colosse d’Acier (10 Tonnes)',
       description: 'Déplacer plus de 10 000 kg de fonte cumulés au total',
-      icon: '💤',
+      icon: '🏋️‍♂️',
       unlocked: totalVolumeKg >= 10000,
       progress: Math.min(10000, Math.round(totalVolumeKg)),
       maxProgress: 10000,
       rewardXp: 300,
-      legendaryReward: {
-        speciesId: 'artikodin',
-        name: 'Artikodin',
-        emoji: '❄️',
-        type: 'Glace / Vol',
-      },
     },
     {
       id: 'rack_master',
@@ -463,102 +421,36 @@ export async function getUserGamificationStats(): Promise<{
       progress: hasRack900Session ? 1 : 0,
       maxProgress: 1,
       rewardXp: 150,
-      legendaryReward: {
-        speciesId: 'electhor',
-        name: 'Électhor',
-        emoji: '⚡',
-        type: 'Électrik / Vol',
-      },
     },
     {
       id: 'veteran_titan',
-      title: 'Maître du Conseil 4',
-      description: 'Atteindre le cap légendaire des 20 séances d’entraînement',
+      title: 'Vétéran de la Salle',
+      description: 'Atteindre le cap des 20 séances d’entraînement complétées',
       icon: '⚡',
       unlocked: totalSessions >= 20,
       progress: Math.min(20, totalSessions),
       maxProgress: 20,
       rewardXp: 500,
-      legendaryReward: {
-        speciesId: 'mew',
-        name: 'Mew',
-        emoji: '🌟',
-        type: 'Psy',
-      },
     },
     {
       id: 'kanto_master_tier',
-      title: 'Badge Terre (8 Badges)',
-      description: 'Conquérir les 8 Badges de Kanto en atteignant 10 500 XP',
-      icon: '🌍',
+      title: 'Titan de la Fonte (10 500 XP)',
+      description: 'Atteindre le rang Titan de la Fonte en accumulant 10 500 XP',
+      icon: '🏆',
       unlocked: totalXp >= 10500,
       progress: Math.min(10500, totalXp),
       maxProgress: 10500,
       rewardXp: 1000,
-      legendaryReward: {
-        speciesId: 'mewtwo',
-        name: 'Mewtwo',
-        emoji: '🧬',
-        type: 'Psy Suprême',
-      },
     },
   ];
-
-  // Synchronisation automatique des Oeufs de Pokémon (et défis légendaires)
-  let allEggs: PokemonEgg[] = [];
-  try {
-    await syncLegendaryChallengeEggs({
-      totalSessions,
-      totalSetsCount,
-      totalVolumeKg,
-      totalXp,
-      hasRack900Session,
-    });
-    allEggs = await getAllPokemonEggs();
-  } catch (eggErr) {
-    console.warn('Erreur chargement ou synchro oeufs Pokémon:', eggErr);
-  }
-
-  // Lire le palier d'incubateurs débloqué de manière persistante
-  let maxUnlockedIncubator = 1;
-  try {
-    const rawIncubator = await AsyncStorage.getItem('@vitax_max_unlocked_incubator');
-    if (rawIncubator) {
-      maxUnlockedIncubator = parseInt(rawIncubator, 10) || 1;
-    }
-  } catch {}
-
-  const incubatorSlots = computeIncubatorSlots(
-    totalXp,
-    totalSessions,
-    totalVolumeKg,
-    allEggs,
-    maxUnlockedIncubator
-  );
-
-  const highestUnlocked = incubatorSlots.reduce(
-    (max, s) => (s.is_unlocked ? Math.max(max, s.slot_number) : max),
-    1
-  );
-  if (highestUnlocked > maxUnlockedIncubator) {
-    void AsyncStorage.setItem('@vitax_max_unlocked_incubator', String(highestUnlocked));
-  }
-
-  const hatchedPokemon = allEggs.filter((e) => e.status === 'hatched');
-  const incubatingEggs = allEggs.filter((e) => e.status === 'incubating');
-  const inventoryEggs = allEggs.filter((e) => e.status === 'inventory');
 
   return {
     totalXp,
     levelInfo,
-    allTiers: POKEMON_BADGE_TIERS,
+    allTiers: ATHLETE_RANK_TIERS,
     achievements,
     totalSessions,
     totalVolumeKg: Math.round(totalVolumeKg),
-    incubatorSlots,
-    allEggs,
-    hatchedPokemon,
-    incubatingEggs,
-    inventoryEggs,
   };
 }
+

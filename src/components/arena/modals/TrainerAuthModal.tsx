@@ -49,8 +49,8 @@ const TrainerAuthModalContent: React.FC<{
           </Text>
           <Text style={styles.modalSub}>
             {authMode === 'register'
-              ? 'Rejoignez le classement partagé et sauvegardez vos séances, statistiques et Pokémon sur le cloud.'
-              : 'Retrouvez votre compte, vos séances, vos statistiques et vos Pokémon sur cet appareil.'}
+              ? 'Rejoignez le classement partagé et sauvegardez vos séances et statistiques sur le cloud.'
+              : 'Retrouvez votre compte, vos séances et vos statistiques sur cet appareil.'}
           </Text>
         </View>
 

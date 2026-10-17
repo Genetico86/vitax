@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { showAlert } from '../../utils/alert';
@@ -30,9 +29,8 @@ import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { ProgressChart } from '../../components/stats/ProgressChart';
 import { getExerciseUnitInfo } from '../../utils/exerciseUnits';
-import { getUserGamificationStats, PokemonBadgeTier, Achievement } from '../../services/gamificationService';
+import { getUserGamificationStats, AthleteRankTier, Achievement } from '../../services/gamificationService';
 import { UserLevelCard } from '../../components/stats/UserLevelCard';
-import { PokemonHub } from '../../components/pokemon/PokemonHub';
 import { WeightGoalsView } from '../../components/weight/WeightGoalsView';
 import {
   getFavoriteExerciseIds,
@@ -48,7 +46,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 export default function HistoryScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<
-    'sessions' | 'weight_goals' | 'progression' | 'achievements' | 'pokemon'
+    'sessions' | 'weight_goals' | 'progression' | 'achievements'
   >('sessions');
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
@@ -111,7 +109,7 @@ export default function HistoryScreen() {
           try {
             const { fullCloudSyncToLocal } = await import('../../services/cloudSyncService');
             const syncRes = await fullCloudSyncToLocal();
-            if (syncRes.sessionsCount > 0 || syncRes.eggsCount > 0) {
+            if (syncRes.sessionsCount > 0) {
               const updatedSess = await getAllWorkoutSessions();
               setSessions(updatedSess);
               const updatedGStats = await getUserGamificationStats();
@@ -142,27 +140,27 @@ export default function HistoryScreen() {
     const remaining = Math.max(0, levelInfo.nextLevelXp - totalXp);
     showAlert(
       `${levelInfo.badgeEmoji} ${levelInfo.title} (Niv. ${levelInfo.level})`,
-      `🏛️ Arène : ${levelInfo.city} (${levelInfo.champion}) • ${levelInfo.type}\n\n` +
+      `🏅 Catégorie : ${levelInfo.category} • ${levelInfo.specialty}\n\n` +
       `⚡ XP Total accumulé : ${totalXp} XP\n` +
       `📈 Progression du palier : ${levelInfo.progressPercent}%\n\n` +
       (levelInfo.level >= 9
-        ? '👑 Titre Suprême de Maître de la Ligue conquis !'
-        : `Prochain badge : ${levelInfo.nextBadgeTitle} ${levelInfo.nextBadgeEmoji} dans ${remaining} XP !`),
+        ? '👑 Rang Suprême de Légende Vitax conquis !'
+        : `Prochain rang : ${levelInfo.nextBadgeTitle} ${levelInfo.nextBadgeEmoji} dans ${remaining} XP !`),
       [{ text: 'Super' }]
     );
   };
 
-  const handleBadgePress = (tier: PokemonBadgeTier, isUnlocked: boolean) => {
+  const handleBadgePress = (tier: AthleteRankTier, isUnlocked: boolean) => {
     const totalXp = gamificationStats?.totalXp || 0;
     const remaining = Math.max(0, tier.minXp - totalXp);
     showAlert(
       `${tier.emoji} ${tier.badgeName}`,
       `${tier.description}\n\n` +
-      `🏛️ Arène : ${tier.city} (${tier.champion}) • ${tier.type}\n` +
+      `🏅 Catégorie : ${tier.category} • ${tier.specialty}\n` +
       `⚡ Palier : ${tier.minXp} XP (Actuel : ${totalXp} XP)\n\n` +
       (isUnlocked
-        ? '✓ Badge débloqué et conquis avec honneur !'
-        : `🔒 Verrouillé : plus que ${remaining} XP d’entraînement pour le remporter !`),
+        ? '✓ Rang débloqué et conquis avec honneur !'
+        : `🔒 Verrouillé : plus que ${remaining} XP d’entraînement pour l’atteindre !`),
       [{ text: 'OK' }]
     );
   };
@@ -171,8 +169,7 @@ export default function HistoryScreen() {
     showAlert(
       `${ach.icon} ${ach.title}`,
       `${ach.description}\n\n` +
-      `⚡ Récompense : +${ach.rewardXp} XP\n` +
-      (ach.legendaryReward ? `⭐ Œuf Légendaire : ${ach.legendaryReward.name} ${ach.legendaryReward.emoji} (${ach.legendaryReward.type})\n\n` : '\n') +
+      `⚡ Récompense : +${ach.rewardXp} XP\n\n` +
       (ach.unlocked
         ? '✓ Trophée débloqué ! Bravo pour cet exploit athlétique !'
         : `Progression : ${ach.progress} / ${ach.maxProgress} (${Math.round((ach.progress / ach.maxProgress) * 100)}%)`),
@@ -186,7 +183,6 @@ export default function HistoryScreen() {
         params.tab === 'achievements' ||
         params.tab === 'progression' ||
         params.tab === 'sessions' ||
-        params.tab === 'pokemon' ||
         params.tab === 'weight_goals'
       ) {
         setActiveTab(params.tab as any);
@@ -330,24 +326,6 @@ export default function HistoryScreen() {
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'pokemon' && styles.tabButtonActive,
-            ]}
-            onPress={() => setActiveTab('pokemon')}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'pokemon' && styles.tabTextActive,
-              ]}
-            >
-              🥚 Pokémon ({gamificationStats ? gamificationStats.hatchedPokemon.length : 0})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
               activeTab === 'achievements' && styles.tabButtonActive,
             ]}
             onPress={() => setActiveTab('achievements')}
@@ -359,7 +337,7 @@ export default function HistoryScreen() {
                 activeTab === 'achievements' && styles.tabTextActive,
               ]}
             >
-              🏆 Badges
+              🏆 Rangs & Trophées
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -696,9 +674,9 @@ export default function HistoryScreen() {
         {/* Onglet Trophées & Gamification */}
         {activeTab === 'achievements' && gamificationStats && (
           <View>
-            <Text style={styles.sectionTitle}>Badges d’Arène Pokémon</Text>
+            <Text style={styles.sectionTitle}>Rangs & Trophées d’Athlète</Text>
             <Text style={styles.sectionSubtitle}>
-              Gagnez des points d’expérience (XP) à chaque séance et charge pour décrocher les 8 Badges de Kanto et devenir Maître de la Ligue !
+              Gagnez des points d’expérience (XP) à chaque séance et charge pour gravir les 9 Rangs Athlètes et devenir Légende Vitax !
             </Text>
 
             <UserLevelCard
@@ -706,12 +684,12 @@ export default function HistoryScreen() {
               onPress={handleLevelCardPress}
             />
 
-            {/* Collection des 8 Badges de Kanto */}
+            {/* Collection des 9 Rangs Athlètes */}
             <Text style={[styles.sectionTitle, { marginTop: 14, marginBottom: 4 }]}>
-              Collection des 8 Badges de Kanto ({gamificationStats.allTiers.filter((t) => gamificationStats.totalXp >= t.minXp).length}/9)
+              Progression des Rangs Athlètes ({gamificationStats.allTiers.filter((t) => gamificationStats.totalXp >= t.minXp).length}/9)
             </Text>
             <Text style={styles.sectionSubtitle}>
-              Chaque palier d’XP valide votre victoire dans l’arène correspondante
+              Chaque palier d’XP valide votre montée en grade sportif
             </Text>
 
             <View style={styles.badgeTiersList}>
@@ -760,7 +738,7 @@ export default function HistoryScreen() {
                             )}
                           </View>
                           <Text style={styles.pokemonBadgeArena}>
-                            Arène d’{tier.city} ({tier.champion}) • {tier.type}
+                            Niveau {tier.level} • {tier.category} ({tier.specialty})
                           </Text>
                         </View>
                       </View>
@@ -774,10 +752,10 @@ export default function HistoryScreen() {
 
             {/* Section Défis & Trophées */}
             <Text style={[styles.sectionTitle, { marginTop: 18, marginBottom: 4 }]}>
-              Défis & Hauts Faits de Dresseur ({gamificationStats.achievements.filter((a) => a.unlocked).length}/{gamificationStats.achievements.length})
+              Trophées & Exploits Sportifs ({gamificationStats.achievements.filter((a) => a.unlocked).length}/{gamificationStats.achievements.length})
             </Text>
             <Text style={styles.sectionSubtitle}>
-              Accomplissez des exploits pour booster votre total d’XP
+              Accomplissez des exploits d’entraînement pour booster votre total d’XP
             </Text>
 
             {gamificationStats.achievements.map((ach) => {
@@ -822,13 +800,6 @@ export default function HistoryScreen() {
                           )}
                         </View>
                         <Text style={styles.achievementDesc}>{ach.description}</Text>
-                        {ach.legendaryReward && (
-                          <View style={styles.legendaryRewardBadgeInline}>
-                            <Text style={styles.legendaryRewardBadgeText}>
-                              ⭐ Récompense : Œuf Légendaire de {ach.legendaryReward.name} {ach.legendaryReward.emoji}
-                            </Text>
-                          </View>
-                        )}
                       </View>
                     </View>
 
@@ -864,30 +835,6 @@ export default function HistoryScreen() {
               );
             })}
           </View>
-        )}
-
-        {/* Onglet Pokémon (Espaces d’Incubation, Œufs & Pokédex) */}
-        {activeTab === 'pokemon' && (
-          gamificationStats ? (
-            <PokemonHub
-              totalXp={gamificationStats.totalXp}
-              incubatorSlots={gamificationStats.incubatorSlots}
-              inventoryEggs={gamificationStats.inventoryEggs}
-              incubatingEggs={gamificationStats.incubatingEggs}
-              hatchedPokemon={gamificationStats.hatchedPokemon}
-              onRefreshData={loadData}
-            />
-          ) : (
-            <Card style={styles.loadingPokemonCard}>
-              <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.loadingPokemonTitle}>
-                Chargement des Pokémon & Incubateurs...
-              </Text>
-              <Text style={styles.loadingPokemonSub}>
-                Préparation de vos œufs et calcul de votre progression d’entraînement
-              </Text>
-            </Card>
-          )
         )}
       </ScrollView>
     </View>

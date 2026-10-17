@@ -7,7 +7,6 @@ import {
   WorkoutSessionWithSets,
   BodyWeightLog,
   FitnessGoal,
-  PokemonEgg,
   RunningSession,
   Exercise,
   Program,
@@ -1204,14 +1203,13 @@ export async function fullCloudSyncToLocal(): Promise<{
   weightsCount: number;
   goalsCount: number;
   favoritesCount: number;
-  eggsCount: number;
 }> {
   if (!isSupabaseConfigured()) {
-    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0, eggsCount: 0 };
+    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0 };
   }
   const supabase = getSupabaseClient();
   if (!supabase) {
-    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0, eggsCount: 0 };
+    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0 };
   }
 
   try {
@@ -1363,10 +1361,7 @@ export async function fullCloudSyncToLocal(): Promise<{
     // 7. Récupérer les réglages utilisateur
     await fetchUserSettingsFromCloud();
 
-    // 8. Récupérer les Pokémon et œufs du Cloud
-    const eggsCount = await fetchPokemonEggsFromCloud();
-
-    // 9. Récupérer la série journalière (streak) et les bonus depuis le Cloud
+    // 8. Récupérer la série journalière (streak) et les bonus depuis le Cloud
     try {
       const backupId = `daily_bonus_${userId}`;
       const { data: bonusData } = await supabase
@@ -1398,7 +1393,7 @@ export async function fullCloudSyncToLocal(): Promise<{
       console.warn('Erreur sync daily bonus dans fullCloudSyncToLocal:', bErr);
     }
 
-    // 10. Rapatrier le profil athlète Supabase (XP totale, séances et ligue)
+    // 9. Rapatrier le profil athlète Supabase (XP totale, séances et ligue)
     try {
       const profile = await getOrCreateTrainerProfile();
       const { data: cloudProfile } = await supabase
@@ -1434,203 +1429,10 @@ export async function fullCloudSyncToLocal(): Promise<{
       weightsCount,
       goalsCount,
       favoritesCount: cloudFavorites.length,
-      eggsCount,
     };
   } catch (err) {
     console.warn('Erreur fullCloudSyncToLocal:', err);
-    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0, eggsCount: 0 };
-  }
-}
-
-/**
- * Sauvegarde l'inventaire complet des œufs et Pokémon éclos dans le cloud
- */
-export async function syncPokemonEggsToCloud(): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false;
-  const supabase = getSupabaseClient();
-  if (!supabase) return false;
-
-  try {
-    const session = await getPersistedSession();
-    if (!session?.isLoggedIn || !session.userId) return false;
-
-    const db = await getDatabase();
-    const eggs = await db.getAllAsync<PokemonEgg>(
-      'SELECT * FROM pokemon_eggs ORDER BY obtained_at ASC'
-    );
-
-    if (!eggs || eggs.length === 0) return false;
-
-    // 1. Écriture dans la table dédiée pokemon_eggs si disponible
-    try {
-      const rows = eggs.map((e) => ({
-        id: e.id,
-        user_id: session.userId,
-        name: e.name,
-        rarity: e.rarity,
-        required_xp: e.required_xp,
-        current_xp: e.current_xp || 0,
-        status: e.status,
-        incubator_slot: e.incubator_slot ?? null,
-        obtained_from: e.obtained_from,
-        obtained_at: e.obtained_at,
-        hatched_at: e.hatched_at ?? null,
-        pokemon_id: e.pokemon_id ?? null,
-        pokemon_name: e.pokemon_name ?? null,
-        pokemon_emoji: e.pokemon_emoji ?? null,
-        pokemon_type: e.pokemon_type ?? null,
-        pokemon_cp: e.pokemon_cp ?? null,
-        is_legendary: e.is_legendary ? 1 : 0,
-        current_pokemon_xp: e.current_pokemon_xp || 0,
-      }));
-      await supabase.from('pokemon_eggs').upsert(rows, { onConflict: 'id' });
-    } catch {}
-
-    // 2. Sauvegarde miroir dans trades pour compatibilité
-    const backupId = `pokemon_inventory_${session.userId}`;
-    const { error } = await supabase.from('trades').upsert({
-      id: backupId,
-      sender_id: session.userId,
-      sender_name: session.username || 'Athlète Vitax',
-      sender_code: session.friendCode || '00000',
-      offered_pokemon: { eggs },
-      status: 'cloud_backup',
-      created_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      console.warn('Erreur sauvegarde cloud Pokémon:', error.message);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.warn('Exception sauvegarde cloud Pokémon:', e);
-    return false;
-  }
-}
-
-/**
- * Restaure l'inventaire des œufs et Pokémon éclos depuis le cloud vers SQLite local
- */
-export async function fetchPokemonEggsFromCloud(): Promise<number> {
-  if (!isSupabaseConfigured()) return 0;
-  const supabase = getSupabaseClient();
-  if (!supabase) return 0;
-
-  try {
-    const session = await getPersistedSession();
-    if (!session?.isLoggedIn || !session.userId) return 0;
-
-    let eggs: PokemonEgg[] = [];
-
-    // 1. Lecture prioritaire depuis la table dédiée pokemon_eggs
-    try {
-      const { data: tableEggs, error: tableErr } = await supabase
-        .from('pokemon_eggs')
-        .select('*')
-        .eq('user_id', session.userId);
-      if (!tableErr && Array.isArray(tableEggs) && tableEggs.length > 0) {
-        eggs = tableEggs as PokemonEgg[];
-      }
-    } catch {}
-
-    // 2. Repli sur le backup trades
-    if (eggs.length === 0) {
-      const backupId = `pokemon_inventory_${session.userId}`;
-      const { data, error } = await supabase
-        .from('trades')
-        .select('offered_pokemon')
-        .eq('id', backupId)
-        .maybeSingle();
-
-      if (!error && data?.offered_pokemon) {
-        const backupEggs = (data.offered_pokemon as any)?.eggs as PokemonEgg[];
-        if (Array.isArray(backupEggs)) {
-          eggs = backupEggs;
-        }
-      }
-    }
-
-    if (eggs.length === 0) return 0;
-
-    const db = await getDatabase();
-    const localEggs = await db.getAllAsync<PokemonEgg>('SELECT * FROM pokemon_eggs');
-    const localMap = new Map(localEggs.map((e) => [e.id, e]));
-
-    let maxSlotFound = 1;
-
-    await runInTransaction(db, async () => {
-      for (const egg of eggs) {
-        const local = localMap.get(egg.id);
-
-        let finalStatus = egg.status;
-        let finalSlot = egg.incubator_slot;
-        let finalHatchedAt = egg.hatched_at || local?.hatched_at || null;
-
-        if (local?.status === 'hatched' || egg.status === 'hatched') {
-          finalStatus = 'hatched';
-          finalSlot = null;
-          if (!finalHatchedAt) finalHatchedAt = new Date().toISOString();
-        } else if (local?.status === 'incubating') {
-          finalStatus = 'incubating';
-          finalSlot = local.incubator_slot ?? egg.incubator_slot ?? 1;
-        } else if (egg.status === 'incubating') {
-          finalStatus = 'incubating';
-          finalSlot = egg.incubator_slot ?? local?.incubator_slot ?? 1;
-        }
-
-        if (finalSlot && finalSlot > maxSlotFound) {
-          maxSlotFound = finalSlot;
-        }
-
-        const finalXp = Math.max(local?.current_xp || 0, egg.current_xp || 0);
-        const finalPokemonXp = Math.max(egg.current_pokemon_xp || 0, local?.current_pokemon_xp || 0);
-
-        await db.runAsync(
-          `INSERT OR REPLACE INTO pokemon_eggs (
-            id, name, rarity, required_xp, current_xp, status, incubator_slot,
-            obtained_from, obtained_at, hatched_at, pokemon_id, pokemon_name,
-            pokemon_emoji, pokemon_type, pokemon_cp, is_legendary, current_pokemon_xp
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            egg.id,
-            egg.name,
-            egg.rarity,
-            egg.required_xp,
-            finalXp,
-            finalStatus,
-            finalSlot,
-            egg.obtained_from,
-            egg.obtained_at,
-            finalHatchedAt,
-            egg.pokemon_id || local?.pokemon_id || null,
-            egg.pokemon_name || local?.pokemon_name || null,
-            egg.pokemon_emoji || local?.pokemon_emoji || null,
-            egg.pokemon_type || local?.pokemon_type || null,
-            egg.pokemon_cp || local?.pokemon_cp || null,
-            egg.is_legendary ? 1 : 0,
-            finalPokemonXp,
-          ]
-        );
-      }
-    });
-
-    if (maxSlotFound > 1) {
-      try {
-        const rawMax = await AsyncStorage.getItem('@vitax_max_unlocked_incubator');
-        const currMax = rawMax ? parseInt(rawMax, 10) : 1;
-        if (maxSlotFound > currMax) {
-          await AsyncStorage.setItem('@vitax_max_unlocked_incubator', String(maxSlotFound));
-        }
-      } catch {}
-    }
-
-    void syncPokemonEggsToCloud();
-
-    return eggs.length;
-  } catch (e) {
-    console.warn('Exception restauration cloud Pokémon:', e);
-    return 0;
+    return { sessionsCount: 0, weightsCount: 0, goalsCount: 0, favoritesCount: 0 };
   }
 }
 
@@ -1778,10 +1580,7 @@ export async function pushLocalToCloud(): Promise<void> {
         await syncFavoritesToCloud(favIds);
       }
 
-      // 8. Envoyer les Pokémon et œufs locaux
-      await syncPokemonEggsToCloud();
-
-      // 9. Sauvegarder la série journalière (streak) et les bonus dans le Cloud (avec colonnes valides)
+      // 8. Sauvegarder la série journalière (streak) et les bonus dans le Cloud (avec colonnes valides)
       try {
         const rawBonus = await AsyncStorage.getItem(STORAGE_KEY_DAILY_BONUS);
         if (rawBonus) {

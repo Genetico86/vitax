@@ -5,6 +5,5 @@
 export * from './multiplayer/profileService';
 export * from './multiplayer/friendsService';
 export * from './multiplayer/leagueService';
-export * from './multiplayer/pokemonTradeService';
 export * from './multiplayer/raidBossService';
 export * from './multiplayer/friendChallengeService';

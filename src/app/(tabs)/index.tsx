@@ -30,18 +30,12 @@ import { AvatarPickerModal } from '../../components/common/AvatarPickerModal';
 import {
   getUserGamificationStats,
   LevelInfo,
-  POKEMON_BADGE_TIERS,
+  ATHLETE_RANK_TIERS,
   computeLevelInfoForXp,
 } from '../../services/gamificationService';
 import { getFavoriteExercises, getFavoriteExerciseIds } from '../../services/favoritesService';
 import { registerTrainer, loginTrainer, logoutTrainer, getPersistedSession } from '../../services/authService';
 import { getPendingFriendRequestsCount, getOrCreateTrainerProfile } from '../../services/multiplayerService';
-import {
-  getActiveBuddy,
-  getActiveBuddyBuff,
-  ActiveBuddyInfo,
-  ActiveBuddyBuffInfo,
-} from '../../services/pokemonEggService';
 import { isProgramCompatibleByEquipmentString } from '../../utils/exerciseUnits';
 import { showAlert } from '../../utils/alert';
 
@@ -809,15 +803,13 @@ export default function HomeScreen() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
   const [weeklyFitness, setWeeklyFitness] = useState<WeeklyFitnessStats | null>(null);
-  const [pokemonStats, setPokemonStats] = useState<{
-    incubatingCount: number;
-    hatchedCount: number;
-    closestEggRemainingXp: number | null;
-  } | null>(null);
+  const [achievementsStats, setAchievementsStats] = useState<{
+    unlockedCount: number;
+    totalCount: number;
+    totalSessions: number;
+  }>({ unlockedCount: 0, totalCount: 0, totalSessions: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
-  const [activeBuddy, setActiveBuddy] = useState<ActiveBuddyInfo | null>(null);
-  const [activeBuddyBuff, setActiveBuddyBuff] = useState<ActiveBuddyBuffInfo | null>(null);
 
   // Modal Profil / Nom d'utilisateur
   const [nameModalVisible, setNameModalVisible] = useState(false);
@@ -828,7 +820,7 @@ export default function HomeScreen() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Modal Badges & Pokémon Hub
+  // Modal Rangs & Trophées
   const [badgeModalVisible, setBadgeModalVisible] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
@@ -940,17 +932,10 @@ export default function HomeScreen() {
           }
         }
         setLevelInfo(finalLevel);
-        const incubating = gamification.incubatingEggs;
-        let closestRemaining: number | null = null;
-        if (incubating.length > 0) {
-          closestRemaining = Math.min(
-            ...incubating.map((e) => Math.max(0, e.required_xp - e.current_xp))
-          );
-        }
-        setPokemonStats({
-          incubatingCount: incubating.length,
-          hatchedCount: gamification.hatchedPokemon.length,
-          closestEggRemainingXp: closestRemaining,
+        setAchievementsStats({
+          unlockedCount: gamification.achievements.filter((a) => a.unlocked).length,
+          totalCount: gamification.achievements.length,
+          totalSessions: gamification.totalSessions,
         });
       }
       if (favsRes.status === 'fulfilled') setFavoriteExercises(favsRes.value);
@@ -959,22 +944,13 @@ export default function HomeScreen() {
       if (sessionRes.status === 'fulfilled') setIsUserLoggedIn(Boolean(sessionRes.value?.isLoggedIn));
       if (pendingInvitesRes.status === 'fulfilled') setPendingInvitesCount(pendingInvitesRes.value);
 
-      // Chargement du Compagnon Actif et de ses buffs sportifs (Option A)
-      try {
-        const [buddy, buff] = await Promise.all([getActiveBuddy(), getActiveBuddyBuff()]);
-        setActiveBuddy(buddy);
-        setActiveBuddyBuff(buff);
-      } catch (bErr) {
-        console.warn('Erreur chargement active buddy accueil:', bErr);
-      }
-
       // Si la base locale n'a aucune séance enregistrée cette semaine mais que l'utilisateur a des données cloud, synchroniser silencieusement
       if (fitnessStatsRes.status === 'fulfilled' && fitnessStatsRes.value.weekWorkoutsCount === 0) {
         void (async () => {
           try {
             const { fullCloudSyncToLocal } = await import('../../services/cloudSyncService');
             const syncRes = await fullCloudSyncToLocal();
-            if (syncRes.sessionsCount > 0 || syncRes.eggsCount > 0) {
+            if (syncRes.sessionsCount > 0) {
               const [updatedFitness, updatedGStats] = await Promise.all([
                 getWeeklyFitnessStats(),
                 getUserGamificationStats(),
@@ -1075,7 +1051,7 @@ export default function HomeScreen() {
               style={[styles.athleteHeaderBadge, dynamic.athleteHeaderBadge]}
               onPress={() => setBadgeModalVisible(true)}
               activeOpacity={0.75}
-              accessibilityLabel="Ouvrir les Badges et gestion des Pokémon"
+              accessibilityLabel="Ouvrir les Rangs et Trophées d'Athlète"
             >
               <Text style={[styles.athleteHeaderBadgeText, dynamic.athleteHeaderBadgeText]}>
                 {effectiveLevelInfo?.badgeEmoji || '🏅'} Niv. {effectiveLevelInfo?.level || 1}
@@ -1107,25 +1083,6 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-
-          {/* BADGE COMPAGNON ACTIF (OPTION A) */}
-          {activeBuddy && (
-            <TouchableOpacity
-              style={styles.activeBuddyHomeRow}
-              onPress={() => router.push({ pathname: '/(tabs)/history', params: { tab: 'pokemon' } })}
-              activeOpacity={0.8}
-            >
-              <View style={styles.activeBuddyHomePill}>
-                <Text style={styles.activeBuddyHomeEmoji}>{activeBuddy.egg.pokemon_emoji || '🐾'}</Text>
-                <Text style={styles.activeBuddyHomeName}>{activeBuddy.egg.pokemon_name}</Text>
-                <Text style={styles.activeBuddyHomeDot}>•</Text>
-                <Text style={styles.activeBuddyHomeBuff} numberOfLines={1}>
-                  {activeBuddyBuff?.shortLabel || activeBuddy.species.buddyBuffShort || 'Compagnon Actif'}
-                </Text>
-                <Text style={styles.activeBuddyHomeArrow}>❯</Text>
-              </View>
-            </TouchableOpacity>
-          )}
         </Card>
 
         {/* Bannière de connexion et synchronisation cloud (si invité non identifié) */}
@@ -1452,7 +1409,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* ======================================================== */}
-      {/* MODAL : BADGES & GESTION DES POKÉMONS                    */}
+      {/* MODAL : RANGS & TROPHÉES D'ATHLÈTE                       */}
       {/* ======================================================== */}
       <Modal
         visible={badgeModalVisible}
@@ -1469,7 +1426,7 @@ export default function HomeScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.badgeModalTitle}>
-                  {effectiveLevelInfo?.badgeName || 'Badge Roche'}
+                  {effectiveLevelInfo?.badgeName || 'Rang Novice'}
                 </Text>
                 <Text style={styles.badgeModalSubtitle}>
                   Niveau {effectiveLevelInfo?.level || 1} • {effectiveLevelInfo?.title}
@@ -1492,28 +1449,28 @@ export default function HomeScreen() {
               </View>
               <View style={styles.badgeModalStat}>
                 <Text style={styles.badgeModalStatVal}>
-                  {pokemonStats?.hatchedCount || 0}
+                  {achievementsStats.unlockedCount}/{achievementsStats.totalCount}
                 </Text>
-                <Text style={styles.badgeModalStatLabel}>Pokémon Éclos</Text>
+                <Text style={styles.badgeModalStatLabel}>Trophées</Text>
               </View>
               <View style={styles.badgeModalStat}>
                 <Text style={styles.badgeModalStatVal}>
-                  {pokemonStats?.incubatingCount || 0}
+                  {achievementsStats.totalSessions}
                 </Text>
-                <Text style={styles.badgeModalStatLabel}>En Incubation</Text>
+                <Text style={styles.badgeModalStatLabel}>Séances</Text>
               </View>
             </View>
 
-            {/* Défilement des 8 Badges de Kanto */}
+            {/* Défilement des 9 Rangs Athlètes */}
             <Text style={styles.kantoBadgesTitle}>
-              🏛️ Les 8 Badges de Kanto & Ligue
+              🏅 Les 9 Rangs Athlètes Vitax
             </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.kantoBadgesScroll}
             >
-              {POKEMON_BADGE_TIERS.map((tier) => {
+              {ATHLETE_RANK_TIERS.map((tier) => {
                 const isUnlocked = (effectiveLevelInfo?.currentXp ?? 0) >= tier.minXp;
                 const isCurrent = effectiveLevelInfo?.level === tier.level;
 
@@ -1532,11 +1489,11 @@ export default function HomeScreen() {
                       showAlert(
                         `${tier.emoji} ${tier.badgeName}`,
                         `${tier.description}\n\n` +
-                        `🏛️ Arène : ${tier.city} (${tier.champion}) • ${tier.type}\n` +
+                        `🏅 Catégorie : ${tier.category} • ${tier.specialty}\n` +
                         `⚡ Palier : ${tier.minXp} XP\n\n` +
                         (isUnlocked
-                          ? '✓ Badge débloqué et conquis !'
-                          : `🔒 Verrouillé : plus que ${remaining} XP d’entraînement pour le remporter !`),
+                          ? '✓ Rang débloqué et conquis !'
+                          : `🔒 Verrouillé : plus que ${remaining} XP d’entraînement pour l’atteindre !`),
                         [{ text: 'OK' }]
                       );
                     }}
@@ -1570,36 +1527,8 @@ export default function HomeScreen() {
               })}
             </ScrollView>
 
-            {pokemonStats?.closestEggRemainingXp !== null && (
-              <View style={styles.modalIncubatorHint}>
-                <Text style={styles.modalIncubatorHintText}>
-                  🥚 Prochain œuf : plus que {pokemonStats?.closestEggRemainingXp} XP d’effort !
-                </Text>
-              </View>
-            )}
-
             {/* Raccourcis directs vers la gestion */}
             <View style={styles.badgeModalActions}>
-              <TouchableOpacity
-                style={styles.badgeActionBtn}
-                onPress={() => {
-                  setBadgeModalVisible(false);
-                  router.push('/(tabs)/history?tab=pokemon');
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.badgeActionBtnIcon}>🥚</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.badgeActionBtnTitle}>
-                    Incubateurs & Pokédex
-                  </Text>
-                  <Text style={styles.badgeActionBtnSub}>
-                    Gérer vos œufs, éclosions et collection
-                  </Text>
-                </View>
-                <Text style={styles.badgeActionBtnArrow}>❯</Text>
-              </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.badgeActionBtn}
                 onPress={() => {
@@ -1611,7 +1540,7 @@ export default function HomeScreen() {
                 <Text style={styles.badgeActionBtnIcon}>🏆</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.badgeActionBtnTitle}>
-                    Trophées & Exploits
+                    Rangs & Trophées
                   </Text>
                   <Text style={styles.badgeActionBtnSub}>
                     Consulter vos défis d’athlète et hauts faits
@@ -1631,10 +1560,10 @@ export default function HomeScreen() {
                 <Text style={styles.badgeActionBtnIcon}>⚔️</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.badgeActionBtnTitle}>
-                    Arène & Échanges
+                    Arène & Défis
                   </Text>
                   <Text style={styles.badgeActionBtnSub}>
-                    Combattre en ligue, échanger des Pokémon et défier le Raid Boss
+                    Gravir les ligues, défier vos amis et participer au Défi Co-op 50t
                   </Text>
                 </View>
                 <Text style={styles.badgeActionBtnArrow}>❯</Text>
@@ -1673,7 +1602,7 @@ export default function HomeScreen() {
                 {isUserLoggedIn
                   ? 'Vos données et classements sont synchronisés avec le cloud.'
                   : isLoginMode
-                  ? 'Connectez-vous pour récupérer vos séances, Pokémon et XP.'
+                  ? 'Connectez-vous pour récupérer vos séances et votre XP.'
                   : 'Renseignez un pseudo et un mot de passe pour sauvegarder vos données.'}
               </Text>
             </View>

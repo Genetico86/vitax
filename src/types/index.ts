@@ -143,7 +143,6 @@ export interface BackupData {
   program_exercises: ProgramExercise[];
   workout_sessions: WorkoutSession[];
   workout_sets: WorkoutSet[];
-  pokemon_eggs?: PokemonEgg[];
   body_weights?: BodyWeightLog[];
   fitness_goals?: FitnessGoal[];
   running_sessions?: RunningSession[];
@@ -191,73 +190,6 @@ export interface WeightProgressStats {
   delta30Days: number;
   logsCount: number;
   bmi: number | null;
-}
-
-// -------------------------------------------------------------
-// POKÉMON EGGS & INCUBATION SYSTEM
-// -------------------------------------------------------------
-export type EggRarity = 'starter' | 'athlete' | 'champion' | 'legendary';
-export type EggStatus = 'inventory' | 'incubating' | 'hatched';
-
-export interface PokemonSpecies {
-  id: string;
-  name: string;
-  pokedexNumber: number;
-  emoji: string;
-  type: string;
-  baseCp: number;
-  rarity: EggRarity;
-  description: string;
-  isLegendary: boolean;
-  unlockedByChallenge?: string;
-  // Option A : Système d'évolution & Compagnon Actif
-  evolvesTo?: string; // id de l'espèce suivante
-  evolvesFrom?: string; // id de l'espèce précédente
-  evolutionXpRequired?: number; // XP d'entraînement nécessaire
-  evolutionStage?: 1 | 2 | 3;
-  possibleEvolutions?: string[]; // Pour Évoli (aquali, voltali, pyroli)
-  buddyBuffType?: 'combat' | 'electrik' | 'feu' | 'roche' | 'eau' | 'plante' | 'psy';
-  buddyBuffDescription?: string;
-  buddyBuffShort?: string;
-}
-
-export interface PokemonEgg {
-  id: string;
-  name: string;
-  rarity: EggRarity;
-  required_xp: number;
-  current_xp: number;
-  status: EggStatus;
-  incubator_slot: number | null; // 1, 2, 3, 4
-  obtained_from: string;
-  obtained_at: string;
-  hatched_at?: string | null;
-  pokemon_id?: string | null;
-  pokemon_name?: string | null;
-  pokemon_emoji?: string | null;
-  pokemon_type?: string | null;
-  pokemon_cp?: number | null;
-  is_legendary: number; // 0 or 1
-  current_pokemon_xp?: number; // XP accumulé par le Pokémon pour son évolution
-}
-
-export interface IncubatorSlot {
-  slot_number: number; // 1, 2, 3, 4
-  name: string;
-  emoji: string;
-  is_unlocked: boolean;
-  unlock_condition: string;
-  egg: PokemonEgg | null;
-}
-
-export interface EggHatchResult {
-  egg: PokemonEgg;
-  pokemonName: string;
-  pokemonEmoji: string;
-  pokemonType: string;
-  pokemonCp: number;
-  isLegendary: boolean;
-  description: string;
 }
 
 // -------------------------------------------------------------

@@ -42,41 +42,6 @@ export interface LeaderboardEntry {
   trend: 'up' | 'down' | 'same';
 }
 
-export type TradeStatus = 'available' | 'pending' | 'completed' | 'cancelled';
-
-export interface PokemonTradeOffer {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderCode: string;
-  offeredPokemon: {
-    id: string;
-    speciesId: string;
-    name: string;
-    emoji: string;
-    type: string;
-    cp: number;
-    isLegendary: boolean;
-  };
-  requestedSpeciesId?: string; // optionnel: souhaite un Pokémon précis
-  requestedCriteriaText?: string; // ex: "N'importe quel type Eau ou Feu"
-  receiverId?: string;
-  receiverName?: string;
-  returnedPokemon?: {
-    id: string;
-    speciesId: string;
-    name: string;
-    emoji: string;
-    type: string;
-    cp: number;
-    isLegendary: boolean;
-  };
-  friendsOnly?: boolean; // restreint l'échange aux amis du dresseur
-  status: TradeStatus;
-  createdAt: string;
-  completedAt?: string;
-}
-
 export interface FriendEntry {
   friendId: string;
   username: string;
@@ -124,7 +89,7 @@ export interface CoOpRaidBoss {
   startTime: string;
   endTime: string;
   status: 'active' | 'victory' | 'failed';
-  rewardEggRarity: 'athlete' | 'champion' | 'legendary';
+  rewardXp: number;
   rewardDescription: string;
   participants: RaidParticipant[];
   hasClaimedReward?: boolean;

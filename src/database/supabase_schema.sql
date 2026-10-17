@@ -137,30 +137,8 @@ CREATE TABLE IF NOT EXISTS public.running_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_running_sessions_user_date ON public.running_sessions(user_id, date DESC);
 
--- 6c. TABLE DES OEUFS & POKÉMON D'ATHLÈTES (SYNCHRONISATION NATIVE)
-CREATE TABLE IF NOT EXISTS public.pokemon_eggs (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  rarity TEXT NOT NULL,
-  required_xp INTEGER NOT NULL,
-  current_xp INTEGER NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'inventory',
-  incubator_slot INTEGER,
-  obtained_from TEXT NOT NULL,
-  obtained_at TEXT NOT NULL,
-  hatched_at TEXT,
-  pokemon_id TEXT,
-  pokemon_name TEXT,
-  pokemon_emoji TEXT,
-  pokemon_type TEXT,
-  pokemon_cp INTEGER,
-  is_legendary INTEGER NOT NULL DEFAULT 0,
-  current_pokemon_xp INTEGER NOT NULL DEFAULT 0,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_pokemon_eggs_user_status ON public.pokemon_eggs(user_id, status);
+-- Suppression de l'ancienne table pokemon_eggs si elle existait
+DROP TABLE IF EXISTS public.pokemon_eggs CASCADE;
 
 -- 7. TABLE DES CLASSEMENTS HEBDOMADAIRES
 CREATE TABLE IF NOT EXISTS public.weekly_leaderboards (
@@ -196,7 +174,7 @@ CREATE TABLE IF NOT EXISTS public.friends (
 CREATE INDEX IF NOT EXISTS idx_friends_user ON public.friends(user_id);
 CREATE INDEX IF NOT EXISTS idx_friends_friend ON public.friends(friend_id);
 
--- 9. TABLE DU MARCHÉ D'ÉCHANGES
+-- 9. TABLE DE STOCKAGE SYSTÈME CLOUD BACKUP (RÉGLAGES, CATALOGUE PERSO, BROUILLONS)
 CREATE TABLE IF NOT EXISTS public.trades (
   id TEXT PRIMARY KEY,
   sender_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -206,16 +184,19 @@ CREATE TABLE IF NOT EXISTS public.trades (
   requested_criteria_text TEXT,
   requested_species_id TEXT,
   friends_only BOOLEAN DEFAULT FALSE,
-  status TEXT DEFAULT 'available',
+  status TEXT DEFAULT 'cloud_backup',
   receiver_id TEXT,
   receiver_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
 
+-- Purger les anciennes offres d'échanges Pokémon et inventaires d'œufs
+DELETE FROM public.trades WHERE status != 'cloud_backup' OR id LIKE 'pokemon_inventory_%';
+
 CREATE INDEX IF NOT EXISTS idx_trades_status ON public.trades(status, created_at DESC);
 
--- 10. TABLE DES RAIDS CO-OP
+-- 10. TABLE DES DÉFIS D'ÉQUIPE CO-OP
 CREATE TABLE IF NOT EXISTS public.raid_contributions (
   id TEXT PRIMARY KEY,
   raid_id TEXT NOT NULL,
@@ -306,7 +287,6 @@ ALTER TABLE public.user_favorites DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.body_weights DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fitness_goals DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.running_sessions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pokemon_eggs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.weekly_leaderboards DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.friends DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.trades DISABLE ROW LEVEL SECURITY;

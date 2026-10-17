@@ -62,7 +62,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return activeDb;
 }
 
-const SCHEMA_VERSION = '2';
+const SCHEMA_VERSION = '3';
 const SEED_CATALOG_VERSION = `v2_${seedData.exercises.length}_${seedData.programs.length}`;
 
 /**
@@ -97,14 +97,10 @@ export async function initDatabase(): Promise<void> {
   );
 
   if (schemaMeta?.value !== SCHEMA_VERSION) {
-    // Migration douce non-bloquante pour les colonnes ajoutées
+    // Suppression définitive de l'ancienne table pokemon_eggs si présente
     try {
-      await db.execAsync(
-        'ALTER TABLE pokemon_eggs ADD COLUMN current_pokemon_xp INTEGER NOT NULL DEFAULT 0;'
-      );
-    } catch {
-      // Colonne déjà existante
-    }
+      await db.execAsync('DROP TABLE IF EXISTS pokemon_eggs;');
+    } catch {}
 
     await db.runAsync(
       "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('schema_version', ?)",
@@ -228,7 +224,6 @@ export async function clearUserLocalData(): Promise<void> {
     DELETE FROM workout_sessions;
     DELETE FROM body_weights;
     DELETE FROM fitness_goals;
-    DELETE FROM pokemon_eggs;
     DELETE FROM running_sessions;
     DELETE FROM program_exercises WHERE program_id IN (SELECT id FROM programs WHERE is_custom = 1);
     DELETE FROM programs WHERE is_custom = 1;

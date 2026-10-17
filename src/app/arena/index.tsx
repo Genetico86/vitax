@@ -2,18 +2,15 @@ import React, { useState } from 'react';
 import { View, ScrollView, RefreshControl } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/colors';
-import { PokemonTradeOffer, FriendGift } from '../../types/social';
+import { FriendGift } from '../../types/social';
 import { useArenaData } from '../../components/arena/hooks/useArenaData';
 import { arenaStyles as styles } from '../../components/arena/styles/arenaStyles';
 import { ArenaHeader } from '../../components/arena/ArenaHeader';
 import { LeaderboardTab } from '../../components/arena/tabs/LeaderboardTab';
-import { TradesTab } from '../../components/arena/tabs/TradesTab';
 import { RaidsTab } from '../../components/arena/tabs/RaidsTab';
 import { AddFriendModal } from '../../components/arena/modals/AddFriendModal';
 import { ManageFriendsModal } from '../../components/arena/modals/ManageFriendsModal';
 import { TrainerAuthModal } from '../../components/arena/modals/TrainerAuthModal';
-import { CreateTradeModal } from '../../components/arena/modals/CreateTradeModal';
-import { AcceptTradeModal } from '../../components/arena/modals/AcceptTradeModal';
 import { CreateChallengeModal } from '../../components/arena/modals/CreateChallengeModal';
 import { CreateGiftModal } from '../../components/arena/modals/CreateGiftModal';
 import { CelebrateGiftModal } from '../../components/arena/modals/CelebrateGiftModal';
@@ -36,16 +33,12 @@ export default function ArenaScreen() {
     setActiveTab,
     leaderboardFilter,
     setLeaderboardFilter,
-    tradeFilter,
-    setTradeFilter,
     raidsSubTab,
     setRaidsSubTab,
     profile,
     isLoggedIn,
     friendsList,
     leaderboardData,
-    tradablePokemon,
-    tradeOffers,
     raidBoss,
     pendingRequests,
     friendGifts,
@@ -67,8 +60,6 @@ export default function ArenaScreen() {
     handleSimulateGift,
     handleAuthSubmit,
     handleLogout,
-    handleCreateOffer,
-    handleConfirmTrade,
     handleClaimReward,
     handleCreateChallenge,
     handleTakeOnChallenge,
@@ -81,10 +72,6 @@ export default function ArenaScreen() {
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('login');
   const [authUsername, setAuthUsername] = useState('');
-
-  const [createTradeModalVisible, setCreateTradeModalVisible] = useState(false);
-  const [acceptTradeModalVisible, setAcceptTradeModalVisible] = useState(false);
-  const [selectedOfferToAccept, setSelectedOfferToAccept] = useState<PokemonTradeOffer | null>(null);
 
   const [manualChallengeModalOpen, setManualChallengeModalOpen] = useState(false);
   const [challengeDismissed, setChallengeDismissed] = useState(false);
@@ -170,20 +157,6 @@ export default function ArenaScreen() {
           />
         )}
 
-        {activeTab === 'trades' && (
-          <TradesTab
-            tradablePokemon={tradablePokemon}
-            tradeOffers={tradeOffers}
-            tradeFilter={tradeFilter}
-            onFilterChange={setTradeFilter}
-            onOpenCreateOffer={() => setCreateTradeModalVisible(true)}
-            onAcceptOffer={(offer) => {
-              setSelectedOfferToAccept(offer);
-              setAcceptTradeModalVisible(true);
-            }}
-          />
-        )}
-
         {activeTab === 'raids' && (
           <RaidsTab
             raidsSubTab={raidsSubTab}
@@ -225,24 +198,6 @@ export default function ArenaScreen() {
         initialUsername={authUsername}
         onClose={() => setAuthModalVisible(false)}
         onSubmit={handleAuthSubmit}
-      />
-
-      <CreateTradeModal
-        visible={createTradeModalVisible}
-        tradablePokemon={tradablePokemon}
-        onClose={() => setCreateTradeModalVisible(false)}
-        onSubmit={handleCreateOffer}
-      />
-
-      <AcceptTradeModal
-        visible={acceptTradeModalVisible}
-        offer={selectedOfferToAccept}
-        tradablePokemon={tradablePokemon}
-        onClose={() => {
-          setAcceptTradeModalVisible(false);
-          setSelectedOfferToAccept(null);
-        }}
-        onSubmit={handleConfirmTrade}
       />
 
       <CreateChallengeModal

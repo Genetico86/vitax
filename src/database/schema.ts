@@ -61,26 +61,6 @@ export const CREATE_TABLES_SQL = `
     value TEXT NOT NULL
   );
 
-  CREATE TABLE IF NOT EXISTS pokemon_eggs (
-    id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    rarity TEXT NOT NULL,
-    required_xp INTEGER NOT NULL,
-    current_xp INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'inventory',
-    incubator_slot INTEGER,
-    obtained_from TEXT NOT NULL,
-    obtained_at TEXT NOT NULL,
-    hatched_at TEXT,
-    pokemon_id TEXT,
-    pokemon_name TEXT,
-    pokemon_emoji TEXT,
-    pokemon_type TEXT,
-    pokemon_cp INTEGER,
-    is_legendary INTEGER NOT NULL DEFAULT 0,
-    current_pokemon_xp INTEGER NOT NULL DEFAULT 0
-  );
-
   CREATE TABLE IF NOT EXISTS body_weights (
     id TEXT PRIMARY KEY NOT NULL,
     weight REAL NOT NULL,
@@ -129,7 +109,6 @@ export const CREATE_TABLES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_exercises_muscle_name ON exercises(target_muscle, name ASC);
   CREATE INDEX IF NOT EXISTS idx_programs_custom_name ON programs(is_custom DESC, name ASC);
   CREATE INDEX IF NOT EXISTS idx_program_exercises_prog ON program_exercises(program_id, order_index ASC);
-  CREATE INDEX IF NOT EXISTS idx_pokemon_eggs_status ON pokemon_eggs(status, obtained_at DESC);
   CREATE INDEX IF NOT EXISTS idx_body_weights_date ON body_weights(date DESC, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_fitness_goals_category ON fitness_goals(category, completed ASC, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_running_sessions_date ON running_sessions(date DESC, created_at DESC);
