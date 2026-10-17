@@ -11,7 +11,10 @@ import {
   PokemonEgg,
 } from '../types';
 import { getProgramById } from '../database/programRepository';
-import { getLastPerformanceForExercise } from '../database/exerciseRepository';
+import {
+  getLastPerformanceForExercise,
+  getLastPerformanceForExercises,
+} from '../database/exerciseRepository';
 import { saveWorkoutSession } from '../database/workoutRepository';
 import {
   distributeWorkoutXpToIncubators,
@@ -238,12 +241,14 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
 
     const { program, exercises: progExercises } = data;
     const defaultRest = useSettingsStore.getState().default_rest_seconds;
+    const perfMap = await getLastPerformanceForExercises(
+      progExercises.map((pe) => pe.exercise_id)
+    );
 
     const activeExercises: ActiveWorkoutExerciseItem[] = [];
 
     for (const pe of progExercises) {
-      // Récupérer la dernière performance pour cet exercice pour pré-remplir intelligemment
-      const lastPerf = await getLastPerformanceForExercise(pe.exercise_id);
+      const lastPerf = perfMap.get(pe.exercise_id) || null;
       const sets: ActiveWorkoutSetItem[] = [];
 
       for (let s = 1; s <= pe.default_sets; s++) {
@@ -319,10 +324,13 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
 
   startTargetedWorkout: async (targetName: string, exercisesToInclude: Exercise[]) => {
     const defaultRest = useSettingsStore.getState().default_rest_seconds;
+    const perfMap = await getLastPerformanceForExercises(
+      exercisesToInclude.map((ex) => ex.id)
+    );
     const activeExercises: ActiveWorkoutExerciseItem[] = [];
 
     for (const ex of exercisesToInclude) {
-      const lastPerf = await getLastPerformanceForExercise(ex.id);
+      const lastPerf = perfMap.get(ex.id) || null;
       const sets: ActiveWorkoutSetItem[] = [];
       const defaultSets = 3;
       const defaultReps = 10;
@@ -378,10 +386,13 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     }[]
   ) => {
     const defaultRest = useSettingsStore.getState().default_rest_seconds;
+    const perfMap = await getLastPerformanceForExercises(
+      configuredExercises.map((item) => item.exercise.id)
+    );
     const activeExercises: ActiveWorkoutExerciseItem[] = [];
 
     for (const item of configuredExercises) {
-      const lastPerf = await getLastPerformanceForExercise(item.exercise.id);
+      const lastPerf = perfMap.get(item.exercise.id) || null;
       const sets: ActiveWorkoutSetItem[] = [];
 
       for (let s = 1; s <= item.sets; s++) {

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Exercise } from '../types';
 import { getAllExercises } from '../database/exerciseRepository';
-import { getDatabase } from '../database/db';
+import { getDatabase, runInTransaction } from '../database/db';
 import { syncFavoritesToCloud, fetchFavoritesFromCloud } from './cloudSyncService';
 import seedData from '../database/seedData.json';
 
@@ -38,12 +38,14 @@ export async function getFavoriteExerciseIds(): Promise<string[]> {
         try {
           const db = await getDatabase();
           const now = new Date().toISOString();
-          for (const exId of parsed) {
-            await db.runAsync(
-              'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
-              [exId, now]
-            );
-          }
+          await runInTransaction(db, async () => {
+            for (const exId of parsed) {
+              await db.runAsync(
+                'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
+                [exId, now]
+              );
+            }
+          });
         } catch {}
         return parsed;
       }
@@ -56,12 +58,14 @@ export async function getFavoriteExerciseIds(): Promise<string[]> {
       try {
         const db = await getDatabase();
         const now = new Date().toISOString();
-        for (const exId of cloudFavs) {
-          await db.runAsync(
-            'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
-            [exId, now]
-          );
-        }
+        await runInTransaction(db, async () => {
+          for (const exId of cloudFavs) {
+            await db.runAsync(
+              'INSERT OR REPLACE INTO exercise_favorites (exercise_id, created_at) VALUES (?, ?)',
+              [exId, now]
+            );
+          }
+        });
       } catch {}
       await AsyncStorage.setItem(STORAGE_KEY_FAVORITES, JSON.stringify(cloudFavs));
       return cloudFavs;

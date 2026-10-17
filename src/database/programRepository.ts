@@ -89,32 +89,35 @@ export interface NewProgramInput {
 
 export async function createCustomProgram(input: NewProgramInput): Promise<string> {
   const db = await getDatabase();
+  const { runInTransaction } = await import('./db');
   const programId = `custom_prog_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const now = new Date().toISOString();
 
-  await db.runAsync(
-    `INSERT INTO programs (id, name, description, difficulty_level, is_custom, created_at)
-     VALUES (?, ?, ?, ?, 1, ?)`,
-    [programId, input.name, input.description, input.difficulty_level, now]
-  );
-
-  for (let i = 0; i < input.exercises.length; i++) {
-    const item = input.exercises[i];
-    const peId = `${programId}_${item.exercise_id}_${i}`;
+  await runInTransaction(db, async () => {
     await db.runAsync(
-      `INSERT INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        peId,
-        programId,
-        item.exercise_id,
-        item.default_sets,
-        item.default_reps,
-        item.rest_time_seconds,
-        i,
-      ]
+      `INSERT INTO programs (id, name, description, difficulty_level, is_custom, created_at)
+       VALUES (?, ?, ?, ?, 1, ?)`,
+      [programId, input.name, input.description, input.difficulty_level, now]
     );
-  }
+
+    for (let i = 0; i < input.exercises.length; i++) {
+      const item = input.exercises[i];
+      const peId = `${programId}_${item.exercise_id}_${i}`;
+      await db.runAsync(
+        `INSERT INTO program_exercises (id, program_id, exercise_id, default_sets, default_reps, rest_time_seconds, order_index)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          peId,
+          programId,
+          item.exercise_id,
+          item.default_sets,
+          item.default_reps,
+          item.rest_time_seconds,
+          i,
+        ]
+      );
+    }
+  });
 
   try {
     const { syncCustomCatalogToCloud } = await import('../services/cloudSyncService');

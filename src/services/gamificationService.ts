@@ -241,6 +241,9 @@ export function computeLevelInfoForXp(xp: number): LevelInfo {
   };
 }
 
+let cachedSetsXpKey = '';
+let cachedSetsBiomechanicalXp = 0;
+
 /**
  * Récupère le total d'XP de l'utilisateur et calcule son niveau de Badge Pokémon
  */
@@ -268,52 +271,59 @@ export async function getUserGamificationStats(): Promise<{
   );
   const totalSetsCount = totalSetsRow?.setsCount || 0;
 
+  let totalVolumeKg = 0;
+  sessions.forEach((s) => {
+    totalVolumeKg += s.total_volume || 0;
+  });
+
+  const xpCacheKey = `${sessions.length}:${totalSetsCount}:${Math.round(totalVolumeKg)}`;
   let setsBiomechanicalXp = 0;
-  let allCompletedSetsCount = 0;
+  let allCompletedSetsCount = totalSetsCount;
 
-  try {
-    const allCompletedSets = await db.getAllAsync<{
-      weight: number;
-      reps: number;
-      exercise_name?: string;
-      target_muscle?: string;
-      equipment_needed?: string;
-    }>(`
-      SELECT
-        ws.weight,
-        ws.reps,
-        e.name AS exercise_name,
-        e.target_muscle,
-        e.equipment_needed
-      FROM workout_sets ws
-      LEFT JOIN exercises e ON e.id = ws.exercise_id
-      WHERE (ws.completed = 1 OR ws.completed = '1' OR ws.completed = true OR ws.completed IS NULL)
-    `);
+  if (xpCacheKey === cachedSetsXpKey && totalSetsCount > 0) {
+    setsBiomechanicalXp = cachedSetsBiomechanicalXp;
+  } else {
+    try {
+      const allCompletedSets = await db.getAllAsync<{
+        weight: number;
+        reps: number;
+        exercise_name?: string;
+        target_muscle?: string;
+        equipment_needed?: string;
+      }>(`
+        SELECT
+          ws.weight,
+          ws.reps,
+          e.name AS exercise_name,
+          e.target_muscle,
+          e.equipment_needed
+        FROM workout_sets ws
+        LEFT JOIN exercises e ON e.id = ws.exercise_id
+        WHERE (ws.completed = 1 OR ws.completed = '1' OR ws.completed = true OR completed IS NULL)
+      `);
 
-    allCompletedSetsCount = allCompletedSets.length;
-    for (const s of allCompletedSets) {
-      if (s.weight > 0 || s.reps > 0) {
-        const comp = computeSetXp({
-          exerciseName: s.exercise_name,
-          targetMuscle: s.target_muscle,
-          equipmentNeeded: s.equipment_needed,
-          weight: s.weight,
-          reps: s.reps,
-        });
-        setsBiomechanicalXp += comp.totalSetXp;
+      allCompletedSetsCount = allCompletedSets.length;
+      for (const s of allCompletedSets) {
+        if (s.weight > 0 || s.reps > 0) {
+          const comp = computeSetXp({
+            exerciseName: s.exercise_name,
+            targetMuscle: s.target_muscle,
+            equipmentNeeded: s.equipment_needed,
+            weight: s.weight,
+            reps: s.reps,
+          });
+          setsBiomechanicalXp += comp.totalSetXp;
+        }
       }
+      cachedSetsXpKey = xpCacheKey;
+      cachedSetsBiomechanicalXp = setsBiomechanicalXp;
+    } catch (setsErr) {
+      console.warn('Erreur calcul setsBiomechanicalXp:', setsErr);
     }
-  } catch (setsErr) {
-    console.warn('Erreur calcul setsBiomechanicalXp:', setsErr);
   }
 
   // Calcul du total d'XP accumulé
   let totalXp = 0;
-  let totalVolumeKg = 0;
-
-  sessions.forEach((s) => {
-    totalVolumeKg += s.total_volume || 0;
-  });
 
   // Calcul basé sur les séries biomécaniques ou le volume global des séances
   let sessionsFallbackXp = 0;

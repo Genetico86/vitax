@@ -85,22 +85,29 @@ export function getCurrentWeekBounds(): { start: Date; end: Date; weekNumber: nu
 // PROFIL DRESSEUR & SYNCHRONISATION
 // -------------------------------------------------------------
 
+export const PUBLIC_PROFILE_COLUMNS =
+  'id, username, friend_code, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league, total_xp, total_workouts, avatar_url, created_at, updated_at';
+
+export function isAnonymousProfileId(id?: string | null): boolean {
+  if (!id) return true;
+  if (id === 'default_trainer' || id.startsWith('trainer_')) return true;
+  // Les profils locaux non inscrits ont la forme vtx_<timestamp>_<code5chiffres>
+  // tandis que les comptes inscrits ont la forme vtx_<username>
+  if (/^vtx_\d{10,}_\d+$/.test(id)) return true;
+  return false;
+}
+
 export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Promise<boolean> {
   if (!isSupabaseConfigured()) return false;
-  // Ne synchroniser que les profils de comptes réels (pas les invités anonymes trainer_... ou vtx_... ou default_trainer)
-  if (
-    !profile.id ||
-    profile.id.startsWith('trainer_') ||
-    profile.id.startsWith('vtx_') ||
-    profile.id === 'default_trainer'
-  ) {
+  const session = await getPersistedSession();
+  // Ne synchroniser que les profils de comptes réels (pas les invités anonymes non connectés)
+  if (!profile.id || (isAnonymousProfileId(profile.id) && !session?.isLoggedIn)) {
     return false;
   }
   const supabase = getSupabaseClient();
   if (!supabase) return false;
 
   try {
-    const session = await getPersistedSession();
     let friendCode = profile.friendCode;
     if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
       if (session?.friendCode && session.friendCode !== '10000' && /^\d{5}$/.test(session.friendCode)) {
@@ -112,7 +119,7 @@ export async function syncTrainerProfileToSupabase(profile: TrainerProfile): Pro
     // Récupérer le profil Supabase existant pour garantir l'absence absolue de régression
     const { data: cloudRow } = await supabase
       .from('profiles')
-      .select('friend_code, total_xp, total_workouts, username, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, avatar_url, current_league')
+      .select(PUBLIC_PROFILE_COLUMNS)
       .eq('id', profile.id)
       .maybeSingle();
 
@@ -274,7 +281,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
             try {
               const { data: cloudRow } = await supabase
                 .from('profiles')
-                .select('*')
+                .select(PUBLIC_PROFILE_COLUMNS)
                 .eq('id', session.userId)
                 .maybeSingle();
 
@@ -291,7 +298,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 if (cloudRow.avatar_pokemon_id) parsed.avatarPokemonId = cloudRow.avatar_pokemon_id;
                 if (cloudRow.avatar_pokemon_emoji) parsed.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
                 if (cloudRow.avatar_url) parsed.avatarUrl = cloudRow.avatar_url;
-                if (cloudRow.current_league) parsed.currentLeague = cloudRow.current_league;
+                if (cloudRow.current_league) parsed.currentLeague = cloudRow.current_league as LeagueTier;
                 if (cloudRow.total_xp && cloudRow.total_xp > (parsed.totalXp || 0)) {
                   parsed.totalXp = cloudRow.total_xp;
                 }
@@ -318,7 +325,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
             try {
               const { data: matched } = await supabase
                 .from('profiles')
-                .select('*')
+                .select(PUBLIC_PROFILE_COLUMNS)
                 .ilike('username', candidateName)
                 .maybeSingle();
 
@@ -351,7 +358,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
       else parsed.currentLeague = 'pierre';
 
       await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
-      if (session?.isLoggedIn && session.userId && !session.userId.startsWith('trainer_')) {
+      if (session?.isLoggedIn && session.userId && !isAnonymousProfileId(session.userId)) {
         void syncTrainerProfileToSupabase(parsed);
       }
       profileToReturn = parsed;
@@ -363,7 +370,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           try {
             const { data: cloudRow } = await supabase
               .from('profiles')
-              .select('*')
+              .select(PUBLIC_PROFILE_COLUMNS)
               .eq('id', session.userId)
               .maybeSingle();
 
@@ -382,7 +389,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 avatarPokemonId: cloudRow.avatar_pokemon_id || 'pikachu',
                 avatarPokemonEmoji: cloudRow.avatar_pokemon_emoji || '⚡',
                 avatarUrl: cloudRow.avatar_url || useSettingsStore.getState().avatar_url,
-                currentLeague: cloudRow.current_league || 'pierre',
+                currentLeague: (cloudRow.current_league as LeagueTier) || 'pierre',
                 totalXp: Math.max(cloudRow.total_xp || 0, gamification.totalXp),
                 totalWorkouts: Math.max(cloudRow.total_workouts || 0, gamification.totalSessions),
                 createdAt: cloudRow.created_at || session.createdAt || new Date().toISOString(),
@@ -404,7 +411,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           try {
             const { data: matched } = await supabase
               .from('profiles')
-              .select('*')
+              .select(PUBLIC_PROFILE_COLUMNS)
               .ilike('username', storeName.trim())
               .maybeSingle();
 
@@ -417,7 +424,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
                 avatarPokemonId: matched.avatar_pokemon_id || 'pikachu',
                 avatarPokemonEmoji: matched.avatar_pokemon_emoji || '⚡',
                 avatarUrl: matched.avatar_url || useSettingsStore.getState().avatar_url,
-                currentLeague: matched.current_league || 'pierre',
+                currentLeague: (matched.current_league as LeagueTier) || 'pierre',
                 totalXp: Math.max(matched.total_xp || 0, gamification.totalXp),
                 totalWorkouts: Math.max(matched.total_workouts || 0, gamification.totalSessions),
                 createdAt: matched.created_at || new Date().toISOString(),

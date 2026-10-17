@@ -71,6 +71,43 @@ export async function getLastPerformanceForExercise(
 }
 
 /**
+ * Récupère en une seule requête SQL les dernières performances pour une liste d'exercices
+ * (évite les requêtes N+1 au démarrage d'un programme ou d'une séance ciblée)
+ */
+export async function getLastPerformanceForExercises(
+  exerciseIds: string[]
+): Promise<Map<string, { weight: number; reps: number }>> {
+  const result = new Map<string, { weight: number; reps: number }>();
+  if (!exerciseIds || exerciseIds.length === 0) return result;
+
+  const uniqueIds = Array.from(new Set(exerciseIds));
+  const db = await getDatabase();
+  const placeholders = uniqueIds.map(() => '?').join(',');
+
+  const rows = await db.getAllAsync<{
+    exercise_id: string;
+    weight: number;
+    reps: number;
+  }>(
+    `SELECT ws.exercise_id, ws.weight, ws.reps
+     FROM workout_sets ws
+     JOIN workout_sessions s ON s.id = ws.workout_session_id
+     WHERE ws.exercise_id IN (${placeholders})
+       AND (ws.completed = 1 OR ws.completed = '1' OR ws.completed = true OR ws.completed IS NULL)
+     ORDER BY s.date DESC, ws.set_order DESC`,
+    uniqueIds
+  );
+
+  for (const row of rows) {
+    if (!result.has(row.exercise_id)) {
+      result.set(row.exercise_id, { weight: row.weight, reps: row.reps });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Récupère l'historique d'un exercice pour tracer la courbe de progression et le 1RM
  */
 export async function getExerciseProgression(

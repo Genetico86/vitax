@@ -28,6 +28,33 @@ export function generateFriendCode(): string {
 }
 
 /**
+ * Génère un code ami à 5 chiffres vérifié comme disponible sur Supabase
+ */
+export async function generateUniqueFriendCode(): Promise<string> {
+  let candidate = generateFriendCode();
+  if (!isSupabaseConfigured()) return candidate;
+  const supabase = getSupabaseClient();
+  if (!supabase) return candidate;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('friend_code', candidate)
+        .limit(1);
+      if (!data || data.length === 0) {
+        return candidate;
+      }
+      candidate = generateFriendCode();
+    } catch {
+      return candidate;
+    }
+  }
+  return candidate;
+}
+
+/**
  * Récupère la session persistée silencieusement (sans redemander le mot de passe)
  */
 export async function getPersistedSession(): Promise<AuthSession | null> {
@@ -65,7 +92,7 @@ export async function registerTrainer(
   }
 
   const cleanUser = sanitizeUsername(trimmedName);
-  const friendCode = generateFriendCode();
+  const friendCode = await generateUniqueFriendCode();
   const userId = `vtx_${cleanUser}`;
 
   const initialProfile: TrainerProfile = {
@@ -425,7 +452,9 @@ export async function restoreSessionSilently(): Promise<TrainerProfile | null> {
         try {
           const { data: row } = await supabase
             .from('profiles')
-            .select('*')
+            .select(
+              'id, username, friend_code, trainer_title, avatar_pokemon_id, avatar_pokemon_emoji, current_league, total_xp, total_workouts, avatar_url, created_at'
+            )
             .eq('id', session.userId)
             .maybeSingle();
 
