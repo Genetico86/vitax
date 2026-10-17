@@ -233,6 +233,25 @@ export function useArenaData(initialTab?: ArenaTab) {
     }
   };
 
+  const handleInviteAthlete = (entry: LeaderboardEntry) => {
+    const friendIdentifier = entry.friendCode || entry.username;
+    if (!friendIdentifier) return;
+
+    showAlert(
+      'Ajouter en ami 👥',
+      `Voulez-vous inviter ${entry.username} à rejoindre votre cercle d’athlètes ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Inviter / Ajouter',
+          onPress: async () => {
+            await handleAddFriend(friendIdentifier);
+          },
+        },
+      ]
+    );
+  };
+
   const handleAcceptRequest = async (requestId: string) => {
     const res = await acceptFriendRequest(requestId);
     if (res.success && res.friend) {
@@ -556,6 +575,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     handleShareFriendCode,
     handleShareWebInvite,
     handleAddFriend,
+    handleInviteAthlete,
     handleAcceptRequest,
     handleDeclineRequest,
     handleSimulateInvite,

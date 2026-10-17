@@ -28,14 +28,17 @@ export interface LeaderboardEntry {
   rank: number;
   userId: string;
   username: string;
+  friendCode?: string;
   trainerTitle: string;
   avatarPokemonEmoji: string;
   avatarUrl?: string;
   weeklyXp: number;
+  totalXp?: number;
   totalTonnageKg: number;
   cardioMinutes: number;
   workoutsCount: number;
   isCurrentUser: boolean;
+  isFriend?: boolean;
   trend: 'up' | 'down' | 'same';
 }
 
