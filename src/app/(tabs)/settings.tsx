@@ -58,6 +58,11 @@ export default function SettingsScreen() {
   const [isTrainerLoggedIn, setIsTrainerLoggedIn] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
+  // États pour les sections dépliables (accordéons)
+  const [profileExpanded, setProfileExpanded] = useState(false);
+  const [equipmentExpanded, setEquipmentExpanded] = useState(false);
+  const [devExpanded, setDevExpanded] = useState(false);
+
   const loadTrainerData = useCallback(async () => {
     try {
       const prof = await getOrCreateTrainerProfile();
@@ -206,7 +211,7 @@ export default function SettingsScreen() {
       await loadTrainerData();
       showAlert(
         'Synchronisation réussie ✅',
-        'Toutes vos données (séances, séries, pesées, objectifs, favoris et Pokémon) ont été synchronisées sans aucune régression.'
+        'Toutes vos séances, séries, pesées et progression ont été synchronisées avec le cloud Vitax.'
       );
     } catch (err: any) {
       showAlert('Erreur de synchronisation', err?.message || 'Impossible de synchroniser avec le cloud.');
@@ -334,578 +339,647 @@ export default function SettingsScreen() {
     );
   };
 
+  const activeEquipmentCount = (available_equipments || []).length;
+  const isFilteringEquipment = filter_by_available_equipment ?? true;
+
   return (
     <View style={styles.container}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
-        {/* Badge Réseau & Synchronisation Athlètes */}
-      <Card style={styles.offlineCard}>
-        <View style={styles.offlineHeader}>
-          <Text style={styles.offlineIcon}>🌐</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.offlineTitle}>Synchronisation & Réseau Vitax</Text>
-            <Text style={styles.offlineSub}>
-              Vos données restent enregistrées localement sur votre appareil et se synchronisent en continu avec la base centrale cloud pour vos classements, vos Pokémon et vos amis.
-            </Text>
-          </View>
-        </View>
-      </Card>
+        {/* ========================================================================= */}
+        {/* 1. SECTION UNIQUE DU PROFIL (DÉPLIABLE)                                  */}
+        {/* ========================================================================= */}
+        <Text style={styles.sectionHeader}>PROFIL & ATHLÈTE</Text>
 
-      {/* Section Profil & Identité */}
-      <Text style={styles.sectionHeader}>PROFIL & ATHLÈTE</Text>
-
-      {/* Carte Compte Athlète & Code Ami */}
-      {trainerProfile && (
-        <Card style={styles.trainerCard}>
-          <View style={styles.trainerHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+        <Card style={styles.accordionContainerCard}>
+          {/* Entête dépliable du Profil */}
+          <TouchableOpacity
+            style={styles.accordionHeaderBtn}
+            onPress={() => setProfileExpanded(!profileExpanded)}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Déplier ou replier la section Profil"
+          >
+            <View style={styles.accordionHeaderMain}>
               <TouchableOpacity
                 onPress={() => setAvatarPickerVisible(true)}
                 activeOpacity={0.8}
                 accessibilityLabel="Changer la photo de profil (Selfie ou Galerie)"
               >
                 <UserAvatar
-                  avatarUrl={avatar_url || trainerProfile.avatarUrl}
-                  fallbackEmoji={trainerProfile.avatarPokemonEmoji || '⚡'}
-                  size={52}
+                  avatarUrl={avatar_url || trainerProfile?.avatarUrl}
+                  fallbackEmoji={trainerProfile?.avatarPokemonEmoji || '👤'}
+                  size={50}
                   showEditBadge
                 />
               </TouchableOpacity>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.trainerProfileTitle}>{trainerProfile.username}</Text>
-                <Text style={styles.trainerProfileSub}>
-                  {trainerProfile.trainerTitle} • Ligue {trainerProfile.currentLeague}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  <Text style={styles.accordionHeaderTitle}>
+                    {user_name || trainerProfile?.username || 'Mon Profil Athlète'}
+                  </Text>
+                  <View
+                    style={[
+                      styles.sessionStatusBadge,
+                      { backgroundColor: isTrainerLoggedIn ? 'rgba(34, 197, 94, 0.18)' : '#1F2937' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sessionStatusText,
+                        { color: isTrainerLoggedIn ? Colors.success : Colors.textMuted },
+                      ]}
+                    >
+                      {isTrainerLoggedIn ? '🟢 Connecté' : '⚪ Mode local'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.accordionHeaderSubtitle}>
+                  {trainerProfile?.trainerTitle ? `${trainerProfile.trainerTitle} • ` : ''}
+                  Ligue {trainerProfile?.currentLeague || 'Bronze'} • Repos {default_rest_seconds}s
                 </Text>
               </View>
             </View>
-            <View
-              style={[
-                styles.sessionStatusBadge,
-                { backgroundColor: isTrainerLoggedIn ? 'rgba(34, 197, 94, 0.18)' : '#1F2937' },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.sessionStatusText,
-                  { color: isTrainerLoggedIn ? Colors.success : Colors.textMuted },
-                ]}
-              >
-                {isTrainerLoggedIn ? '🟢 Connecté' : 'Mode local'}
-              </Text>
+
+            <View style={styles.chevronBox}>
+              <Text style={styles.chevronText}>{profileExpanded ? '▲' : '▼'}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.trainerMetaRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.trainerMetaLabel}>Code Ami Athlète :</Text>
-              <Text style={styles.trainerMetaCode}>{trainerProfile.friendCode}</Text>
-            </View>
-            <TouchableOpacity style={styles.trainerShareBtn} onPress={handleShareCode} activeOpacity={0.8}>
-              <Text style={styles.trainerShareBtnText}>📤 Partager</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Contenu complet dépliable du Profil */}
+          {profileExpanded && (
+            <View style={styles.accordionBody}>
+              <View style={styles.innerDivider} />
 
-          <View style={styles.trainerStatsDivider} />
+              {/* Sous-bloc : Prénom et Photo de profil */}
+              <View style={styles.subBlockHeaderRow}>
+                <Text style={styles.subBlockTitle}>👤 Identité & Photo</Text>
+                <TouchableOpacity
+                  onPress={() => setAvatarPickerVisible(true)}
+                  activeOpacity={0.7}
+                  style={styles.photoActionBtn}
+                >
+                  <Text style={styles.photoActionBtnText}>📷 Modifier la photo</Text>
+                </TouchableOpacity>
+              </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => router.push('/arena')} activeOpacity={0.7}>
-              <Text style={{ color: '#38BDF8', fontSize: 12, fontWeight: '700' }}>
-                👥 {friendsCount} ami(s) dans votre cercle • Gérer ❯
+              <Text style={styles.sublabel}>
+                Personnalise votre identité athlète sur l’accueil, dans l’arène et dans les classements.
               </Text>
-            </TouchableOpacity>
-            {isTrainerLoggedIn ? (
-              <TouchableOpacity onPress={handleTrainerLogout} activeOpacity={0.7}>
-                <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Déconnexion</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={() => router.push('/arena')} activeOpacity={0.7}>
-                <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>⚡ Se connecter ❯</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+
+              <View style={styles.nameInputContainer}>
+                <TextInput
+                  style={styles.nameTextInput}
+                  placeholder="Votre prénom (ex: Thomas, Sarah...)"
+                  placeholderTextColor={Colors.textMuted}
+                  value={currentName}
+                  onChangeText={setDraftName}
+                  maxLength={25}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.nameSaveBtn,
+                    currentName.trim() === (user_name || '').trim() && styles.nameSaveBtnDisabled,
+                  ]}
+                  onPress={handleSaveName}
+                  disabled={currentName.trim() === (user_name || '').trim()}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.nameSaveBtnText}>Enregistrer</Text>
+                </TouchableOpacity>
+              </View>
+
+              {savedNameSuccess && (
+                <View style={styles.nameSuccessBadge}>
+                  <Text style={styles.nameSuccessText}>
+                    ✓ Prénom enregistré avec succès !
+                  </Text>
+                </View>
+              )}
+
+              {/* Sous-bloc : Connexion, Badges & Compte */}
+              <View style={styles.innerDivider} />
+
+              <View style={styles.subBlockHeaderRow}>
+                <Text style={styles.subBlockTitle}>🏅 Badges & Connexion Athlète</Text>
+                <Badge
+                  label={`Ligue ${trainerProfile?.currentLeague || 'Bronze'}`}
+                  color="rgba(255, 90, 31, 0.18)"
+                  textColor={Colors.primary}
+                />
+              </View>
+
+              {trainerProfile && (
+                <View style={styles.trainerDetailCard}>
+                  <View style={styles.trainerMetaRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.trainerMetaLabel}>Code Ami Athlète :</Text>
+                      <Text style={styles.trainerMetaCode}>{trainerProfile.friendCode}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.trainerShareBtn} onPress={handleShareCode} activeOpacity={0.8}>
+                      <Text style={styles.trainerShareBtnText}>📤 Partager</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.trainerStatsDivider} />
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => router.push('/arena')} activeOpacity={0.7}>
+                      <Text style={{ color: '#38BDF8', fontSize: 12, fontWeight: '700' }}>
+                        👥 {friendsCount} ami(s) dans votre cercle • Gérer ❯
+                      </Text>
+                    </TouchableOpacity>
+                    {isTrainerLoggedIn ? (
+                      <TouchableOpacity onPress={handleTrainerLogout} activeOpacity={0.7}>
+                        <Text style={{ color: '#EF4444', fontSize: 12, fontWeight: '700' }}>Se déconnecter</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity onPress={() => router.push('/arena')} activeOpacity={0.7}>
+                        <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '800' }}>⚡ Se connecter ❯</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {!isTrainerLoggedIn && (
+                <View style={styles.loginBannerCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ fontSize: 24 }}>☁️</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.loginBannerTitle}>Compte & Synchronisation Cloud</Text>
+                      <Text style={styles.loginBannerSub}>
+                        Connectez-vous pour sauvegarder et restaurer vos séances, statistiques et Pokémon sur tous vos appareils.
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.loginBannerBtn}
+                    onPress={() => router.push('/arena')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.loginBannerBtnText}>⚡ Se connecter / Créer un compte</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Sous-bloc : Taille de l'athlète */}
+              <View style={styles.innerDivider} />
+
+              <View style={styles.subBlockHeaderRow}>
+                <Text style={styles.subBlockTitle}>📏 Mensurations & IMC</Text>
+              </View>
+              <Text style={styles.sublabel}>
+                Renseignez votre taille en centimètres pour calculer automatiquement votre Indice de Masse Corporelle (IMC) lors des pesées.
+              </Text>
+
+              <View style={styles.nameInputContainer}>
+                <TextInput
+                  style={styles.nameTextInput}
+                  placeholder="Votre taille en cm (ex: 178)"
+                  placeholderTextColor={Colors.textMuted}
+                  value={currentHeight}
+                  onChangeText={setDraftHeight}
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.nameSaveBtn,
+                    currentHeight.trim() ===
+                      (user_height_cm !== undefined && user_height_cm > 0
+                        ? user_height_cm.toString()
+                        : '') && styles.nameSaveBtnDisabled,
+                  ]}
+                  onPress={handleSaveHeight}
+                  disabled={
+                    currentHeight.trim() ===
+                    (user_height_cm !== undefined && user_height_cm > 0
+                      ? user_height_cm.toString()
+                      : '')
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.nameSaveBtnText}>Enregistrer</Text>
+                </TouchableOpacity>
+              </View>
+
+              {savedHeightSuccess && (
+                <View style={styles.nameSuccessBadge}>
+                  <Text style={styles.nameSuccessText}>
+                    ✓ Taille enregistrée avec succès !
+                  </Text>
+                </View>
+              )}
+
+              {/* Sous-bloc : Paramètres des temps de repos & Entraînement */}
+              <View style={styles.innerDivider} />
+
+              <View style={styles.subBlockHeaderRow}>
+                <Text style={styles.subBlockTitle}>⏱️ Paramètres des temps de repos</Text>
+              </View>
+              <Text style={styles.sublabel}>
+                Durée du compte à rebours lancé automatiquement après chaque validation de série.
+              </Text>
+
+              <View style={styles.restOptionsRow}>
+                {restOptions.map((sec) => {
+                  const isSelected = default_rest_seconds === sec;
+                  const mins = Math.floor(sec / 60);
+                  const remSec = sec % 60;
+                  const label = mins > 0 ? (remSec > 0 ? `${mins}m${remSec}` : `${mins}min`) : `${sec}s`;
+
+                  return (
+                    <TouchableOpacity
+                      key={sec}
+                      style={[styles.restChip, isSelected && styles.restChipActive]}
+                      onPress={() => setDefaultRestSeconds(sec)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.restChipText, isSelected && styles.restChipTextActive]}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={{ marginTop: 16 }}>
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.label}>Retour haptique (Vibrations)</Text>
+                    <Text style={styles.sublabel}>Vibrer lors de la validation d’une série et fin du repos</Text>
+                  </View>
+                  <Switch
+                    value={haptic_enabled}
+                    onValueChange={setHapticEnabled}
+                    thumbColor={haptic_enabled ? Colors.primary : '#4B5563'}
+                    trackColor={{ false: '#374151', true: 'rgba(255, 90, 31, 0.4)' }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ marginTop: 12 }}>
+                <View style={styles.settingRow}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={styles.label}>Unité de mesure</Text>
+                    <Text style={styles.sublabel}>Affichage des charges (KG ou LBS)</Text>
+                  </View>
+                  <View style={styles.unitToggle}>
+                    <TouchableOpacity
+                      style={[styles.unitBtn, weight_unit === 'kg' && styles.unitBtnActive]}
+                      onPress={() => setWeightUnit('kg')}
+                    >
+                      <Text style={[styles.unitBtnText, weight_unit === 'kg' && styles.unitBtnTextActive]}>
+                        KG
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.unitBtn, weight_unit === 'lbs' && styles.unitBtnActive]}
+                      onPress={() => setWeightUnit('lbs')}
+                    >
+                      <Text style={[styles.unitBtnText, weight_unit === 'lbs' && styles.unitBtnTextActive]}>
+                        LBS
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
         </Card>
-      )}
 
-      {!isTrainerLoggedIn && (
-        <Card style={[styles.card, { borderColor: '#38BDF8', borderWidth: 1.5, backgroundColor: '#0F172A' }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1E293B', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 20 }}>☁️</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '800' }}>
-                Compte & Synchronisation Cloud
-              </Text>
-              <Text style={{ color: '#94A3B8', fontSize: 12, marginTop: 2 }}>
-                Connectez-vous pour restaurer vos séances, vos statistiques et vos Pokémon sur cet appareil.
-              </Text>
-            </View>
-          </View>
+        {/* ========================================================================= */}
+        {/* 2. SECTION DÉPLIABLE POUR LE MATÉRIEL DISPONIBLE                        */}
+        {/* ========================================================================= */}
+        <Text style={styles.sectionHeader}>MATÉRIEL DISPONIBLE</Text>
+
+        <Card style={styles.accordionContainerCard}>
           <TouchableOpacity
-            style={{
-              marginTop: 12,
-              backgroundColor: '#0284C7',
-              paddingVertical: 10,
-              borderRadius: 10,
-              alignItems: 'center',
-            }}
-            onPress={() => router.push('/arena')}
-            activeOpacity={0.85}
+            style={styles.accordionHeaderBtn}
+            onPress={() => setEquipmentExpanded(!equipmentExpanded)}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Déplier ou replier la section Matériel disponible"
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 13.5, fontWeight: '800' }}>
-              ⚡ Se connecter à mon compte
-            </Text>
-          </TouchableOpacity>
-        </Card>
-      )}
-
-      <Card style={styles.card}>
-        <View style={styles.profileRow}>
-          <TouchableOpacity
-            onPress={() => setAvatarPickerVisible(true)}
-            activeOpacity={0.8}
-            accessibilityLabel="Changer la photo de profil (Selfie ou Galerie)"
-          >
-            <UserAvatar
-              avatarUrl={avatar_url || trainerProfile?.avatarUrl}
-              fallbackEmoji="👤"
-              size={52}
-              showEditBadge
-            />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Prénom & Photo de profil</Text>
-            <Text style={styles.sublabel}>
-              Personnalise votre identité athlète sur l’accueil et dans les classements
-            </Text>
-            <TouchableOpacity
-              onPress={() => setAvatarPickerVisible(true)}
-              style={{ marginTop: 4 }}
-              activeOpacity={0.7}
-            >
-              <Text style={{ color: '#38BDF8', fontSize: 12.5, fontWeight: '700' }}>
-                📷 {avatar_url ? 'Modifier ma photo' : 'Ajouter une photo (Selfie / Galerie)'} ❯
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.nameInputContainer}>
-          <TextInput
-            style={styles.nameTextInput}
-            placeholder="Votre prénom (ex: Thomas, Sarah...)"
-            placeholderTextColor={Colors.textMuted}
-            value={currentName}
-            onChangeText={setDraftName}
-            maxLength={25}
-          />
-          <TouchableOpacity
-            style={[
-              styles.nameSaveBtn,
-              currentName.trim() === (user_name || '').trim() && styles.nameSaveBtnDisabled,
-            ]}
-            onPress={handleSaveName}
-            disabled={currentName.trim() === (user_name || '').trim()}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.nameSaveBtnText}>Enregistrer</Text>
-          </TouchableOpacity>
-        </View>
-
-        {savedNameSuccess && (
-          <View style={styles.nameSuccessBadge}>
-            <Text style={styles.nameSuccessText}>
-              ✓ Prénom enregistré avec succès !
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.divider} />
-
-        <View style={styles.profileRow}>
-          <View style={styles.profileAvatarBox}>
-            <Text style={{ fontSize: 22 }}>📏</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Taille de l’athlète (cm)</Text>
-            <Text style={styles.sublabel}>
-              Utilisée pour calculer automatiquement votre Indice de Masse Corporelle (IMC)
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.nameInputContainer}>
-          <TextInput
-            style={styles.nameTextInput}
-            placeholder="Votre taille en cm (ex: 178)"
-            placeholderTextColor={Colors.textMuted}
-            value={currentHeight}
-            onChangeText={setDraftHeight}
-            keyboardType="numeric"
-            maxLength={5}
-          />
-          <TouchableOpacity
-            style={[
-              styles.nameSaveBtn,
-              currentHeight.trim() ===
-                (user_height_cm !== undefined && user_height_cm > 0
-                  ? user_height_cm.toString()
-                  : '') && styles.nameSaveBtnDisabled,
-            ]}
-            onPress={handleSaveHeight}
-            disabled={
-              currentHeight.trim() ===
-              (user_height_cm !== undefined && user_height_cm > 0
-                ? user_height_cm.toString()
-                : '')
-            }
-            activeOpacity={0.8}
-          >
-            <Text style={styles.nameSaveBtnText}>Enregistrer</Text>
-          </TouchableOpacity>
-        </View>
-
-        {savedHeightSuccess && (
-          <View style={styles.nameSuccessBadge}>
-            <Text style={styles.nameSuccessText}>
-              ✓ Taille enregistrée avec succès !
-            </Text>
-          </View>
-        )}
-      </Card>
-
-      {/* Section Matériel & Équipements Disponibles */}
-      <Text style={styles.sectionHeader}>MATÉRIEL DISPONIBLE (ÉQUIPEMENTS)</Text>
-
-      <Card style={styles.card}>
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1, paddingRight: 8 }}>
-            <Text style={styles.label}>Filtrer selon mon matériel</Text>
-            <Text style={styles.sublabel}>
-              Masque les programmes et exercices nécessitant du matériel non coché
-            </Text>
-          </View>
-          <Switch
-            value={filter_by_available_equipment ?? true}
-            onValueChange={setFilterByAvailableEquipment}
-            thumbColor={filter_by_available_equipment ? Colors.primary : '#4B5563'}
-            trackColor={{ false: '#374151', true: 'rgba(255, 90, 31, 0.4)' }}
-          />
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Actions rapides */}
-        <View style={styles.equipmentQuickActionsRow}>
-          <TouchableOpacity
-            style={styles.quickActionBtn}
-            onPress={resetAvailableEquipments}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.quickActionBtnText}>Tout cocher ({EQUIPMENTS.length})</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickActionBtn}
-            onPress={() => setAvailableEquipments(['Sans matériel'])}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.quickActionBtnText}>Sans matériel uniquement</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Compteur d'équipements sélectionnés */}
-        <View style={styles.equipmentCounterBadge}>
-          <Text style={styles.equipmentCounterText}>
-            ✓ {(available_equipments || []).length} / {EQUIPMENTS.length} équipements cochés
-          </Text>
-        </View>
-
-        {/* Liste des équipements avec cases à cocher ergonomiques */}
-        <View style={styles.equipmentListContainer}>
-          {EQUIPMENT_CATALOG_METADATA.map((eqItem) => {
-            const isSelected = (available_equipments || []).includes(eqItem.key);
-
-            return (
-              <TouchableOpacity
-                key={eqItem.key}
-                style={[
-                  styles.equipmentItemCard,
-                  isSelected && styles.equipmentItemCardActive,
-                ]}
-                onPress={() => toggleAvailableEquipment(eqItem.key)}
-                activeOpacity={0.75}
-              >
-                <View style={styles.equipmentCheckboxBox}>
-                  <Text style={[styles.equipmentCheckboxText, isSelected && styles.equipmentCheckboxTextActive]}>
-                    {isSelected ? '✓' : '○'}
-                  </Text>
+            <View style={styles.accordionHeaderMain}>
+              <View style={styles.sectionIconBox}>
+                <Text style={{ fontSize: 22 }}>🏋️</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={styles.accordionHeaderTitle}>Matériel & Équipements</Text>
+                  <Badge
+                    label={`${activeEquipmentCount} / ${EQUIPMENTS.length} cochés`}
+                    color="rgba(56, 189, 248, 0.15)"
+                    textColor="#38BDF8"
+                  />
                 </View>
-
-                <View style={styles.equipmentItemEmojiBox}>
-                  <Text style={{ fontSize: 20 }}>{eqItem.emoji}</Text>
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.equipmentItemTitle, isSelected && styles.equipmentItemTitleActive]}>
-                    {eqItem.label}
-                  </Text>
-                  <Text style={styles.equipmentItemSub} numberOfLines={2}>
-                    {eqItem.description}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={styles.equipmentHintBox}>
-          <Text style={styles.equipmentHintText}>
-            💡 Vitax adapte automatiquement le catalogue des exercices, les programmes proposés sur l’accueil et le ciblage par muscle à cette sélection.
-          </Text>
-        </View>
-      </Card>
-
-      {/* Section Paramètres d'entraînement */}
-      <Text style={styles.sectionHeader}>ENTRAÎNEMENT & REPOS</Text>
-
-      <Card style={styles.card}>
-        <Text style={styles.label}>Temps de repos par défaut</Text>
-        <Text style={styles.sublabel}>
-          Durée du compte à rebours lancé automatiquement après chaque série
-        </Text>
-
-        <View style={styles.restOptionsRow}>
-          {restOptions.map((sec) => {
-            const isSelected = default_rest_seconds === sec;
-            const mins = Math.floor(sec / 60);
-            const remSec = sec % 60;
-            const label = mins > 0 ? (remSec > 0 ? `${mins}m${remSec}` : `${mins}min`) : `${sec}s`;
-
-            return (
-              <TouchableOpacity
-                key={sec}
-                style={[styles.restChip, isSelected && styles.restChipActive]}
-                onPress={() => setDefaultRestSeconds(sec)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.restChipText, isSelected && styles.restChipTextActive]}>
-                  {label}
+                <Text style={styles.accordionHeaderSubtitle}>
+                  {isFilteringEquipment
+                    ? 'Filtre automatique actif selon vos équipements'
+                    : 'Filtre inactif (tous les exercices affichés)'}
                 </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+              </View>
+            </View>
 
-        <View style={styles.divider} />
+            <View style={styles.chevronBox}>
+              <Text style={styles.chevronText}>{equipmentExpanded ? '▲' : '▼'}</Text>
+            </View>
+          </TouchableOpacity>
 
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Retour haptique (Vibrations)</Text>
-            <Text style={styles.sublabel}>Vibrer lors de la validation d’une série et fin du repos</Text>
-          </View>
-          <Switch
-            value={haptic_enabled}
-            onValueChange={setHapticEnabled}
-            thumbColor={haptic_enabled ? Colors.primary : '#4B5563'}
-            trackColor={{ false: '#374151', true: 'rgba(255, 90, 31, 0.4)' }}
-          />
-        </View>
+          {equipmentExpanded && (
+            <View style={styles.accordionBody}>
+              <View style={styles.innerDivider} />
 
-        <View style={styles.divider} />
+              <View style={styles.settingRow}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.label}>Filtrer selon mon matériel</Text>
+                  <Text style={styles.sublabel}>
+                    Masque automatiquement les programmes et exercices nécessitant du matériel non coché
+                  </Text>
+                </View>
+                <Switch
+                  value={filter_by_available_equipment ?? true}
+                  onValueChange={setFilterByAvailableEquipment}
+                  thumbColor={filter_by_available_equipment ? Colors.primary : '#4B5563'}
+                  trackColor={{ false: '#374151', true: 'rgba(255, 90, 31, 0.4)' }}
+                />
+              </View>
 
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Unité de mesure</Text>
-            <Text style={styles.sublabel}>Affichage des charges</Text>
-          </View>
-          <View style={styles.unitToggle}>
-            <TouchableOpacity
-              style={[styles.unitBtn, weight_unit === 'kg' && styles.unitBtnActive]}
-              onPress={() => setWeightUnit('kg')}
-            >
-              <Text style={[styles.unitBtnText, weight_unit === 'kg' && styles.unitBtnTextActive]}>
-                KG
+              {/* Actions rapides */}
+              <View style={styles.equipmentQuickActionsRow}>
+                <TouchableOpacity
+                  style={styles.quickActionBtn}
+                  onPress={resetAvailableEquipments}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.quickActionBtnText}>Tout cocher ({EQUIPMENTS.length})</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.quickActionBtn}
+                  onPress={() => setAvailableEquipments(['Sans matériel'])}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.quickActionBtnText}>Sans matériel uniquement</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Compteur d'équipements sélectionnés */}
+              <View style={styles.equipmentCounterBadge}>
+                <Text style={styles.equipmentCounterText}>
+                  ✓ {activeEquipmentCount} / {EQUIPMENTS.length} équipements cochés
+                </Text>
+              </View>
+
+              {/* Liste des équipements avec cases à cocher ergonomiques */}
+              <View style={styles.equipmentListContainer}>
+                {EQUIPMENT_CATALOG_METADATA.map((eqItem) => {
+                  const isSelected = (available_equipments || []).includes(eqItem.key);
+
+                  return (
+                    <TouchableOpacity
+                      key={eqItem.key}
+                      style={[
+                        styles.equipmentItemCard,
+                        isSelected && styles.equipmentItemCardActive,
+                      ]}
+                      onPress={() => toggleAvailableEquipment(eqItem.key)}
+                      activeOpacity={0.75}
+                    >
+                      <View style={styles.equipmentCheckboxBox}>
+                        <Text style={[styles.equipmentCheckboxText, isSelected && styles.equipmentCheckboxTextActive]}>
+                          {isSelected ? '✓' : '○'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.equipmentItemEmojiBox}>
+                        <Text style={{ fontSize: 20 }}>{eqItem.emoji}</Text>
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.equipmentItemTitle, isSelected && styles.equipmentItemTitleActive]}>
+                          {eqItem.label}
+                        </Text>
+                        <Text style={styles.equipmentItemSub} numberOfLines={2}>
+                          {eqItem.description}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.equipmentHintBox}>
+                <Text style={styles.equipmentHintText}>
+                  💡 Vitax adapte automatiquement le catalogue des exercices, les programmes proposés sur l’accueil et le ciblage par muscle à cette sélection.
+                </Text>
+              </View>
+            </View>
+          )}
+        </Card>
+
+        {/* ========================================================================= */}
+        {/* 3. BOUTON SYNCHRO DE SÉANCES                                             */}
+        {/* ========================================================================= */}
+        <Text style={styles.sectionHeader}>SYNCHRONISATION DES SÉANCES</Text>
+
+        <Card style={styles.syncCard}>
+          <View style={styles.syncHeaderRow}>
+            <View style={styles.syncIconBox}>
+              <Text style={{ fontSize: 22 }}>🔄</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Text style={styles.syncCardTitle}>Synchro de séances</Text>
+                <Badge
+                  label={isSupabaseConfigured() ? 'Cloud actif' : 'Hors-ligne'}
+                  color={isSupabaseConfigured() ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)'}
+                  textColor={isSupabaseConfigured() ? '#4ADE80' : '#FACC15'}
+                />
+              </View>
+              <Text style={styles.syncCardSub}>
+                La synchronisation se fait automatiquement en arrière-plan. Vous pouvez forcer l’envoi et la récupération immédiate de vos séances d’entraînement ici.
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.unitBtn, weight_unit === 'lbs' && styles.unitBtnActive]}
-              onPress={() => setWeightUnit('lbs')}
-            >
-              <Text style={[styles.unitBtnText, weight_unit === 'lbs' && styles.unitBtnTextActive]}>
-                LBS
-              </Text>
-            </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Card>
 
-      {/* Section Sauvegarde et Restauration */}
-      <Text style={styles.sectionHeader}>SAUVEGARDE & MIGRATION</Text>
-
-      <Card style={styles.card}>
-        <Text style={styles.label}>Exporter vos données</Text>
-        <Text style={styles.sublabel}>
-          Générez un fichier JSON de sauvegarde de tout votre historique, programmes et exercices pour
-          le conserver ou le transférer.
-        </Text>
-        <Button
-          title="Exporter mes données (JSON)"
-          variant="outline"
-          onPress={handleExport}
-          loading={exporting}
-          style={{ marginTop: 12 }}
-        />
-
-        <View style={styles.divider} />
-
-        <Text style={styles.label}>Importer une sauvegarde</Text>
-        <Text style={styles.sublabel}>
-          Restaurez une sauvegarde précédemment exportée sur un autre téléphone.
-        </Text>
-        <Button
-          title="Importer un fichier (JSON)"
-          variant="secondary"
-          onPress={handleImport}
-          loading={importing}
-          style={{ marginTop: 12 }}
-        />
-      </Card>
-
-      {/* Section Gestion et Retravail des Fiches d'Exercices */}
-      <Text style={styles.sectionHeader}>CATALOGUE & FICHES D’EXERCICES</Text>
-
-      <Card style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Text style={styles.label}>Qualification & Fiches Techniques</Text>
-          <Badge label="107 Exercices" color="rgba(6, 182, 212, 0.2)" textColor="#06B6D4" />
-        </View>
-        <Text style={styles.sublabel}>
-          Exportez l’intégralité des données d’exercices (anatomie détaillée, postures, objectifs, charges recommandées, consignes de sécurité et niveaux de risque) dans un fichier JSON pour les auditer et les retravailler sur ordinateur.
-        </Text>
-        <Button
-          title={exportingExercises ? 'Génération du catalogue...' : '📥 Exporter les 107 fiches d’exercices (JSON)'}
-          variant="outline"
-          onPress={handleExportExercises}
-          loading={exportingExercises}
-          style={{ marginTop: 12 }}
-        />
-
-        <View style={styles.divider} />
-
-        <Text style={styles.label}>Importer vos fiches retravaillées</Text>
-        <Text style={styles.sublabel}>
-          Réinjectez votre fichier JSON modifié pour mettre à jour instantanément la base de données et les guides techniques de Vitax.
-        </Text>
-        <Button
-          title={importingExercises ? 'Mise à jour en cours...' : '📤 Importer / Mettre à jour les fiches (JSON)'}
-          variant="secondary"
-          onPress={handleImportExercises}
-          loading={importingExercises}
-          style={{ marginTop: 12 }}
-        />
-      </Card>
-
-      {/* Section Synchronisation Multi-appareils Cloud */}
-      <Text style={styles.sectionHeader}>SYNCHRONISATION MULTI-APPAREILS (CLOUD)</Text>
-
-      <Card style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Text style={styles.label}>Synchronisation des Données</Text>
-          <Badge
-            label={isSupabaseConfigured() ? 'Connecté' : 'Non configuré'}
-            color={isSupabaseConfigured() ? 'rgba(34, 197, 94, 0.2)' : 'rgba(234, 179, 8, 0.2)'}
-            textColor={isSupabaseConfigured() ? '#4ADE80' : '#FACC15'}
+          <Button
+            title={syncingCloud ? 'Synchronisation en cours...' : '🔄 Synchroniser mes séances maintenant'}
+            variant="primary"
+            onPress={handleManualCloudSync}
+            loading={syncingCloud}
+            style={{ marginTop: 12 }}
           />
-        </View>
-        <Text style={styles.sublabel}>
-          Synchronise instantanément vos séances, séries, pesées, objectifs et progression Pokémon entre votre smartphone et le cloud, avec fusion intelligente anti-régression garantie.
-        </Text>
-        <Button
-          title={syncingCloud ? 'Synchronisation en cours...' : "🔄 Synchroniser l'application"}
-          variant="primary"
-          onPress={handleManualCloudSync}
-          loading={syncingCloud}
-          style={{ marginTop: 12 }}
-        />
-      </Card>
+        </Card>
 
-      {/* Section Zone de danger */}
-      <Text style={[styles.sectionHeader, { color: Colors.danger }]}>ZONE DE DANGER</Text>
+        {/* ========================================================================= */}
+        {/* 4. MODE DEV AVEC SAUVEGARDE, MIGRATIONS & CATALOGUE FICHES D'EXERCICES     */}
+        {/* ========================================================================= */}
+        <Text style={styles.sectionHeader}>MODE DÉVELOPPEUR & DONNÉES</Text>
 
-      <Card style={[styles.card, { borderColor: 'rgba(239, 68, 68, 0.3)' }]}>
-        <Text style={[styles.label, { color: Colors.danger }]}>Réinitialiser la base de données</Text>
-        <Text style={styles.sublabel}>
-          Efface toutes les séances passées et réinitialise les programmes aux valeurs d’usine.
-        </Text>
-        <Button
-          title="Remettre à zéro les données"
-          variant="danger"
-          onPress={handleResetData}
-          style={{ marginTop: 12 }}
-        />
-      </Card>
+        <Card style={styles.accordionContainerCard}>
+          <TouchableOpacity
+            style={styles.accordionHeaderBtn}
+            onPress={() => setDevExpanded(!devExpanded)}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Déplier ou replier le Mode Développeur"
+          >
+            <View style={styles.accordionHeaderMain}>
+              <View style={[styles.sectionIconBox, styles.devIconBox]}>
+                <Text style={{ fontSize: 22 }}>🛠️</Text>
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={styles.accordionHeaderTitle}>Mode Développeur</Text>
+                  <Badge label="Avancé" color="rgba(168, 85, 247, 0.15)" textColor="#C084FC" />
+                </View>
+                <Text style={styles.accordionHeaderSubtitle}>
+                  Sauvegarde & migrations, catalogue et fiches d’exercices
+                </Text>
+              </View>
+            </View>
 
-      {/* Section Mises à jour de l'application (Masquée sur le Web car non applicable) */}
-      {Platform.OS !== 'web' && (
-        <>
-          <Text style={styles.sectionHeader}>MISES À JOUR DE L’APPLICATION</Text>
+            <View style={styles.chevronBox}>
+              <Text style={styles.chevronText}>{devExpanded ? '▲' : '▼'}</Text>
+            </View>
+          </TouchableOpacity>
 
-          <Card style={styles.card}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <Text style={styles.label}>Mises à jour en direct (OTA)</Text>
-              <Badge
-                label={Updates.isEnabled ? 'Prêt (EAS)' : 'Non actif'}
-                color={Updates.isEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
-                textColor={Updates.isEnabled ? Colors.success : Colors.danger}
+          {devExpanded && (
+            <View style={styles.accordionBody}>
+              <View style={styles.innerDivider} />
+
+              {/* Bloc 1 : Sauvegarde & Migration */}
+              <Text style={styles.subBlockTitle}>📦 Sauvegarde & Migration</Text>
+              <Text style={styles.sublabel}>
+                Exportez ou restaurez un fichier JSON complet comprenant votre historique, vos programmes et vos séances.
+              </Text>
+
+              <Button
+                title={exporting ? 'Génération en cours...' : '📥 Exporter mes données (JSON)'}
+                variant="outline"
+                onPress={handleExport}
+                loading={exporting}
+                style={{ marginTop: 8 }}
               />
+
+              <Button
+                title={importing ? 'Restauration en cours...' : '📤 Importer une sauvegarde (JSON)'}
+                variant="secondary"
+                onPress={handleImport}
+                loading={importing}
+                style={{ marginTop: 10 }}
+              />
+
+              {/* Bloc 2 : Catalogue & Fiches d'exercices */}
+              <View style={styles.innerDivider} />
+
+              <View style={styles.subBlockHeaderRow}>
+                <Text style={styles.subBlockTitle}>📋 Catalogue & Fiches d’exercices</Text>
+                <Badge label="107 Exercices" color="rgba(6, 182, 212, 0.2)" textColor="#06B6D4" />
+              </View>
+              <Text style={styles.sublabel}>
+                Exportez l’intégralité des données d’exercices (anatomie détaillée, postures, objectifs, charges recommandées et consignes de sécurité) pour les auditer ou réinjecter un JSON enrichi.
+              </Text>
+
+              <Button
+                title={exportingExercises ? 'Génération du catalogue...' : '📥 Exporter les 107 fiches d’exercices (JSON)'}
+                variant="outline"
+                onPress={handleExportExercises}
+                loading={exportingExercises}
+                style={{ marginTop: 8 }}
+              />
+
+              <Button
+                title={importingExercises ? 'Mise à jour en cours...' : '📤 Importer / Mettre à jour les fiches (JSON)'}
+                variant="secondary"
+                onPress={handleImportExercises}
+                loading={importingExercises}
+                style={{ marginTop: 10 }}
+              />
+
+              {/* Bloc 3 : Mises à jour en direct (EAS OTA sur Mobile) */}
+              {Platform.OS !== 'web' && (
+                <>
+                  <View style={styles.innerDivider} />
+
+                  <View style={styles.subBlockHeaderRow}>
+                    <Text style={styles.subBlockTitle}>🚀 Mises à jour OTA (EAS)</Text>
+                    <Badge
+                      label={Updates.isEnabled ? 'Prêt' : 'Non actif'}
+                      color={Updates.isEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
+                      textColor={Updates.isEnabled ? Colors.success : Colors.danger}
+                    />
+                  </View>
+
+                  <Text style={styles.sublabel}>
+                    Vérifiez et appliquez les nouveaux correctifs et mises à jour en direct.
+                  </Text>
+
+                  <View style={styles.updateInfoBox}>
+                    <Text style={styles.updateInfoRow}>
+                      Canal : <Text style={styles.updateInfoVal}>{Updates.channel || 'preview'}</Text>
+                    </Text>
+                    <Text style={styles.updateInfoRow}>
+                      Version Runtime : <Text style={styles.updateInfoVal}>{Updates.runtimeVersion || '1.0.0'}</Text>
+                    </Text>
+                    <Text style={styles.updateInfoRow}>
+                      Mise à jour active : <Text style={styles.updateInfoVal}>{Updates.updateId ? `${Updates.updateId.substring(0, 10)}...` : 'Version de base'}</Text>
+                    </Text>
+                  </View>
+
+                  <Button
+                    title={checkingUpdate ? 'Recherche en cours...' : '🔄 Vérifier les mises à jour en direct'}
+                    variant="primary"
+                    onPress={handleCheckUpdate}
+                    disabled={checkingUpdate}
+                    style={{ marginTop: 12 }}
+                  />
+                </>
+              )}
             </View>
+          )}
+        </Card>
 
-            <Text style={styles.sublabel}>
-              Téléchargez les nouveaux modes, écrans et correctifs sans réinstaller l’APK.
-            </Text>
+        {/* ========================================================================= */}
+        {/* 5. ZONE DE DANGER                                                        */}
+        {/* ========================================================================= */}
+        <Text style={[styles.sectionHeader, { color: Colors.danger }]}>ZONE DE DANGER</Text>
 
-            <View style={styles.updateInfoBox}>
-              <Text style={styles.updateInfoRow}>
-                Canal : <Text style={styles.updateInfoVal}>{Updates.channel || 'preview'}</Text>
-              </Text>
-              <Text style={styles.updateInfoRow}>
-                Version Runtime : <Text style={styles.updateInfoVal}>{Updates.runtimeVersion || '1.0.0'}</Text>
-              </Text>
-              <Text style={styles.updateInfoRow}>
-                Mise à jour active : <Text style={styles.updateInfoVal}>{Updates.updateId ? `${Updates.updateId.substring(0, 10)}...` : 'Version de base'}</Text>
-              </Text>
-            </View>
+        <Card style={[styles.card, { borderColor: 'rgba(239, 68, 68, 0.35)' }]}>
+          <Text style={[styles.label, { color: Colors.danger }]}>Réinitialiser la base de données</Text>
+          <Text style={styles.sublabel}>
+            Efface toutes les séances passées et réinitialise les programmes aux valeurs d’usine. Cette action est irréversible.
+          </Text>
+          <Button
+            title="Remettre à zéro les données"
+            variant="danger"
+            onPress={handleResetData}
+            style={{ marginTop: 12 }}
+          />
+        </Card>
 
-            <Button
-              title={checkingUpdate ? 'Recherche en cours...' : '🔄 Vérifier les mises à jour en direct'}
-              variant="primary"
-              onPress={handleCheckUpdate}
-              disabled={checkingUpdate}
-              style={{ marginTop: 12 }}
-            />
-          </Card>
-        </>
-      )}
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Vitax Musculation • Version 1.0.0 Offline-First</Text>
+          <Text style={styles.footerSub}>Conçu pour la performance et la rapidité d’exécution</Text>
+        </View>
+      </ScrollView>
 
-      {/* Footer À propos */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Vitax Musculation • Version 1.0.0 Offline-First</Text>
-        <Text style={styles.footerSub}>Conçu pour la performance et la rapidité d’exécution</Text>
-      </View>
-    </ScrollView>
-
-    <AvatarPickerModal
-      visible={avatarPickerVisible}
-      currentAvatarUrl={avatar_url || trainerProfile?.avatarUrl}
-      onClose={() => setAvatarPickerVisible(false)}
-      onAvatarSelected={async (url) => {
-        await setAvatarUrl(url);
-        if (trainerProfile) {
-          setTrainerProfile({ ...trainerProfile, avatarUrl: url });
-        }
-      }}
-    />
-  </View>
+      {/* Modal de sélection d'avatar (Selfie / Galerie) */}
+      <AvatarPickerModal
+        visible={avatarPickerVisible}
+        currentAvatarUrl={avatar_url || trainerProfile?.avatarUrl}
+        onClose={() => setAvatarPickerVisible(false)}
+        onAvatarSelected={async (url) => {
+          await setAvatarUrl(url);
+          if (trainerProfile) {
+            setTrainerProfile({ ...trainerProfile, avatarUrl: url });
+          }
+        }}
+      />
+    </View>
   );
 }
 
@@ -918,44 +992,143 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  offlineCard: {
-    backgroundColor: '#111D2E',
-    borderColor: '#1D3557',
-    marginBottom: 20,
-  },
-  offlineHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  offlineIcon: {
-    fontSize: 28,
-    marginRight: 12,
-  },
-  offlineTitle: {
-    color: '#38BDF8',
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  offlineSub: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-  },
   sectionHeader: {
     color: Colors.textMuted,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 8,
-    marginTop: 10,
+    marginTop: 14,
   },
   card: {
     marginBottom: 16,
   },
-  label: {
+  accordionContainerCard: {
+    marginBottom: 16,
+    padding: 0,
+    overflow: 'hidden',
+    backgroundColor: '#111D2E',
+    borderColor: '#1D2F48',
+    borderWidth: 1,
+  },
+  accordionHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  accordionHeaderMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  accordionHeaderTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  accordionHeaderSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 3,
+  },
+  chevronBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#18273E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+    borderWidth: 1,
+    borderColor: '#253C5D',
+  },
+  chevronText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  accordionBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+  },
+  innerDivider: {
+    height: 1,
+    backgroundColor: '#1A293E',
+    marginVertical: 14,
+  },
+  subBlockHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  subBlockTitle: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
+  photoActionBtn: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  photoActionBtnText: {
+    color: '#38BDF8',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  sectionIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+  },
+  devIconBox: {
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderColor: 'rgba(168, 85, 247, 0.25)',
+  },
+  syncCard: {
+    marginBottom: 16,
+    backgroundColor: '#0E1A2B',
+    borderColor: '#1D324F',
+    borderWidth: 1.5,
+  },
+  syncHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  syncIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.25)',
+  },
+  syncCardTitle: {
     color: '#FFFFFF',
     fontSize: 15,
+    fontWeight: '800',
+  },
+  syncCardSub: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  label: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
     fontWeight: '700',
     marginBottom: 4,
   },
@@ -991,11 +1164,6 @@ const styles = StyleSheet.create({
   restChipTextActive: {
     color: '#FFFFFF',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#1E2C42',
-    marginVertical: 14,
-  },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1023,37 +1191,6 @@ const styles = StyleSheet.create({
   unitBtnTextActive: {
     color: '#FFFFFF',
   },
-  footer: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  footerText: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  footerSub: {
-    color: '#475569',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  profileAvatarBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
   nameInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1061,12 +1198,12 @@ const styles = StyleSheet.create({
   },
   nameTextInput: {
     flex: 1,
-    backgroundColor: '#121A28',
+    backgroundColor: '#0F1726',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#24344E',
+    borderColor: '#22324B',
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -1103,10 +1240,97 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  trainerDetailCard: {
+    backgroundColor: '#0D1624',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#1D2D42',
+  },
+  sessionStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  sessionStatusText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  trainerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#080E18',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#182436',
+  },
+  trainerMetaLabel: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  trainerMetaCode: {
+    color: '#FF7A45',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  trainerShareBtn: {
+    backgroundColor: 'rgba(255, 90, 31, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.4)',
+  },
+  trainerShareBtnText: {
+    color: '#FF7A45',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  trainerStatsDivider: {
+    height: 1,
+    backgroundColor: '#182436',
+    marginVertical: 10,
+  },
+  loginBannerCard: {
+    backgroundColor: '#0C1728',
+    borderColor: '#0284C7',
+    borderWidth: 1.2,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+  },
+  loginBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  loginBannerSub: {
+    color: '#94A3B8',
+    fontSize: 11.5,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  loginBannerBtn: {
+    marginTop: 10,
+    backgroundColor: '#0284C7',
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loginBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
   equipmentQuickActionsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 10,
+    marginVertical: 10,
   },
   quickActionBtn: {
     flex: 1,
@@ -1145,30 +1369,30 @@ const styles = StyleSheet.create({
   equipmentItemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121A28',
+    backgroundColor: '#0F1826',
     padding: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#1E2C42',
+    borderColor: '#1C293D',
   },
   equipmentItemCardActive: {
     backgroundColor: '#122338',
     borderColor: 'rgba(56, 189, 248, 0.4)',
   },
   equipmentCheckboxBox: {
-    width: 28,
-    height: 28,
+    width: 26,
+    height: 26,
     borderRadius: 6,
-    backgroundColor: '#1A2538',
+    backgroundColor: '#182436',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: '#283852',
+    borderColor: '#25364E',
   },
   equipmentCheckboxText: {
     color: Colors.textMuted,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
   },
   equipmentCheckboxTextActive: {
@@ -1193,114 +1417,49 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   equipmentHintBox: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0D1522',
     borderRadius: 8,
     padding: 10,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#1A273A',
   },
   equipmentHintText: {
     color: Colors.textMuted,
     fontSize: 11,
     lineHeight: 15,
   },
-  trainerCard: {
-    backgroundColor: '#131C2D',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#263750',
-  },
-  trainerHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  trainerAvatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1E2C44',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trainerProfileTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  trainerProfileSub: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  sessionStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  sessionStatusText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  trainerMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#0F1624',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#1D2A3D',
-  },
-  trainerMetaLabel: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  trainerMetaCode: {
-    color: '#FF7A45',
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  trainerShareBtn: {
-    backgroundColor: 'rgba(255, 90, 31, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 90, 31, 0.4)',
-  },
-  trainerShareBtnText: {
-    color: '#FF7A45',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  trainerStatsDivider: {
-    height: 1,
-    backgroundColor: '#1C293D',
-    marginVertical: 10,
-  },
   updateInfoBox: {
-    backgroundColor: '#0F1626',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: '#0B1320',
+    borderRadius: 10,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#1F2C40',
+    borderColor: '#1B293C',
     gap: 4,
     marginTop: 4,
   },
   updateInfoRow: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: Colors.textMuted,
     fontWeight: '600',
   },
   updateInfoVal: {
     color: '#00E5FF',
     fontWeight: '800',
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  footerText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  footerSub: {
+    color: '#475569',
+    fontSize: 11,
+    marginTop: 2,
   },
 });
