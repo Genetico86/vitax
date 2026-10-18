@@ -32,14 +32,14 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, highlight 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.surfaceBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
     elevation: 3,
   },
   highlight: {
