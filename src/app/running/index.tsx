@@ -25,8 +25,11 @@ import {
   formatPace,
   formatDuration,
 } from '../../database/runningRepository';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RunningSession, RunningStats } from '../../types';
 import { showAlert } from '../../utils/alert';
+
+const RUNNING_TIMER_STORAGE_KEY = '@vitax_active_running_timer';
 
 export default function RunningScreen() {
   const insets = useSafeAreaInsets();
@@ -51,13 +54,67 @@ export default function RunningScreen() {
 
   const [activityType, setActivityType] = useState<'running' | 'walking'>('running');
 
-  // Chronomètre en direct basé sur un timestamp réel (survit au verrouillage d'écran)
+  // Chronomètre en direct basé sur un timestamp réel (survit au verrouillage d'écran et à la navigation)
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [finishModalVisible, setFinishModalVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runStartTimestampRef = useRef<number | null>(null);
   const accumulatedSecondsRef = useRef<number>(0);
+
+  const persistTimerState = useCallback(
+    async (running: boolean, startTs: number | null, accSecs: number, actType: 'running' | 'walking') => {
+      try {
+        if (!running && accSecs === 0 && !startTs) {
+          await AsyncStorage.removeItem(RUNNING_TIMER_STORAGE_KEY);
+          return;
+        }
+        await AsyncStorage.setItem(
+          RUNNING_TIMER_STORAGE_KEY,
+          JSON.stringify({
+            isRunning: running,
+            startTimestamp: startTs,
+            accumulatedSeconds: accSecs,
+            activityType: actType,
+          })
+        );
+      } catch {}
+    },
+    []
+  );
+
+  // Restauration automatique d'un chronomètre de course/marche en cours au montage de l'écran
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(RUNNING_TIMER_STORAGE_KEY);
+        if (!raw || !mounted) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+        const acc = Number(parsed.accumulatedSeconds) || 0;
+        const startTs = parsed.startTimestamp ? Number(parsed.startTimestamp) : null;
+        const running = Boolean(parsed.isRunning);
+        if (parsed.activityType === 'walking' || parsed.activityType === 'running') {
+          setActivityType(parsed.activityType);
+        }
+        accumulatedSecondsRef.current = acc;
+        if (running && startTs) {
+          runStartTimestampRef.current = startTs;
+          const delta = Math.max(0, Math.floor((Date.now() - startTs) / 1000));
+          setTimerSeconds(acc + delta);
+          setIsTimerRunning(true);
+        } else if (acc > 0) {
+          runStartTimestampRef.current = null;
+          setTimerSeconds(acc);
+          setIsTimerRunning(false);
+        }
+      } catch {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -104,8 +161,10 @@ export default function RunningScreen() {
   }, [isTimerRunning]);
 
   const handleStartTimer = () => {
-    runStartTimestampRef.current = Date.now();
+    const now = Date.now();
+    runStartTimestampRef.current = now;
     setIsTimerRunning(true);
+    void persistTimerState(true, now, accumulatedSecondsRef.current, activityType);
   };
 
   const handlePauseTimer = () => {
@@ -116,6 +175,7 @@ export default function RunningScreen() {
       setTimerSeconds(accumulatedSecondsRef.current);
     }
     setIsTimerRunning(false);
+    void persistTimerState(false, null, accumulatedSecondsRef.current, activityType);
   };
 
   const handleResetTimer = () => {
@@ -123,6 +183,7 @@ export default function RunningScreen() {
     runStartTimestampRef.current = null;
     accumulatedSecondsRef.current = 0;
     setTimerSeconds(0);
+    void persistTimerState(false, null, 0, activityType);
   };
 
   const handleStopAndSave = () => {
@@ -144,6 +205,7 @@ export default function RunningScreen() {
     runStartTimestampRef.current = null;
     setTimerSeconds(finalSeconds);
     setIsTimerRunning(false);
+    void persistTimerState(false, null, finalSeconds, activityType);
     setFinishModalVisible(true);
   };
 
@@ -172,6 +234,7 @@ export default function RunningScreen() {
       setTimerSeconds(0);
       setDistanceInput('');
       setNotesInput('');
+      void persistTimerState(false, null, 0, activityType);
       await loadData();
 
       showAlert(
