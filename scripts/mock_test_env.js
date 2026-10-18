@@ -17,7 +17,34 @@ Module._resolveFilename = function(request, parent, isMain, options) {
   return origResolve.call(this, request, parent, isMain, options);
 };
 
-module.exports = {
+const memoryStore = new Map();
+
+const mockAsyncStorage = {
+  getItem: async (key) => (memoryStore.has(key) ? memoryStore.get(key) : null),
+  setItem: async (key, value) => {
+    memoryStore.set(key, String(value));
+  },
+  removeItem: async (key) => {
+    memoryStore.delete(key);
+  },
+  clear: async () => {
+    memoryStore.clear();
+  },
+  getAllKeys: async () => Array.from(memoryStore.keys()),
+};
+
+const mockDb = {
+  execAsync: async () => {},
+  runAsync: async () => ({ lastInsertRowId: 1, changes: 1 }),
+  getFirstAsync: async () => null,
+  getAllAsync: async () => [],
+  withTransactionAsync: async (cb) => cb(),
+  isInTransactionAsync: async () => false,
+};
+
+const openDatabaseAsync = async () => mockDb;
+
+const env = {
   Platform: { OS: 'web' },
   StyleSheet: { create: (s) => s },
   View: 'View',
@@ -25,7 +52,9 @@ module.exports = {
   TouchableOpacity: 'TouchableOpacity',
   ScrollView: 'ScrollView',
   Alert: { alert: () => {} },
-  getItem: async () => null,
-  setItem: async () => {},
-  removeItem: async () => {},
+  openDatabaseAsync,
+  ...mockAsyncStorage,
+  default: mockAsyncStorage,
 };
+
+module.exports = env;

@@ -20,7 +20,7 @@ import {
   getDailyWorkoutSummary,
   DailyWorkoutSummary,
 } from '../../database/workoutRepository';
-import { WorkoutSessionWithSets, WorkoutSetDetail } from '../../types';
+import { WorkoutSessionWithSets, WorkoutSetDetail, ExerciseRatingSummary } from '../../types';
 import {
   formatWorkoutDuration,
   formatWorkoutShareText,
@@ -28,6 +28,8 @@ import {
   shareWorkoutContent,
 } from '../../services/workoutSharingService';
 import { getExerciseUnitInfo, formatWeightWithUnit } from '../../utils/exerciseUnits';
+import { ExerciseRatingModal } from '../../components/workout/ExerciseRatingModal';
+import { getAllRatingsSummaries } from '../../services/exerciseRatingService';
 
 export default function WorkoutSummaryScreen() {
   const lastSession = useWorkoutSessionStore((state) => state.lastCompletedSession);
@@ -37,6 +39,11 @@ export default function WorkoutSummaryScreen() {
   const [sessionDetails, setSessionDetails] = useState<WorkoutSessionWithSets | null>(null);
   const [dailySummary, setDailySummary] = useState<DailyWorkoutSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Évaluation des exercices de la séance
+  const [ratingsMap, setRatingsMap] = useState<Record<string, ExerciseRatingSummary>>({});
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [selectedRatingExercise, setSelectedRatingExercise] = useState<{ id: string; name: string } | null>(null);
 
   const xpSummary = lastSession?.session
     ? calculateSessionXp(lastSession.session, sessionDetails?.sets || lastSession.sets)
@@ -49,12 +56,14 @@ export default function WorkoutSummaryScreen() {
         return;
       }
       try {
-        const [details, dSummary] = await Promise.all([
+        const [details, dSummary, ratings] = await Promise.all([
           getWorkoutSessionDetails(lastSession.session.id),
           getDailyWorkoutSummary(lastSession.session.date),
+          getAllRatingsSummaries(),
         ]);
         setSessionDetails(details);
         setDailySummary(dSummary);
+        setRatingsMap(ratings);
       } catch (err) {
         console.warn('Erreur chargement récapitulatif séance:', err);
       } finally {
@@ -238,6 +247,8 @@ export default function WorkoutSummaryScreen() {
           ) : (
             groupedSessionExercises.map((ex, idx) => {
               const unit = getExerciseUnitInfo({ name: ex.name });
+              const exId = ex.sets[0]?.exercise_id || ex.name;
+              const ratingSummary = ratingsMap[exId] || ratingsMap[ex.name];
               return (
                 <View key={idx} style={styles.exerciseRowItem}>
                   <View style={{ flex: 1 }}>
@@ -246,15 +257,45 @@ export default function WorkoutSummaryScreen() {
                       {ex.sets.map((s) => unit.formatSet(s.weight, s.reps)).join(' • ')}
                     </Text>
                   </View>
-                  <View style={styles.exerciseSetsCountBadge}>
-                    <Text style={styles.exerciseSetsCountText}>
-                      {ex.sets.length} série{ex.sets.length > 1 ? 's' : ''}
-                    </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TouchableOpacity
+                      style={styles.rateExerciseSummaryBtn}
+                      onPress={() => {
+                        setSelectedRatingExercise({ id: exId, name: ex.name });
+                        setRatingModalVisible(true);
+                      }}
+                      activeOpacity={0.7}
+                      accessibilityLabel={`Noter ${ex.name} pour les développeurs`}
+                    >
+                      <Text style={styles.rateExerciseSummaryBtnText}>
+                        {ratingSummary?.userRating
+                          ? `★ ${ratingSummary.userRating.rating}/5`
+                          : '⭐ Noter'}
+                      </Text>
+                    </TouchableOpacity>
+                    <View style={styles.exerciseSetsCountBadge}>
+                      <Text style={styles.exerciseSetsCountText}>
+                        {ex.sets.length} série{ex.sets.length > 1 ? 's' : ''}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               );
             })
           )}
+        </Card>
+
+        {/* BANDEAU RETOUR & AMÉLIORATION DÉVELOPPEUR */}
+        <Card style={styles.devFeedbackPromptCard}>
+          <View style={styles.devFeedbackPromptRow}>
+            <Text style={{ fontSize: 22, marginRight: 10 }}>🛠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.devFeedbackPromptTitle}>Aidez à perfectionner l’application</Text>
+              <Text style={styles.devFeedbackPromptSub}>
+                Notez les exercices que vous venez de réaliser (posture, rendu 3D, sensation) pour guider le développement de Vitax.
+              </Text>
+            </View>
+          </View>
         </Card>
 
         {/* ======================================================== */}
@@ -363,6 +404,17 @@ export default function WorkoutSummaryScreen() {
           />
         </View>
       </ScrollView>
+
+      {/* Modal de notation de l'exercice */}
+      <ExerciseRatingModal
+        visible={ratingModalVisible}
+        exercise={selectedRatingExercise}
+        onClose={() => setRatingModalVisible(false)}
+        onRatingSaved={async () => {
+          const updated = await getAllRatingsSummaries();
+          setRatingsMap(updated);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -591,5 +643,41 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: 4,
+  },
+  rateExerciseSummaryBtn: {
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  rateExerciseSummaryBtnText: {
+    color: '#FBBF24',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  devFeedbackPromptCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  devFeedbackPromptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  devFeedbackPromptTitle: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  devFeedbackPromptSub: {
+    color: '#94A3B8',
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
   },
 });

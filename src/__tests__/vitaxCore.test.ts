@@ -23,6 +23,13 @@ import {
   isAppropriateWarmupExercise,
 } from '../services/aiWorkoutService';
 import { computeWeeklyFitnessMetrics } from '../database/workoutRepository';
+import {
+  saveExerciseRating,
+  getRatingSummaryForExercise,
+  getAllUserFeedbackForDev,
+  exportFeedbackSummaryText,
+  exportFeedbackSummaryJson,
+} from '../services/exerciseRatingService';
 import seedData from '../database/seedData.json';
 
 function assert(condition: boolean, message: string): void {
@@ -254,6 +261,40 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   assert(metricsFull.fitnessLabel === 'Forme maximale ! 🏆', 'Label forme maximale');
 
   names.push('workoutRepository: calcul de régularité hebdomadaire & jours distincts d’exercice (Fiche 2.14)');
+
+  // 7. Système d'évaluation et feedback développeur sur les exercices
+  const savedRating = await saveExerciseRating({
+    exercise_id: 'ex_bench_press',
+    exercise_name: 'Développé couché',
+    rating: 5,
+    criteria_animation: 5,
+    criteria_clarity: 4,
+    criteria_feeling: 5,
+    difficulty_tag: 'perfect',
+    comment: 'Excellente trajectoire biomécanique pour les pectoraux',
+    user_name: 'Testeur Antigravity',
+  });
+
+  assert(savedRating.rating === 5, 'La note enregistrée doit être de 5 étoiles');
+  assert(savedRating.criteria_animation === 5, 'Le critère animation doit être conservé');
+  assert(Boolean(savedRating.comment && savedRating.comment.includes('biomécanique')), 'Le commentaire doit être enregistré');
+
+  const ratingSummary = await getRatingSummaryForExercise('ex_bench_press');
+  assert(ratingSummary.averageRating >= 4 && ratingSummary.averageRating <= 5, 'Moyenne valide calculée');
+  assert(ratingSummary.userRating !== undefined, 'Avis utilisateur présent dans le résumé');
+  assert(ratingSummary.userRating?.rating === 5, 'Note utilisateur de 5 étoiles vérifiée');
+
+  const allDevFeedbacks = await getAllUserFeedbackForDev();
+  assert(allDevFeedbacks.some((f) => f.exercise_id === 'ex_bench_press'), 'L’exercice noté doit apparaître dans les retours dev');
+
+  const reportText = await exportFeedbackSummaryText();
+  assert(reportText.includes('RAPPORT RETOURS DÉVELOPPEUR'), 'Le rapport texte doit contenir l’entête');
+
+  const reportJson = await exportFeedbackSummaryJson();
+  const parsedJson = JSON.parse(reportJson);
+  assert(parsedJson.total_feedbacks >= 1, 'L’export JSON doit contenir au moins 1 avis');
+
+  names.push('exerciseRatingService: notation d’exercices, critères détaillés & export feedback dev');
 
   return { passed: names.length, names };
 }
