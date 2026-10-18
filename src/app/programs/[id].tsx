@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -23,6 +22,7 @@ import {
   toggleFavoriteExercise,
 } from '../../services/favoritesService';
 import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
+import { showAlert } from '../../utils/alert';
 
 export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -38,9 +38,7 @@ export default function ProgramDetailScreen() {
     equipment_needed?: string;
   } | null>(null);
 
-  const startWorkoutFromProgram = useWorkoutSessionStore(
-    (state) => state.startWorkoutFromProgram
-  );
+  const { isActive, programName, startWorkoutFromProgram } = useWorkoutSessionStore();
 
   useEffect(() => {
     async function load() {
@@ -83,12 +81,34 @@ export default function ProgramDetailScreen() {
   }
 
   const handleStartWorkout = async () => {
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours ⚡',
+        `La séance « ${programName || 'Séance libre'} » est actuellement en cours. Voulez-vous la remplacer par « ${program.name} » ?`,
+        [
+          {
+            text: 'Reprendre en cours',
+            style: 'cancel',
+            onPress: () => router.push('/workout/active'),
+          },
+          {
+            text: 'Remplacer',
+            style: 'destructive',
+            onPress: async () => {
+              await startWorkoutFromProgram(program.id);
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
     await startWorkoutFromProgram(program.id);
     router.push('/workout/active');
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    showAlert(
       'Supprimer le programme',
       'Voulez-vous vraiment supprimer ce programme personnalisé ?',
       [

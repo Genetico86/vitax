@@ -38,6 +38,7 @@ import { registerTrainer, loginTrainer, logoutTrainer, getPersistedSession } fro
 import { getPendingFriendRequestsCount, getOrCreateTrainerProfile } from '../../services/multiplayerService';
 import { isProgramCompatibleByEquipmentString } from '../../utils/exerciseUnits';
 import { showAlert } from '../../utils/alert';
+import seedData from '../../database/seedData.json';
 
 export default function HomeScreen() {
   const { height: screenHeight } = useWindowDimensions();
@@ -979,6 +980,28 @@ export default function HomeScreen() {
   };
 
   const handleStartFree = () => {
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours ⚡',
+        `La séance « ${programName || 'Séance libre'} » est actuellement en cours. Voulez-vous la remplacer par une nouvelle séance libre ?`,
+        [
+          {
+            text: 'Reprendre en cours',
+            style: 'cancel',
+            onPress: () => router.push('/workout/active'),
+          },
+          {
+            text: 'Nouvelle séance',
+            style: 'destructive',
+            onPress: () => {
+              startFreeWorkout();
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
     startFreeWorkout();
     router.push('/workout/active');
   };
@@ -1201,7 +1224,7 @@ export default function HomeScreen() {
                   {favoriteCount > 0 ? 'Favoris' : 'Catalogue'}
                 </Text>
                 <Text style={[styles.priorityTwinSub, { color: '#FBBF24' }, dynamic.cardSub]} numberOfLines={1}>
-                  {favoriteCount > 0 ? `${favoriteCount} favori${favoriteCount > 1 ? 's' : ''}` : '103 exercices'}
+                  {favoriteCount > 0 ? `${favoriteCount} favori${favoriteCount > 1 ? 's' : ''}` : `${seedData.exercises.length} exercices`}
                 </Text>
               </View>
             </TouchableOpacity>
