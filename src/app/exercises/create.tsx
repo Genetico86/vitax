@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { createCustomExercise } from '../../database/exerciseRepository';
@@ -14,6 +13,7 @@ import { MuscleGroup, Equipment } from '../../types';
 import { Colors } from '../../constants/colors';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { showAlert } from '../../utils/alert';
 
 export default function CreateExerciseScreen() {
   const [name, setName] = useState('');
@@ -24,7 +24,7 @@ export default function CreateExerciseScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Nom requis', 'Veuillez saisir le nom de l’exercice.');
+      showAlert('Nom requis', 'Veuillez saisir le nom de l’exercice.');
       return;
     }
 
@@ -37,11 +37,11 @@ export default function CreateExerciseScreen() {
         description: description.trim(),
       });
 
-      Alert.alert('Succès', 'Exercice ajouté au catalogue !', [
+      showAlert('Succès', 'Exercice ajouté au catalogue !', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Impossible d’enregistrer l’exercice.');
+      showAlert('Erreur', err.message || 'Impossible d’enregistrer l’exercice.');
     } finally {
       setLoading(false);
     }

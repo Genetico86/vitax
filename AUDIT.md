@@ -1,6 +1,6 @@
 # 🛡️ Audit Complet & Plan de Remédiation — VITAX
 
-> **Document évolutif de suivi** — Toutes les fiches et sous-actions (`17 / 17`) ont été corrigées et vérifiées (`100%` ✅).
+> **Document évolutif de suivi** — Toutes les fiches et sous-actions (`21 / 21`, dont **12 fiches UX/UI & Parcours Utilisateur**) ont été auditées, corrigées et vérifiées (`100%` ✅).
 > - **Stack audité** : Expo SDK 54 / React Native 0.81.5 / React 19.1 (Web PWA Vercel), `expo-sqlite` (WASM Web + natif), Zustand 5, Supabase (`@supabase/supabase-js` PostgreSQL + Realtime).
 
 ---
@@ -10,8 +10,8 @@
 | Niveau | 🔴 Critique | 🟠 Majeur | 🟡 Mineur | Progression |
 | :--- | :---: | :---: | :---: | :---: |
 | **Niveau 1 — Technique & Sécurité** | **2 / 2** ✅ | **5 / 5** ✅ | **2 / 2** ✅ | **9 / 9 (100%)** ✅ |
-| **Niveau 2 — Fonctionnel, Métier & UX/UI** | 0 / 0 | **5 / 5** ✅ | **3 / 3** ✅ | **8 / 8 (100%)** ✅ |
-| **TOTAL** | **2 / 2 (100%)** ✅ | **10 / 10 (100%)** ✅ | **5 / 5 (100%)** ✅ | **17 / 17 (100%)** 🎉 |
+| **Niveau 2 — Fonctionnel, Métier & UX/UI** | 0 / 0 | **8 / 8** ✅ | **4 / 4** ✅ | **12 / 12 (100%)** ✅ |
+| **TOTAL** | **2 / 2 (100%)** ✅ | **13 / 13 (100%)** ✅ | **6 / 6 (100%)** ✅ | **21 / 21 (100%)** 🎉 |
 
 ---
 
@@ -24,12 +24,16 @@
 - [x] **[Fiche 1.4]** Valider les fichiers JSON d'import avec un contrôle strict de taille (10 Mo max), de schéma et de bornes numériques avant insertion SQLite et push Cloud.
 - [x] **[Fiche 1.7]** Renforcer les en-têtes HTTP de sécurité dans `vercel.json` (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`).
 
-### Sprint 2 — Fiabilité Métier & Cohérence Fonctionnelle ✅ TERMINÉ
+### Sprint 2 — Fiabilité Métier, Parcours Utilisateur & UX/UI ✅ TERMINÉ
 - [x] **[Fiche 2.1]** Unifier la formule de calcul d'XP entre `active.tsx`, `workoutSessionStore.ts` et `summary.tsx`.
 - [x] **[Fiche 2.2]** Créditer réellement le `rewardXp` des Trophées/Achievements débloqués dans le total d'XP.
 - [x] **[Fiche 2.3]** Brancher la validation automatique des défis entre amis (`completeFriendChallenge`) à la fin d'une séance.
 - [x] **[Fiche 2.4]** Appliquer l'unité `KG / LBS` choisie dans les réglages sur tous les écrans de saisie, historique et partage.
-- [x] **[Fiche 2.8]** Remplacer tous les `Alert.alert` restants par `showAlert`, autoriser le zoom d'accessibilité (`+html.tsx`) et ajouter la suppression complète du compte Cloud (RGPD).
+- [x] **[Fiche 2.8]** Autoriser le zoom d'accessibilité WCAG 1.4.4 (`+html.tsx`) et ajouter la suppression complète du compte Cloud (RGPD Article 17).
+- [x] **[Fiche 2.9]** Supprimer la double barre d'en-tête sur `programs/index` et harmoniser le bouton retour `❮ Accueil` sur tous les onglets secondaires (`history` & `settings`).
+- [x] **[Fiche 2.10]** Protéger la séance en cours (`isActive`) contre l'écrasement accidentel lors du clic sur « Séance Libre », « Programmes » ou « Ciblage Musculaire ».
+- [x] **[Fiche 2.11]** Remplacer l'intégralité des `Alert.alert` natifs (inopérants sur Web PWA pour les confirmations à plusieurs boutons) par `showAlert` dans `exercises/index.tsx`, `exercises/create.tsx`, `programs/[id].tsx` et `programs/create.tsx`.
+- [x] **[Fiche 2.12]** Remplacer le compteur figé `"103 exercices"` de la tuile Catalogue de l'Accueil par le nombre dynamique réel d'exercices (`seedData.exercises.length`).
 
 ### Sprint 3 — Performance, Données & Résilience ✅ TERMINÉ
 - [x] **[Fiche 1.6]** Supprimer le watchdog arbitraire de 2500 ms au démarrage SQLite et utiliser un verrou d'initialisation (`initDbPromise` / `openDbPromise`).
@@ -130,7 +134,7 @@
 
 ---
 
-# PARTIE 2 — NIVEAU 2 : FONCTIONNEL, MÉTIER & UX/UI
+# PARTIE 2 — NIVEAU 2 : FONCTIONNEL, MÉTIER & EXPÉRIENCE UTILISATEUR (UX/UI)
 
 ---
 
@@ -163,7 +167,7 @@
 - **Catégorie** : Cohérence Fonctionnelle & Parcours Utilisateur
 - **Priorité** : 🟠 **Majeur (Impact fort)**
 - **Actions correctives réalisées** :
-  - [x] Ajout des utilitaires `KG_TO_LBS_FACTOR`, `convertWeightFromKg` et `formatWeightWithUnit` dans `src/utils/exerciseUnits.ts` et conversion bidirectionnelle `kg <-> lbs` dans `src/components/workout/ExerciseSetRow.tsx`, `src/app/workout/summary.tsx`, `src/app/(tabs)/history.tsx` et `src/services/workoutSharingService.ts`.
+  - [x] Ajout des utilitaires `KG_TO_LBS_FACTOR`, `convertWeightFromKg`, `convertWeightToKg` et `formatWeightWithUnit` dans `src/utils/exerciseUnits.ts` et conversion bidirectionnelle `kg <-> lbs` dans `src/components/workout/ExerciseSetRow.tsx`, `src/app/workout/summary.tsx`, `src/app/(tabs)/history.tsx` et `src/services/workoutSharingService.ts`.
 
 ---
 
@@ -192,10 +196,52 @@
 
 ---
 
-## - [x] Fiche 2.8 — Accessibilité WCAG (`user-scalable=no`), `Alert.alert` sur Web & Conformité RGPD (Droit à l'oubli Cloud) ✅ CORRIGÉ
+## - [x] Fiche 2.8 — Accessibilité WCAG (`user-scalable=no`) & Conformité RGPD (Droit à l'oubli Cloud) ✅ CORRIGÉ
 - **Catégorie** : Accessibilité (WCAG / RGAA) & Conformité RGPD
 - **Priorité** : 🟠 **Majeur (Impact fort)**
 - **Actions correctives réalisées** :
   - [x] Retrait de `maximum-scale=1, user-scalable=no` dans `src/app/+html.tsx` pour respecter WCAG 1.4.4.
-  - [x] Remplacement de tous les appels directs à `Alert.alert` par `showAlert` (`src/utils/alert.ts`) dans `src/app/workout/ai-generator.tsx`, `src/components/social/FriendInviteNotificationBanner.tsx` et `src/services/workoutSharingService.ts`.
   - [x] Ajout de `deleteTrainerAccountAndCloudData()` dans `src/services/authService.ts` et du bouton « Supprimer mon compte et mes données Cloud (RGPD) » dans `src/app/(tabs)/settings.tsx` permettant l'effacement complet de toutes les tables Supabase et du stockage local.
+
+---
+
+## - [x] Fiche 2.9 — Double barre d'en-tête sur l'écran Programmes (`programs/index`) & Harmonisation du bouton Retour Accueil ✅ CORRIGÉ
+- **Catégorie** : Parcours Utilisateur, Navigation & Hiérarchie Visuelle
+- **Priorité** : 🟠 **Majeur (Impact fort)**
+- **Constat / Problème** :
+  1. La route `programs/index` n'était pas déclarée dans le `<Stack>` de `src/app/_layout.tsx`. Or, `src/app/programs/index.tsx` intègre déjà son propre header personnalisé (`topHeader` avec bouton retour, titre *"Mes Programmes & Séries"* et bouton *"+ Créer"*), ce qui provoquait l'affichage d'une **double barre de navigation** en haut de l'écran avec le titre technique `programs/index`.
+  2. Dans `src/app/(tabs)/_layout.tsx`, l'onglet `history` disposait d'un bouton `headerLeft` (`❮ Accueil`) mais pas l'onglet `settings`.
+- **Impact** : Perte d'espace vertical précieux sur mobile, libellé technique `programs/index` visible par l'utilisateur et incohérence de navigation entre onglets.
+- **Actions correctives réalisées** :
+  - [x] Ajout de `<Stack.Screen name="programs/index" options={{ headerShown: false }} />` dans `src/app/_layout.tsx`.
+  - [x] Ajout du bouton `❮ Accueil` dans `headerLeft` de l'onglet `settings` dans `src/app/(tabs)/_layout.tsx`.
+
+---
+
+## - [x] Fiche 2.10 — Écrasement silencieux d'une séance en cours lors du lancement d'une Séance Libre ou d'un Programme ✅ CORRIGÉ
+- **Catégorie** : Parcours Utilisateur & Prévention des Erreurs (Heuristique de Nielsen n°5)
+- **Priorité** : 🟠 **Majeur (Impact fort)**
+- **Constat / Problème** : Lorsqu'une séance était déjà en cours (`isActive === true`), un clic accidentel sur la tuile **« Séance Libre (1 Clic • Direct) »** (`src/app/(tabs)/index.tsx`), sur **« Démarrer »** dans la liste des programmes (`src/app/programs/index.tsx`), dans la fiche programme (`src/app/programs/[id].tsx`) ou dans le ciblage musculaire (`src/app/programs/target-muscle.tsx`) réinitialisait immédiatement le store et détruisait la séance en cours sans avertissement.
+- **Impact** : Perte accidentelle de toutes les séries en cours de saisie.
+- **Actions correctives réalisées** :
+  - [x] Vérification systématique de `isActive` dans `src/app/(tabs)/index.tsx`, `src/app/programs/index.tsx`, `src/app/programs/[id].tsx` et `src/app/programs/target-muscle.tsx` avec modale de confirmation proposant soit de **Reprendre la séance en cours**, soit de la **Remplacer** (ou d'**Ajouter l'exercice à la séance en cours**).
+
+---
+
+## - [x] Fiche 2.11 — Modales de confirmation et de suppression inopérantes sur Web PWA (`Alert.alert` natif dans Catalogue & Programmes) ✅ CORRIGÉ
+- **Catégorie** : UX Web PWA & Fiabilité des Interactions
+- **Priorité** : 🟠 **Majeur (Impact fort)**
+- **Constat / Problème** : Les écrans `src/app/exercises/index.tsx`, `src/app/exercises/create.tsx`, `src/app/programs/[id].tsx` et `src/app/programs/create.tsx` utilisaient encore `Alert.alert` de `react-native`. Sur la version Web PWA (Vercel), `Alert.alert` ignore les callbacks des boutons d'action (`onPress`), rendant impossible la suppression d'un programme personnalisé, la suppression d'un exercice personnalisé ou la redirection automatique après création.
+- **Impact** : Actions de suppression et de confirmation bloquées sur navigateur Web mobile et desktop.
+- **Actions correctives réalisées** :
+  - [x] Remplacement intégral de tous les appels `Alert.alert` par `showAlert` (`src/utils/alert.ts`) dans `src/app/exercises/index.tsx`, `src/app/exercises/create.tsx`, `src/app/programs/[id].tsx` et `src/app/programs/create.tsx`.
+
+---
+
+## - [x] Fiche 2.12 — Compteur d'exercices figé en dur (`"103 exercices"`) sur la tuile Catalogue de l'Accueil ✅ CORRIGÉ
+- **Catégorie** : Cohérence de l'Information UI
+- **Priorité** : 🟡 **Mineur (Optimisation)**
+- **Constat / Problème** : La tuile *Catalogue* de l'écran d'accueil (`src/app/(tabs)/index.tsx`) affichait la chaîne statique `"103 exercices"` alors que la base de données embarque désormais **127 exercices** (`seedData.exercises.length`).
+- **Impact** : Dissonance entre le chiffre annoncé sur l'accueil et le nombre réel d'exercices visibles à l'ouverture du catalogue.
+- **Actions correctives réalisées** :
+  - [x] Affichage dynamique de `${seedData.exercises.length} exercices` sur la tuile Catalogue dans `src/app/(tabs)/index.tsx`.

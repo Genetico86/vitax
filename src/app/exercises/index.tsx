@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getAllExercises, deleteCustomExercise } from '../../database/exerciseRepository';
@@ -28,6 +27,7 @@ import {
 } from '../../services/favoritesService';
 import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
 import { useWorkoutSessionStore } from '../../stores/workoutSessionStore';
+import { showAlert } from '../../utils/alert';
 
 export default function ExercisesCatalogScreen() {
   const params = useLocalSearchParams<{ filter?: string }>();
@@ -45,23 +45,15 @@ export default function ExercisesCatalogScreen() {
 
   const handleStartSingleExercise = async (exercise: Exercise) => {
     if (isActive) {
-      Alert.alert(
+      showAlert(
         'Séance déjà en cours',
-        `Une séance est actuellement active. Voulez-vous ajouter "${exercise.name}" à votre séance en cours ou démarrer un entraînement seul ?`,
+        `Une séance est actuellement active. Voulez-vous ajouter « ${exercise.name} » à votre séance en cours ?`,
         [
           { text: 'Annuler', style: 'cancel' },
           {
             text: 'Ajouter à la séance',
             onPress: () => {
               addExerciseToWorkout(exercise);
-              router.push('/workout/active');
-            },
-          },
-          {
-            text: 'Démarrer seul',
-            style: 'destructive',
-            onPress: async () => {
-              await startTargetedWorkout(exercise.name, [exercise]);
               router.push('/workout/active');
             },
           },
@@ -88,12 +80,12 @@ export default function ExercisesCatalogScreen() {
   const handleStartAllFavorites = async () => {
     const favoriteExercises = exercises.filter((ex) => favoriteIds.includes(ex.id));
     if (favoriteExercises.length === 0) {
-      Alert.alert('Aucun favori', 'Ajoutez d’abord des exercices à vos favoris en cliquant sur l’étoile ⭐.');
+      showAlert('Aucun favori', 'Ajoutez d’abord des exercices à vos favoris en cliquant sur l’étoile ⭐.');
       return;
     }
 
     if (isActive) {
-      Alert.alert(
+      showAlert(
         'Séance déjà en cours',
         `Une séance est actuellement active. Voulez-vous lancer une nouvelle séance avec vos ${favoriteExercises.length} favoris ?`,
         [
@@ -149,7 +141,7 @@ export default function ExercisesCatalogScreen() {
   };
 
   const handleDeleteCustom = (exId: string) => {
-    Alert.alert(
+    showAlert(
       'Supprimer l’exercice',
       'Voulez-vous supprimer cet exercice personnalisé ?',
       [
