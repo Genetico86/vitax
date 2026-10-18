@@ -19,6 +19,7 @@ import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { Badge } from '../../components/common/Badge';
 import { Button } from '../../components/common/Button';
+import { showAlert } from '../../utils/alert';
 
 type CategoryFilter = 'all' | 'cardio' | 'rack900' | 'split' | 'bodyweight' | 'custom';
 
@@ -30,7 +31,7 @@ export default function ProgramsListScreen() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { available_equipments, filter_by_available_equipment } = useSettingsStore();
-  const { startWorkoutFromProgram } = useWorkoutSessionStore();
+  const { isActive, programName, startWorkoutFromProgram } = useWorkoutSessionStore();
 
   const loadData = useCallback(async () => {
     try {
@@ -54,6 +55,28 @@ export default function ProgramsListScreen() {
   };
 
   const handleStartProgram = async (programId: string) => {
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours ⚡',
+        `La séance « ${programName || 'Séance libre'} » est actuellement en cours. Voulez-vous la remplacer par ce programme ?`,
+        [
+          {
+            text: 'Reprendre en cours',
+            style: 'cancel',
+            onPress: () => router.push('/workout/active'),
+          },
+          {
+            text: 'Remplacer',
+            style: 'destructive',
+            onPress: async () => {
+              await startWorkoutFromProgram(programId);
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
     await startWorkoutFromProgram(programId);
     router.push('/workout/active');
   };

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Alert,
   TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -28,6 +27,7 @@ import {
   getExerciseUnitInfo,
   isExerciseCompatibleWithEquipment,
 } from '../../utils/exerciseUnits';
+import { showAlert } from '../../utils/alert';
 
 interface SelectedExerciseConfig {
   exercise: Exercise;
@@ -93,7 +93,7 @@ export default function CreateProgramScreen() {
   const handleAddExercise = (exercise: Exercise) => {
     // Éviter les doublons
     if (selectedExercises.some((item) => item.exercise.id === exercise.id)) {
-      Alert.alert('Exercice déjà ajouté', 'Cet exercice est déjà dans la liste.');
+      showAlert('Exercice déjà ajouté', 'Cet exercice est déjà dans la liste.');
       return;
     }
 
@@ -130,12 +130,12 @@ export default function CreateProgramScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Nom requis', 'Veuillez saisir un nom pour votre programme.');
+      showAlert('Nom requis', 'Veuillez saisir un nom pour votre programme.');
       return;
     }
 
     if (selectedExercises.length === 0) {
-      Alert.alert(
+      showAlert(
         'Aucun exercice',
         'Veuillez ajouter au moins un exercice à votre programme.'
       );
@@ -156,11 +156,11 @@ export default function CreateProgramScreen() {
         })),
       });
 
-      Alert.alert('Succès', 'Votre programme a été créé avec succès !', [
+      showAlert('Succès', 'Votre programme a été créé avec succès !', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert('Erreur', err.message || 'Impossible d’enregistrer le programme.');
+      showAlert('Erreur', err.message || 'Impossible d’enregistrer le programme.');
     } finally {
       setSaving(false);
     }

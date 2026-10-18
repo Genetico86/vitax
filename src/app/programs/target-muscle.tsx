@@ -33,6 +33,7 @@ import {
   toggleFavoriteExercise,
 } from '../../services/favoritesService';
 import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
+import { showAlert } from '../../utils/alert';
 
 export default function TargetMuscleScreen() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -49,7 +50,7 @@ export default function TargetMuscleScreen() {
   const [selectedPreciseMuscleId, setSelectedPreciseMuscleId] =
     useState<string>('all');
 
-  const { startWorkoutFromProgram, startTargetedWorkout } =
+  const { isActive, programName, startWorkoutFromProgram, startTargetedWorkout, addExerciseToWorkout } =
     useWorkoutSessionStore();
   const { available_equipments, filter_by_available_equipment } =
     useSettingsStore();
@@ -172,18 +173,71 @@ export default function TargetMuscleScreen() {
   // Lancement express de la séance avec jusqu'à 4 exercices complémentaires (Séance Express ~30-40 min)
   const handleStartTargetedWorkout = async () => {
     if (targetedExercises.length === 0) return;
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours ⚡',
+        `La séance « ${programName || 'Séance libre'} » est en cours. Voulez-vous la remplacer par la séance ciblée « ${currentSelectionLabel} » ?`,
+        [
+          { text: 'Reprendre en cours', style: 'cancel', onPress: () => router.push('/workout/active') },
+          {
+            text: 'Remplacer',
+            style: 'destructive',
+            onPress: async () => {
+              await startTargetedWorkout(currentSelectionLabel, targetedExercises.slice(0, 4));
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
     await startTargetedWorkout(currentSelectionLabel, targetedExercises.slice(0, 4));
     router.push('/workout/active');
   };
 
   // Lancement d'un programme sélectionné
   const handleStartProgram = async (programId: string) => {
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours ⚡',
+        `La séance « ${programName || 'Séance libre'} » est en cours. Voulez-vous la remplacer par ce programme ?`,
+        [
+          { text: 'Reprendre en cours', style: 'cancel', onPress: () => router.push('/workout/active') },
+          {
+            text: 'Remplacer',
+            style: 'destructive',
+            onPress: async () => {
+              await startWorkoutFromProgram(programId);
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
     await startWorkoutFromProgram(programId);
     router.push('/workout/active');
   };
 
   // Lancement direct d'un exercice individuel
   const handleStartSingleExercise = async (exercise: Exercise) => {
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours',
+        `Une séance est actuellement active. Voulez-vous ajouter « ${exercise.name} » à votre séance en cours ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Ajouter à la séance',
+            onPress: () => {
+              addExerciseToWorkout(exercise);
+              router.push('/workout/active');
+            },
+          },
+        ]
+      );
+      return;
+    }
     await startTargetedWorkout(exercise.name, [exercise]);
     router.push('/workout/active');
   };

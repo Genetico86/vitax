@@ -768,19 +768,9 @@ export async function syncRunningSessionsToCloud(): Promise<boolean> {
     );
     const runs = (allRuns || []).filter((r) => !deletedIds.has(r.id));
 
-    const backupId = `running_sessions_${userId}`;
-    const { error } = await supabase.from('trades').upsert({
-      id: backupId,
-      sender_id: userId,
-      sender_name: session.username || 'Athlète Vitax',
-      sender_code: session.friendCode || '00000',
-      offered_pokemon: { running_sessions: runs },
-      status: 'cloud_backup',
-      created_at: new Date().toISOString(),
-    });
-
+    const nowIso = new Date().toISOString();
+    let nativeSuccess = true;
     if (runs.length > 0) {
-      const nowIso = new Date().toISOString();
       const rows = runs.map((r) => ({
         id: r.id,
         user_id: userId,
@@ -792,14 +782,28 @@ export async function syncRunningSessionsToCloud(): Promise<boolean> {
         calories: r.calories || Math.round(r.distance_km * 65),
         created_at: r.created_at || nowIso,
       }));
-      try {
-        await supabase.from('running_sessions').upsert(rows);
-      } catch {}
+      const { error: nativeErr } = await supabase.from('running_sessions').upsert(rows);
+      if (nativeErr) {
+        nativeSuccess = false;
+      }
     }
 
-    if (error) {
-      console.warn('Erreur sauvegarde cloud running_sessions:', error.message);
-      return false;
+    if (!nativeSuccess) {
+      const backupId = `running_sessions_${userId}`;
+      const { error } = await supabase.from('trades').upsert({
+        id: backupId,
+        sender_id: userId,
+        sender_name: session.username || 'Athlète Vitax',
+        sender_code: session.friendCode || '00000',
+        offered_pokemon: { running_sessions: runs },
+        status: 'cloud_backup',
+        created_at: nowIso,
+      });
+
+      if (error) {
+        console.warn('Erreur sauvegarde cloud running_sessions (fallback):', error.message);
+        return false;
+      }
     }
     return true;
   } catch (err) {
@@ -832,41 +836,41 @@ export async function fetchRunningSessionsFromCloud(): Promise<RunningSession[]>
     const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
     let rawRuns: RunningSession[] = [];
 
-    const backupId = `running_sessions_${userId}`;
-    const { data, error } = await supabase
-      .from('trades')
-      .select('offered_pokemon')
-      .eq('id', backupId)
-      .maybeSingle();
-
-    if (!error && data?.offered_pokemon) {
-      const backupRuns = (data.offered_pokemon as any)?.running_sessions as RunningSession[];
-      if (Array.isArray(backupRuns)) {
-        rawRuns = backupRuns;
+    try {
+      const { data: nativeRuns } = await supabase
+        .from('running_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(500);
+      if (nativeRuns && nativeRuns.length > 0) {
+        rawRuns = nativeRuns.map((r: any) => ({
+          id: r.id,
+          date: r.date,
+          distance_km: r.distance_km,
+          duration_seconds: r.duration_seconds,
+          pace_seconds_per_km: r.pace_seconds_per_km,
+          notes: r.notes,
+          calories: r.calories,
+          created_at: r.created_at,
+        }));
       }
-    }
+    } catch {}
 
     if (rawRuns.length === 0) {
-      try {
-        const { data: nativeRuns } = await supabase
-          .from('running_sessions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('date', { ascending: false })
-          .limit(500);
-        if (nativeRuns && nativeRuns.length > 0) {
-          rawRuns = nativeRuns.map((r: any) => ({
-            id: r.id,
-            date: r.date,
-            distance_km: r.distance_km,
-            duration_seconds: r.duration_seconds,
-            pace_seconds_per_km: r.pace_seconds_per_km,
-            notes: r.notes,
-            calories: r.calories,
-            created_at: r.created_at,
-          }));
+      const backupId = `running_sessions_${userId}`;
+      const { data, error } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!error && data?.offered_pokemon) {
+        const backupRuns = (data.offered_pokemon as any)?.running_sessions as RunningSession[];
+        if (Array.isArray(backupRuns)) {
+          rawRuns = backupRuns;
         }
-      } catch {}
+      }
     }
 
     const runs = rawRuns.filter((r) => r && r.id && !deletedIds.has(r.id));
@@ -935,6 +939,19 @@ export async function syncCustomCatalogToCloud(): Promise<boolean> {
        WHERE p.is_custom = 1`
     );
 
+    const nowIso = new Date().toISOString();
+    const { error: nativeErr } = await supabase.from('custom_catalog').upsert({
+      user_id: userId,
+      custom_exercises: customExercises,
+      custom_programs: customPrograms,
+      custom_program_exercises: customProgramExercises,
+      updated_at: nowIso,
+    });
+
+    if (!nativeErr) {
+      return true;
+    }
+
     const backupId = `custom_catalog_${userId}`;
     const { error } = await supabase.from('trades').upsert({
       id: backupId,
@@ -947,7 +964,7 @@ export async function syncCustomCatalogToCloud(): Promise<boolean> {
         custom_program_exercises: customProgramExercises,
       },
       status: 'cloud_backup',
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
     });
 
     return !error;
@@ -972,15 +989,29 @@ export async function fetchCustomCatalogFromCloud(): Promise<void> {
     const db = await getDatabase();
     const deletedIds = await fetchAndMergeDeletedIdsFromCloud();
 
-    const backupId = `custom_catalog_${userId}`;
-    const { data, error } = await supabase
-      .from('trades')
-      .select('offered_pokemon')
-      .eq('id', backupId)
+    let payload: any = null;
+    const { data: nativeData, error: nativeErr } = await supabase
+      .from('custom_catalog')
+      .select('custom_exercises, custom_programs, custom_program_exercises')
+      .eq('user_id', userId)
       .maybeSingle();
 
-    if (error || !data?.offered_pokemon) return;
-    const payload = data.offered_pokemon as any;
+    if (!nativeErr && nativeData) {
+      payload = nativeData;
+    } else {
+      const backupId = `custom_catalog_${userId}`;
+      const { data, error } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!error && data?.offered_pokemon) {
+        payload = data.offered_pokemon;
+      }
+    }
+
+    if (!payload) return;
 
     const customExercises: Exercise[] = Array.isArray(payload.custom_exercises)
       ? payload.custom_exercises.filter((e: any) => e?.id && !deletedIds.has(e.id))
@@ -1064,16 +1095,27 @@ export async function syncUserSettingsToCloud(): Promise<boolean> {
     if (!rawSettings) return false;
 
     const parsedSettings = JSON.parse(rawSettings);
-    const backupId = `user_settings_${session.userId}`;
+    const nowIso = new Date().toISOString();
 
+    const { error: nativeErr } = await supabase.from('user_settings').upsert({
+      user_id: session.userId,
+      settings: parsedSettings,
+      updated_at: nowIso,
+    });
+
+    if (!nativeErr) {
+      return true;
+    }
+
+    const backupId = `user_settings_${session.userId}`;
     const { error } = await supabase.from('trades').upsert({
       id: backupId,
       sender_id: session.userId,
       sender_name: session.username || 'Athlète Vitax',
       sender_code: session.friendCode || '00000',
-      offered_pokemon: { settings: parsedSettings, updated_at: new Date().toISOString() },
+      offered_pokemon: { settings: parsedSettings, updated_at: nowIso },
       status: 'cloud_backup',
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
     });
 
     return !error;
@@ -1089,15 +1131,29 @@ export async function fetchUserSettingsFromCloud(): Promise<void> {
 
   try {
     const userId = await getActiveUserId();
-    const backupId = `user_settings_${userId}`;
-    const { data, error } = await supabase
-      .from('trades')
-      .select('offered_pokemon')
-      .eq('id', backupId)
+    let cloudSettings: any = null;
+
+    const { data: nativeData, error: nativeErr } = await supabase
+      .from('user_settings')
+      .select('settings')
+      .eq('user_id', userId)
       .maybeSingle();
 
-    if (error || !data?.offered_pokemon) return;
-    const cloudSettings = (data.offered_pokemon as any)?.settings;
+    if (!nativeErr && nativeData?.settings && typeof nativeData.settings === 'object') {
+      cloudSettings = nativeData.settings;
+    } else {
+      const backupId = `user_settings_${userId}`;
+      const { data, error } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!error && data?.offered_pokemon) {
+        cloudSettings = (data.offered_pokemon as any)?.settings;
+      }
+    }
+
     if (!cloudSettings || typeof cloudSettings !== 'object') return;
 
     const rawLocal = await AsyncStorage.getItem(SETTINGS_KEY);
@@ -1138,6 +1194,17 @@ export async function syncActiveWorkoutDraftToCloud(draftPayload?: any): Promise
       draft = raw ? JSON.parse(raw) : null;
     }
 
+    const nowIso = new Date().toISOString();
+    const { error: nativeErr } = await supabase.from('active_workouts').upsert({
+      user_id: session.userId,
+      draft,
+      updated_at: nowIso,
+    });
+
+    if (!nativeErr) {
+      return true;
+    }
+
     const backupId = `active_workout_${session.userId}`;
     const { error } = await supabase.from('trades').upsert({
       id: backupId,
@@ -1146,10 +1213,10 @@ export async function syncActiveWorkoutDraftToCloud(draftPayload?: any): Promise
       sender_code: session.friendCode || '00000',
       offered_pokemon: {
         active_workout: draft,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       },
       status: 'cloud_backup',
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
     });
 
     return !error;
@@ -1172,15 +1239,29 @@ export async function fetchActiveWorkoutDraftFromCloud(): Promise<any | null> {
 
   try {
     const userId = await getActiveUserId();
-    const backupId = `active_workout_${userId}`;
-    const { data, error } = await supabase
-      .from('trades')
-      .select('offered_pokemon')
-      .eq('id', backupId)
+    let activeWorkout: any = null;
+
+    const { data: nativeData, error: nativeErr } = await supabase
+      .from('active_workouts')
+      .select('draft')
+      .eq('user_id', userId)
       .maybeSingle();
 
-    if (error || !data?.offered_pokemon) return null;
-    const activeWorkout = (data.offered_pokemon as any)?.active_workout;
+    if (!nativeErr && nativeData?.draft) {
+      activeWorkout = nativeData.draft;
+    } else {
+      const backupId = `active_workout_${userId}`;
+      const { data, error } = await supabase
+        .from('trades')
+        .select('offered_pokemon')
+        .eq('id', backupId)
+        .maybeSingle();
+
+      if (!error && data?.offered_pokemon) {
+        activeWorkout = (data.offered_pokemon as any)?.active_workout;
+      }
+    }
+
     if (activeWorkout && activeWorkout.isActive && activeWorkout.sessionId) {
       return activeWorkout;
     }

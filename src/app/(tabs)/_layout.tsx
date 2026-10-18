@@ -92,6 +92,16 @@ export default function TabsLayout() {
               ⚙️
             </Text>
           ),
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.navigate('/(tabs)')}
+              style={{ paddingHorizontal: 16 }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={{ fontSize: 16, color: Colors.primary, fontWeight: '800' }}>❮ Accueil</Text>
+            </TouchableOpacity>
+          ),
         }}
       />
     </Tabs>

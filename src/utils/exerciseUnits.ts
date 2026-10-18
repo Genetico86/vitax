@@ -2,6 +2,14 @@ import { Equipment } from '../types';
 import { EQUIPMENTS } from '../constants/muscles';
 import { useSettingsStore } from '../stores/settingsStore';
 
+export function convertWeightToKg(inputValue: number, unit: 'kg' | 'lbs' = 'kg'): number {
+  const safe = Number(inputValue) || 0;
+  if (unit === 'lbs') {
+    return Math.round((safe / KG_TO_LBS_FACTOR) * 10) / 10;
+  }
+  return Math.round(safe * 10) / 10;
+}
+
 export interface ExerciseUnitInfo {
   isDuration: boolean;
   isTimeBased: boolean;
