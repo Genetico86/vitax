@@ -1337,24 +1337,44 @@ export default function HomeScreen() {
               </Text>
             </View>
 
-            <View
-              style={[
-                styles.weeklyFitnessBadge,
-                (weeklyFitness?.weekWorkoutsCount || 0) >= (weeklyFitness?.targetWeeklyWorkouts || 4) &&
-                  styles.weeklyFitnessBadgeHigh,
-                dynamic.weeklyFitnessBadge,
-              ]}
-            >
-              <Text
+            <View style={styles.weeklyFitnessBadgeGroup}>
+              {/* Badge % du coefficient de forme */}
+              <View
                 style={[
-                  styles.weeklyFitnessBadgeText,
-                  (weeklyFitness?.weekWorkoutsCount || 0) >= (weeklyFitness?.targetWeeklyWorkouts || 4) &&
-                    styles.weeklyFitnessBadgeTextHigh,
-                  dynamic.weeklyFitnessBadgeText,
+                  styles.weeklyFitnessPercentBadge,
+                  (weeklyFitness?.fitnessScorePercent || 0) >= 100 && styles.weeklyFitnessBadgeHigh,
+                  dynamic.weeklyFitnessBadge,
                 ]}
               >
-                {weeklyFitness?.fitnessLabel || 'Prêt à démarrer ! 💪'}
-              </Text>
+                <Text
+                  style={[
+                    styles.weeklyFitnessPercentBadgeText,
+                    (weeklyFitness?.fitnessScorePercent || 0) >= 100 && styles.weeklyFitnessBadgeTextHigh,
+                    dynamic.weeklyFitnessBadgeText,
+                  ]}
+                >
+                  {weeklyFitness?.fitnessScorePercent ?? 0}%
+                </Text>
+              </View>
+
+              {/* Badge statut motivationnel */}
+              <View
+                style={[
+                  styles.weeklyFitnessBadge,
+                  (weeklyFitness?.fitnessScorePercent || 0) >= 100 && styles.weeklyFitnessBadgeHigh,
+                  dynamic.weeklyFitnessBadge,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.weeklyFitnessBadgeText,
+                    (weeklyFitness?.fitnessScorePercent || 0) >= 100 && styles.weeklyFitnessBadgeTextHigh,
+                    dynamic.weeklyFitnessBadgeText,
+                  ]}
+                >
+                  {weeklyFitness?.fitnessLabel || 'Prêt à démarrer ! 💪'}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -2234,6 +2254,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 6,
+    flexWrap: 'wrap',
   },
   weeklyFitnessTitleRow: {
     flexDirection: 'row',
@@ -2251,6 +2273,25 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontWeight: '700',
     marginLeft: 3,
+  },
+  weeklyFitnessBadgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  weeklyFitnessPercentBadge: {
+    backgroundColor: 'rgba(255, 90, 31, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 31, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+  },
+  weeklyFitnessPercentBadgeText: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#FF8A50',
+    fontVariant: ['tabular-nums'],
   },
   weeklyFitnessBadge: {
     backgroundColor: 'rgba(255, 90, 31, 0.18)',
