@@ -207,6 +207,7 @@ export async function getOverallStats(): Promise<OverallStats> {
 
 export interface WeeklyFitnessStats {
   weekWorkoutsCount: number;
+  totalWeekSessionsCount: number;
   weekExercisesCount: number;
   weekSetsCount: number;
   weekVolumeKg: number;
@@ -218,12 +219,124 @@ export interface WeeklyFitnessStats {
   motivationalQuote: string;
 }
 
+export interface WeeklyFitnessMetrics {
+  distinctTrainedDaysCount: number;
+  totalWeekSessionsCount: number;
+  activeDays: boolean[];
+  currentDayIndex: number;
+  targetWeeklyWorkouts: number;
+  fitnessScorePercent: number;
+  fitnessLabel: string;
+  motivationalQuote: string;
+}
+
+/**
+ * Calcule la régularité et les métriques de la forme hebdomadaire.
+ * Règle produit stricte : comptabilise les JOURS DISTINCTS d'exercice de la semaine
+ * (plusieurs séances effectuées le même jour comptent comme 1 journée avec exercice).
+ */
+export function computeWeeklyFitnessMetrics(
+  workoutSessions: { date: string }[],
+  runningSessions: { date: string }[] = [],
+  referenceDate: Date = new Date(),
+  targetWeeklyWorkouts = 4
+): WeeklyFitnessMetrics {
+  const currentDay = referenceDate.getDay(); // 0 = Dimanche, 1 = Lundi, ...
+  const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+  const monday = new Date(referenceDate);
+  monday.setDate(referenceDate.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  const mondayTime = monday.getTime();
+  const sundayTime = sunday.getTime();
+  const currentDayIndex = currentDay === 0 ? 6 : currentDay - 1;
+
+  const activeDays = [false, false, false, false, false, false, false];
+  let weekWorkoutSessionsCount = 0;
+
+  for (const s of workoutSessions) {
+    if (!s.date) continue;
+    const sDate = new Date(s.date);
+    const sTime = sDate.getTime();
+    if (isNaN(sTime)) continue;
+
+    if (sTime >= mondayTime && sTime <= sundayTime) {
+      weekWorkoutSessionsCount++;
+      const day = sDate.getDay();
+      const dayIndex = day === 0 ? 6 : day - 1;
+      activeDays[dayIndex] = true;
+    }
+  }
+
+  for (const rs of runningSessions) {
+    if (!rs.date) continue;
+    const rDate = new Date(rs.date);
+    const rTime = rDate.getTime();
+    if (isNaN(rTime)) continue;
+
+    if (rTime >= mondayTime && rTime <= sundayTime) {
+      const day = rDate.getDay();
+      const dayIndex = day === 0 ? 6 : day - 1;
+      activeDays[dayIndex] = true;
+    }
+  }
+
+  const distinctTrainedDaysCount = activeDays.filter(Boolean).length;
+  let rawScore = 0;
+
+  if (distinctTrainedDaysCount > 0) {
+    if (distinctTrainedDaysCount >= targetWeeklyWorkouts) {
+      rawScore = 100;
+    } else {
+      // Progression proportionnelle selon les jours d'exercice (ex: 1j = 25%, 2j = 50%, 3j = 75%)
+      rawScore = Math.round((distinctTrainedDaysCount / targetWeeklyWorkouts) * 100);
+    }
+  }
+
+  const fitnessScorePercent = Math.min(100, Math.max(0, rawScore));
+
+  let fitnessLabel = 'Prêt à démarrer ! 💪';
+  let motivationalQuote = 'Lancez votre première séance de la semaine pour booster la jauge !';
+
+  if (fitnessScorePercent >= 100) {
+    fitnessLabel = 'Forme maximale ! 🏆';
+    motivationalQuote =
+      distinctTrainedDaysCount > targetWeeklyWorkouts
+        ? 'Semaine de titan ! Objectif dépassé, régularité exceptionnelle !'
+        : 'Objectif de la semaine atteint ! Félicitations pour votre assiduité !';
+  } else if (fitnessScorePercent >= 75) {
+    fitnessLabel = 'Forme optimale 🔥';
+    motivationalQuote = 'Rythme exceptionnel ! Plus qu’un jour d’entraînement pour atteindre les 100% !';
+  } else if (fitnessScorePercent >= 50) {
+    fitnessLabel = 'En pleine dynamique ⚡';
+    motivationalQuote = 'Très bon élan hebdomadaire, continuez sur cette belle régularité !';
+  } else if (fitnessScorePercent >= 20) {
+    fitnessLabel = 'Bonne lancée 🚀';
+    motivationalQuote = 'L’entraînement paie ! Gardez le cap pour exploser vos objectifs.';
+  }
+
+  return {
+    distinctTrainedDaysCount,
+    totalWeekSessionsCount: weekWorkoutSessionsCount,
+    activeDays,
+    currentDayIndex,
+    targetWeeklyWorkouts,
+    fitnessScorePercent,
+    fitnessLabel,
+    motivationalQuote,
+  };
+}
+
 export async function getWeeklyFitnessStats(): Promise<WeeklyFitnessStats> {
   const db = await getDatabase();
   const now = new Date();
 
   // Déterminer le lundi 00:00:00 et dimanche 23:59:59 de la semaine en cours en heure locale
-  const currentDay = now.getDay(); // 0 = Dimanche, 1 = Lundi, ...
+  const currentDay = now.getDay();
   const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
   const monday = new Date(now);
   monday.setDate(now.getDate() + diffToMonday);
@@ -235,7 +348,6 @@ export async function getWeeklyFitnessStats(): Promise<WeeklyFitnessStats> {
 
   const mondayTime = monday.getTime();
   const sundayTime = sunday.getTime();
-  const currentDayIndex = currentDay === 0 ? 6 : currentDay - 1;
 
   // Marge de 24h en amont pour garantir l'immunité aux fuseaux horaires tout en exploitant l'index idx_workout_sessions_date
   const safeLowerBoundIso = new Date(mondayTime - 24 * 60 * 60 * 1000).toISOString();
@@ -251,7 +363,6 @@ export async function getWeeklyFitnessStats(): Promise<WeeklyFitnessStats> {
   );
 
   const weekSessions: typeof allSessions = [];
-  const activeDays = [false, false, false, false, false, false, false];
   const weekSessionIds: string[] = [];
 
   for (const s of allSessions) {
@@ -260,15 +371,20 @@ export async function getWeeklyFitnessStats(): Promise<WeeklyFitnessStats> {
     const sTime = sDate.getTime();
     if (isNaN(sTime)) continue;
 
-    // Vérifier si la séance appartient à la semaine courante
     if (sTime >= mondayTime && sTime <= sundayTime) {
       weekSessions.push(s);
       weekSessionIds.push(s.id);
-      const day = sDate.getDay();
-      const dayIndex = day === 0 ? 6 : day - 1;
-      activeDays[dayIndex] = true;
     }
   }
+
+  // Récupérer également les sessions de course à pied / marche extérieure
+  let runningSessions: { id: string; date: string }[] = [];
+  try {
+    runningSessions = await db.getAllAsync<{ id: string; date: string }>(
+      `SELECT id, date FROM running_sessions WHERE date >= ? ORDER BY date ASC`,
+      [safeLowerBoundIso]
+    );
+  } catch {}
 
   // Nombre d'exercices distincts réalisés cette semaine
   let weekExercisesCount = 0;
@@ -288,55 +404,24 @@ export async function getWeeklyFitnessStats(): Promise<WeeklyFitnessStats> {
     }
   }
 
-  const weekWorkoutsCount = weekSessions.length;
   const weekSetsCount = weekSessions.reduce((sum, s) => sum + (s.total_sets || 0), 0);
   const weekVolumeKg = Math.round(weekSessions.reduce((sum, s) => sum + (s.total_volume || 0), 0));
 
-  // Objectif hebdomadaire standard : 4 séances (ou combinaison séances + exercices variés)
-  const targetWeeklyWorkouts = 4;
-  let rawScore = 0;
-
-  if (weekWorkoutsCount > 0) {
-    // 1 séance = 25% de base minimum (jusqu'à 75% pour 3-4 séances)
-    rawScore = Math.min(75, Math.round((weekWorkoutsCount / targetWeeklyWorkouts) * 75));
-    // Bonus d'exercices variés pour couronner l'effort à 100%
-    if (weekExercisesCount > 0) {
-      rawScore += Math.min(25, weekExercisesCount * 3);
-    }
-    // Une séance complétée fait immédiatement décoller la jauge à au moins 25%
-    rawScore = Math.max(25, rawScore);
-  }
-
-  const fitnessScorePercent = Math.min(100, Math.max(0, rawScore));
-
-  let fitnessLabel = 'Prêt à démarrer ! 💪';
-  let motivationalQuote = 'Lancez votre première séance de la semaine pour booster la jauge !';
-
-  if (fitnessScorePercent >= 100) {
-    fitnessLabel = 'Forme maximale ! 🏆';
-    motivationalQuote = 'Semaine de titan ! Vous êtes au sommet de votre condition physique !';
-  } else if (fitnessScorePercent >= 75) {
-    fitnessLabel = 'Forme optimale 🔥';
-    motivationalQuote = 'Rythme exceptionnel ! Plus qu’un effort pour atteindre les 100% !';
-  } else if (fitnessScorePercent >= 50) {
-    fitnessLabel = 'En pleine dynamique ⚡';
-    motivationalQuote = 'Très bon élan hebdomadaire, continuez sur cette belle régularité !';
-  } else if (fitnessScorePercent >= 20) {
-    fitnessLabel = 'Bonne lancée 🚀';
-    motivationalQuote = 'L’entraînement paie ! Gardez le cap pour exploser vos objectifs.';
-  }
+  // Calcul unifié des métriques de forme et jours distincts
+  const metrics = computeWeeklyFitnessMetrics(allSessions, runningSessions, now, 4);
 
   return {
-    weekWorkoutsCount,
+    weekWorkoutsCount: metrics.distinctTrainedDaysCount,
+    totalWeekSessionsCount: metrics.totalWeekSessionsCount,
     weekExercisesCount,
     weekSetsCount,
     weekVolumeKg,
-    fitnessScorePercent,
-    fitnessLabel,
-    activeDays,
-    currentDayIndex,
-    targetWeeklyWorkouts,
-    motivationalQuote,
+    fitnessScorePercent: metrics.fitnessScorePercent,
+    fitnessLabel: metrics.fitnessLabel,
+    activeDays: metrics.activeDays,
+    currentDayIndex: metrics.currentDayIndex,
+    targetWeeklyWorkouts: metrics.targetWeeklyWorkouts,
+    motivationalQuote: metrics.motivationalQuote,
   };
 }
 

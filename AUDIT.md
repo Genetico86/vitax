@@ -274,3 +274,19 @@
   - [x] **Protection séance en cours** : Ajout d'une confirmation explicite (`Reprendre en cours` vs `Remplacer`) dans `handleStartWorkout` ([src/app/workout/ai-generator.tsx](file:///f:/Application%20Antigravity/Vitax/src/app/workout/ai-generator.tsx)) si une séance est déjà active (`isActive`).
   - [x] **Suite de tests automatisée** : Ajout du test n°5 dans `src/__tests__/vitaxCore.test.ts` validant automatiquement le respect du but ciblé, l'exclusion des quadriceps sur les fessiers/ischios, la présence garantie des biceps et triceps, et la pureté des 11 modes de ciblage.
 
+---
+
+## - [x] Fiche 2.14 — Indicateur « Forme de la semaine » : Comptabilisation des Jours Distincts d'Exercice vs Séances Cumulées ✅ CORRIGÉ
+- **Catégorie** : Logique Métier, Cohérence UI & Motivation Athlète
+- **Priorité** : 🟠 **Majeur (Règle Métier & Expérience Utilisateur)**
+- **Constat / Problème** :
+  1. **Dissonance entre le compteur chiffré et les pastilles visuelles** : L'en-tête de la carte *Forme de la semaine* affichait `• X/4 séances` en se basant sur le nombre brut de séances complétées (`weekSessions.length`). Un utilisateur ayant réalisé plusieurs séances sur une même journée (ex : 8 séances au total réparties uniquement sur le Jeudi et le Vendredi) voyait s'afficher `• 8/4 séances`, alors que la rangée des 7 jours (`[ L ] [ M ] [ M ] [ ✓ ] [ ✓ ] [ S ] [ D ]`) ne comportait que **2 jours cochés**.
+  2. **Règle produit non respectée** : L'indicateur de forme et de régularité hebdomadaire a pour finalité d'encourager la constance et l'assiduité sur la semaine (au moins 4 jours actifs par semaine). Plusieurs séances dans une même journée doivent être comptabilisées comme **une seule journée avec exercice**.
+  3. **Incohérence du score de forme** : L'ancien algorithme plafonnait le nombre de séances à 75% du score et exigeait 9 exercices distincts pour les 25% restants, ce qui affichait la citation *"Plus qu'un effort pour atteindre les 100%"* même lorsque l'utilisateur affichait `8/4 séances`.
+- **Impact** : Incompréhension immédiate de l'utilisateur face à la jauge, sentiment de désynchronisation entre le résumé chiffré et le planning visuel hebdomadaire.
+- **Actions correctives réalisées** :
+  - [x] **Comptabilisation des jours distincts d'exercice** : Refactorisation de `getWeeklyFitnessStats()` et extraction de la fonction pure `computeWeeklyFitnessMetrics()` dans [src/database/workoutRepository.ts](file:///f:/Application%20Antigravity/Vitax/src/database/workoutRepository.ts). Le compteur hebdomadaire `weekWorkoutsCount` est désormais égal au nombre de jours actifs distincts (`activeDays.filter(Boolean).length`), incluant à la fois les séances de musculation (`workout_sessions`) et les sorties running/marche extérieure (`running_sessions`).
+  - [x] **Harmonisation de l'affichage UI** : Dans [src/app/(tabs)/index.tsx](file:///f:/Application%20Antigravity/Vitax/src/app/(tabs)/index.tsx), le libellé a été clarifié en `• X/4 jours` (ou `jour` au singulier pour 1 jour), correspondant rigoureusement aux pastilles cochées `[ ✓ ]` de la rangée des 7 jours.
+  - [x] **Calcul du score de régularité proportionnel** : Progression limpide : 1 jour = 25%, 2 jours = 50%, 3 jours = 75%, $\ge 4$ jours = 100% (*« Forme maximale ! 🏆 »*).
+  - [x] **Validation par tests automatisés** : Ajout du test unitaire n°6 dans [src/__tests__/vitaxCore.test.ts](file:///f:/Application%20Antigravity/Vitax/src/__tests__/vitaxCore.test.ts) validant le cas utilisateur réel (8 séances sur 2 jours = 2/4 jours, 50% de score, 2 jours cochés Jeudi et Vendredi).
+
