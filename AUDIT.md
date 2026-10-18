@@ -241,7 +241,7 @@
 ## - [x] Fiche 2.12 — Compteur d'exercices figé en dur (`"103 exercices"`) sur la tuile Catalogue de l'Accueil ✅ CORRIGÉ
 - **Catégorie** : Cohérence de l'Information UI
 - **Priorité** : 🟡 **Mineur (Optimisation)**
-- **Constat / Problème** : La tuile *Catalogue* de l'écran d'accueil (`src/app/(tabs)/index.tsx`) affichait la chaîne statique `"103 exercices"` alors que la base de données embarque désormais **127 exercices** (`seedData.exercises.length`).
+- **Constat / Problème** : La tuile *Catalogue* de l'écran d'accueil (`src/app/(tabs)/index.tsx`) affichait la chaîne statique `"103 exercices"` alors que la base de données embarque désormais **134 exercices** (`seedData.exercises.length`, incluant les exercices poulie haute).
 - **Impact** : Dissonance entre le chiffre annoncé sur l'accueil et le nombre réel d'exercices visibles à l'ouverture du catalogue.
 - **Actions correctives réalisées** :
   - [x] Affichage dynamique de `${seedData.exercises.length} exercices` sur la tuile Catalogue dans `src/app/(tabs)/index.tsx`.

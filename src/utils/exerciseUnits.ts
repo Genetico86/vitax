@@ -2,6 +2,8 @@ import { Equipment } from '../types';
 import { EQUIPMENTS } from '../constants/muscles';
 import { useSettingsStore } from '../stores/settingsStore';
 
+export const KG_TO_LBS_FACTOR = 2.20462;
+
 export function convertWeightToKg(inputValue: number, unit: 'kg' | 'lbs' = 'kg'): number {
   const safe = Number(inputValue) || 0;
   if (unit === 'lbs') {
@@ -74,8 +76,6 @@ export function isDurationExercise(exercise?: {
 
   return false;
 }
-
-export const KG_TO_LBS_FACTOR = 2.20462;
 
 /**
  * Convertit un poids stocké en kg vers l'unité choisie par l'utilisateur ('kg' ou 'lbs')
