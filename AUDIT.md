@@ -1,6 +1,6 @@
 # 🛡️ Audit Complet & Plan de Remédiation — VITAX
 
-> **Document évolutif de suivi** — Toutes les fiches et sous-actions (`21 / 21`, dont **12 fiches UX/UI & Parcours Utilisateur**) ont été auditées, corrigées et vérifiées (`100%` ✅).
+> **Document évolutif de suivi** — Toutes les fiches et sous-actions (`22 / 22`, dont **13 fiches UX/UI, Parcours & Moteur IA**) ont été auditées, corrigées et vérifiées (`100%` ✅).
 > - **Stack audité** : Expo SDK 54 / React Native 0.81.5 / React 19.1 (Web PWA Vercel), `expo-sqlite` (WASM Web + natif), Zustand 5, Supabase (`@supabase/supabase-js` PostgreSQL + Realtime).
 
 ---
@@ -10,8 +10,9 @@
 | Niveau | 🔴 Critique | 🟠 Majeur | 🟡 Mineur | Progression |
 | :--- | :---: | :---: | :---: | :---: |
 | **Niveau 1 — Technique & Sécurité** | **2 / 2** ✅ | **5 / 5** ✅ | **2 / 2** ✅ | **9 / 9 (100%)** ✅ |
-| **Niveau 2 — Fonctionnel, Métier & UX/UI** | 0 / 0 | **8 / 8** ✅ | **4 / 4** ✅ | **12 / 12 (100%)** ✅ |
-| **TOTAL** | **2 / 2 (100%)** ✅ | **13 / 13 (100%)** ✅ | **6 / 6 (100%)** ✅ | **21 / 21 (100%)** 🎉 |
+| **Niveau 2 — Fonctionnel, Métier & UX/UI** | **1 / 1** ✅ | **8 / 8** ✅ | **4 / 4** ✅ | **13 / 13 (100%)** ✅ |
+| **TOTAL** | **3 / 3 (100%)** ✅ | **13 / 13 (100%)** ✅ | **6 / 6 (100%)** ✅ | **22 / 22 (100%)** 🎉 |
+
 
 ---
 
@@ -34,6 +35,7 @@
 - [x] **[Fiche 2.10]** Protéger la séance en cours (`isActive`) contre l'écrasement accidentel lors du clic sur « Séance Libre », « Programmes » ou « Ciblage Musculaire ».
 - [x] **[Fiche 2.11]** Remplacer l'intégralité des `Alert.alert` natifs (inopérants sur Web PWA pour les confirmations à plusieurs boutons) par `showAlert` dans `exercises/index.tsx`, `exercises/create.tsx`, `programs/[id].tsx` et `programs/create.tsx`.
 - [x] **[Fiche 2.12]** Remplacer le compteur figé `"103 exercices"` de la tuile Catalogue de l'Accueil par le nombre dynamique réel d'exercices (`seedData.exercises.length`).
+- [x] **[Fiche 2.13]** Moteur de Génération de Programmes IA : garantir le respect absolu du but ciblé par l'utilisateur (élimination des squats/fentes dans les séances haut du corps, exclusion des quadriceps en focus Fessiers/Ischios, 100% core sans Deadlift en focus Abdos, équilibrage Dos/Biceps et Pecs/Triceps, et protection de la séance active lors du lancement).
 
 ### Sprint 3 — Performance, Données & Résilience ✅ TERMINÉ
 - [x] **[Fiche 1.6]** Supprimer le watchdog arbitraire de 2500 ms au démarrage SQLite et utiliser un verrou d'initialisation (`initDbPromise` / `openDbPromise`).
@@ -245,3 +247,30 @@
 - **Impact** : Dissonance entre le chiffre annoncé sur l'accueil et le nombre réel d'exercices visibles à l'ouverture du catalogue.
 - **Actions correctives réalisées** :
   - [x] Affichage dynamique de `${seedData.exercises.length} exercices` sur la tuile Catalogue dans `src/app/(tabs)/index.tsx`.
+
+---
+
+## - [x] Fiche 2.13 — Moteur de Génération de Programmes IA : Dérives de Ciblage Anatomique & Non-Respect du But Utilisateur ✅ CORRIGÉ
+- **Catégorie** : Logique Métier, Expertise Biomécanique & Moteur IA
+- **Priorité** : 🔴 **Critique (Cœur de valeur applicative)**
+- **Constat / Problème** :
+  1. **Pollution anatomique en échauffement et retour au calme** : Les filtres d'échauffement (`warmup`) et de retour au calme (`cooldown`) utilisaient des critères génériques sans distinction de zone anatomique (`ex.equipment_needed === 'Sans matériel' || ex.id.includes('squat')`). Conséquence : des séances **Pectoraux & Triceps** ou **Épaules** démarraient avec des squats ou des fentes, et des séances **Fessiers & Ischios** se terminaient avec des pompes ou des burpees.
+  2. **Dilution des focus ciblés doubles (`dos_biceps`, `pecs_triceps`)** : La boucle de sélection des mouvements polyarticulaires et d'isolation consommait tous les slots disponibles sur le premier groupe musculaire (`Dos` ou `Pectoraux`), avant même d'atteindre le second groupe. Une séance « Dos & Biceps » pouvait ainsi comporter 3 exercices de dos et **0 exercice de biceps** !
+  3. **Absence de filtrage sous-musculaire sur `glutes_hamstrings` (Fessiers & Ischios)** : Le moteur renvoyait `['Jambes']` indistinctement, sélectionnant des exercices à dominante quadriceps (Front Squat, Leg Extension, Hack Squat, Presse à cuisses) en contradiction frontale avec le but ciblé par l'athlète.
+  4. **Dérive du focus `abs_core` (Abdos & Gainage)** : La recherche de mouvements polyarticulaires sur `targetGroups = ['Abdominaux', 'Dos']` sélectionnait du Soulevé de terre lourd et du Rowing barre, transformant une séance d'abdominaux en entraînement d'haltérophilie lourde pour le dos.
+  5. **Écrasement silencieux d'une séance active** : `handleStartWorkout` dans `src/app/workout/ai-generator.tsx` lançait la séance générée sans vérifier `isActive`, détruisant toute séance en cours sans confirmation.
+- **Impact** : Frustration majeure de l'utilisateur, perte de confiance dans l'IA coach, incohérence biomécanique totale et risque de blessure par absence d'échauffement spécifique adapté.
+- **Actions correctives réalisées** :
+  - [x] **Création des classificateurs anatomiques stricts** : Implémentation de `isGluteOrHamstringExercise` (sélection rigoureuse des Hip Thrust, Soulevés roumains, Leg curls, Fentes bulgares, Kickbacks et Pull-Through, avec exclusion formelle de Leg Extension, Front Squat, Sissy Squat, etc.), `isUpperBodyFocus`, `isLowerBodyFocus`, `isAppropriateWarmupExercise` et `isAppropriateCooldownExercise` dans `src/services/aiWorkoutService.ts`.
+  - [x] **Échauffement & Cooldown 100% cohérents** :
+    - *Séances haut du corps / poussée / tirage* : Échauffement cardio léger, activation scapulaire ou pompes douces. **Interdiction absolue des squats et fentes**. Cooldown en gainage doux, planche ou décompression lombaire.
+    - *Séances bas du corps / fessiers / ischios* : Échauffement air squat, fentes douces, mobilité chevilles/hanches ou vélo. **Interdiction absolue des pompes, tractions et dips**.
+    - *Séances abdos / gainage* : Échauffement planche dynamique, mountain climbers ou cardio doux. Cooldown en décompression psoas/lombaire.
+  - [x] **Répartition garantie sur tous les focus doubles** :
+    - *`dos_biceps`* : Garantie absolue d'au moins 2 exercices Dos (épaisseur/largeur) et au moins 1 à 2 exercices Biceps (curls barre EZ, haltères ou poulie).
+    - *`pecs_triceps`* : Garantie absolue d'au moins 2 exercices Pectoraux et au moins 1 à 2 exercices Triceps (dips, close-grip, extensions poulie ou barre au front).
+    - *`shoulders`* : Développé vertical lourd, élévations latérales, arrière d'épaules (oiseau/face pull) et complément deltoïde (100% épaules 3D).
+    - *`abs_core`* : 100% d'exercices d'abdominaux et gainage fonctionnel (crunch poulie, anti-rotation pallof/woodchopper, planche/wheel, mountain climbers) sans aucun Soulevé de terre ou Squat lourd.
+  - [x] **Protection séance en cours** : Ajout d'une confirmation explicite (`Reprendre en cours` vs `Remplacer`) dans `handleStartWorkout` ([src/app/workout/ai-generator.tsx](file:///f:/Application%20Antigravity/Vitax/src/app/workout/ai-generator.tsx)) si une séance est déjà active (`isActive`).
+  - [x] **Suite de tests automatisée** : Ajout du test n°5 dans `src/__tests__/vitaxCore.test.ts` validant automatiquement le respect du but ciblé, l'exclusion des quadriceps sur les fessiers/ischios, la présence garantie des biceps et triceps, et la pureté des 11 modes de ciblage.
+

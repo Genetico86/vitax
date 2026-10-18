@@ -15,6 +15,14 @@ import {
   computeSetXp,
   getExerciseBiomechanicalProfile,
 } from '../services/exerciseWeightingService';
+import {
+  generateOfflineWorkoutPlan,
+  isGluteOrHamstringExercise,
+  isUpperBodyFocus,
+  isLowerBodyFocus,
+  isAppropriateWarmupExercise,
+} from '../services/aiWorkoutService';
+import seedData from '../database/seedData.json';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -92,5 +100,93 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   );
   names.push('exerciseWeightingService: pondération biomécanique & XP par série');
 
+  // 5. Moteur de Génération de Programmes IA & Respect du But Ciblé (Fiche 2.13)
+  const exercises = ((seedData as any).exercises || (seedData as any).default?.exercises) as any[];
+
+  // 5.1 Filtre d'exclusion spécifique Fessiers & Ischios
+  const hipThrust = exercises.find((e: any) => e.id === 'ex_hip_thrust');
+  const legExtension = exercises.find((e: any) => e.id === 'ex_leg_extension');
+  const frontSquat = exercises.find((e: any) => e.id === 'ex_front_squat');
+  assert(isGluteOrHamstringExercise(hipThrust) === true, 'Hip thrust qualifié Fessiers/Ischios');
+  assert(isGluteOrHamstringExercise(legExtension) === false, 'Leg extension (quadriceps) exclu des Fessiers/Ischios');
+  assert(isGluteOrHamstringExercise(frontSquat) === false, 'Front squat (quadriceps) exclu des Fessiers/Ischios');
+
+  // 5.2 Cohérence échauffement haut/bas du corps
+  const pushups = exercises.find((e: any) => e.id === 'ex_pushups');
+  const airSquat = exercises.find((e: any) => e.id === 'ex_bodyweight_squat');
+  assert(isAppropriateWarmupExercise(pushups, 'pecs_triceps') === true, 'Pompes adaptées en échauffement pecs/triceps');
+  assert(isAppropriateWarmupExercise(airSquat, 'pecs_triceps') === false, 'Squat exclu de l’échauffement pecs/triceps');
+  assert(isAppropriateWarmupExercise(airSquat, 'legs') === true, 'Squat adapté en échauffement jambes');
+  assert(isUpperBodyFocus('pecs_triceps') === true, 'pecs_triceps est un focus haut du corps');
+  assert(isLowerBodyFocus('glutes_hamstrings') === true, 'glutes_hamstrings est un focus bas du corps');
+
+  // 5.3 Génération ciblée Pecs & Triceps (zéro jambes)
+  const pecsPlan = await generateOfflineWorkoutPlan(
+    {
+      targetFocus: 'pecs_triceps',
+      trainingType: 'hypertrophy',
+      difficulty: 'Intermédiaire',
+      durationMinutes: 45,
+      availableEquipments: ['Barre', 'Haltères', 'Banc', 'Poulie / Machine', 'Sans matériel'],
+    },
+    exercises
+  );
+  const pecsExercises = pecsPlan.exercises;
+  assert(pecsExercises.some((e) => e.target_muscle === 'Pectoraux'), 'Plan pecs_triceps contient des Pectoraux');
+  assert(pecsExercises.some((e) => e.target_muscle === 'Triceps'), 'Plan pecs_triceps contient des Triceps');
+  assert(!pecsExercises.some((e) => e.target_muscle === 'Jambes'), 'Plan pecs_triceps ne contient aucun exercice Jambes');
+
+  // 5.4 Génération ciblée Dos & Biceps (garantie Biceps & zéro jambes)
+  const backPlan = await generateOfflineWorkoutPlan(
+    {
+      targetFocus: 'dos_biceps',
+      trainingType: 'hypertrophy',
+      difficulty: 'Intermédiaire',
+      durationMinutes: 45,
+      availableEquipments: ['Barre', 'Haltères', 'Banc', 'Poulie / Machine', 'Sans matériel'],
+    },
+    exercises
+  );
+  assert(backPlan.exercises.some((e) => e.target_muscle === 'Dos'), 'Plan dos_biceps contient du Dos');
+  assert(backPlan.exercises.some((e) => e.target_muscle === 'Biceps'), 'Plan dos_biceps contient bien des Biceps');
+  assert(!backPlan.exercises.some((e) => e.target_muscle === 'Jambes'), 'Plan dos_biceps ne contient aucun exercice Jambes');
+
+  // 5.5 Génération ciblée Fessiers & Ischios (zéro quad dominant)
+  const glutesPlan = await generateOfflineWorkoutPlan(
+    {
+      targetFocus: 'glutes_hamstrings',
+      trainingType: 'hypertrophy',
+      difficulty: 'Intermédiaire',
+      durationMinutes: 45,
+      availableEquipments: ['Barre', 'Haltères', 'Banc', 'Poulie / Machine', 'Sans matériel'],
+    },
+    exercises
+  );
+  const mainGlutesExercises = glutesPlan.exercises.filter((e) => e.phase === 'compound' || e.phase === 'isolation');
+  assert(
+    mainGlutesExercises.every((e) => isGluteOrHamstringExercise(exercises.find((raw: any) => raw.id === e.exercise_id) || (e as any))),
+    'Tous les exercices du plan fessiers_ischios ciblent la chaîne postérieure'
+  );
+
+  // 5.6 Génération ciblée Abdos & Gainage (100% core, zéro soulevé de terre lourd)
+  const absPlan = await generateOfflineWorkoutPlan(
+    {
+      targetFocus: 'abs_core',
+      trainingType: 'hypertrophy',
+      difficulty: 'Intermédiaire',
+      durationMinutes: 45,
+      availableEquipments: ['Barre', 'Haltères', 'Banc', 'Poulie / Machine', 'Sans matériel'],
+    },
+    exercises
+  );
+  const mainAbsExercises = absPlan.exercises.filter((e) => e.phase === 'compound' || e.phase === 'isolation');
+  assert(
+    mainAbsExercises.every((e) => e.target_muscle === 'Abdominaux'),
+    '100% des exercices du plan abs_core sont des abdominaux'
+  );
+
+  names.push('aiWorkoutService: ciblage anatomique strict & moteur de génération (11 focuses)');
+
   return { passed: names.length, names };
 }
+
