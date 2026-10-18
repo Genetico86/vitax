@@ -22,6 +22,7 @@ import {
   isLowerBodyFocus,
   isAppropriateWarmupExercise,
 } from '../services/aiWorkoutService';
+import { computeWeeklyFitnessMetrics } from '../database/workoutRepository';
 import seedData from '../database/seedData.json';
 
 function assert(condition: boolean, message: string): void {
@@ -186,6 +187,73 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   );
 
   names.push('aiWorkoutService: ciblage anatomique strict & moteur de génération (11 focuses)');
+
+  // 6. Régularité hebdomadaire & calcul des jours distincts d'exercice (Fiche 2.14)
+  // Date de référence : Dimanche 18 Octobre 2026 (Semaine du Lundi 12/10 au Dimanche 18/10)
+  const refDate = new Date('2026-10-18T15:00:00Z');
+
+  // 6.1 Cas utilisateur réel : 8 séances réparties sur seulement 2 jours (Jeudi 15/10 et Vendredi 16/10)
+  const sessionsMultiplePerDay = [
+    { date: '2026-10-15T09:00:00Z' },
+    { date: '2026-10-15T11:00:00Z' },
+    { date: '2026-10-15T14:00:00Z' },
+    { date: '2026-10-15T18:00:00Z' },
+    { date: '2026-10-16T08:30:00Z' },
+    { date: '2026-10-16T12:00:00Z' },
+    { date: '2026-10-16T17:00:00Z' },
+    { date: '2026-10-16T20:00:00Z' },
+  ];
+  const metricsMultiple = computeWeeklyFitnessMetrics(sessionsMultiplePerDay, [], refDate, 4);
+  assert(
+    metricsMultiple.distinctTrainedDaysCount === 2,
+    `8 séances sur 2 jours doivent compter pour exactement 2 jours d'exercice (obtenu: ${metricsMultiple.distinctTrainedDaysCount})`
+  );
+  assert(
+    metricsMultiple.totalWeekSessionsCount === 8,
+    'totalWeekSessionsCount doit enregistrer les 8 séances complétées'
+  );
+  assert(
+    metricsMultiple.fitnessScorePercent === 50,
+    `Le score pour 2 jours sur 4 doit être de 50% (obtenu: ${metricsMultiple.fitnessScorePercent}%)`
+  );
+  assert(
+    metricsMultiple.activeDays.filter(Boolean).length === 2,
+    'La rangée visuelle des jours doit contenir exactement 2 jours cochés'
+  );
+  assert(
+    metricsMultiple.activeDays[3] === true && metricsMultiple.activeDays[4] === true,
+    'Les jours cochés doivent être le Jeudi (index 3) et Vendredi (index 4)'
+  );
+
+  // 6.2 Cas séance de course à pied extérieure comptabilisée comme journée active
+  const runningSessions = [{ date: '2026-10-14T07:00:00Z' }]; // Mercredi
+  const metricsWithRun = computeWeeklyFitnessMetrics(sessionsMultiplePerDay, runningSessions, refDate, 4);
+  assert(
+    metricsWithRun.distinctTrainedDaysCount === 3,
+    'La course extérieure du mercredi doit ajouter 1 jour distinct (total: 3 jours)'
+  );
+  assert(
+    metricsWithRun.activeDays[2] === true,
+    'Le Mercredi (index 2) doit être marqué actif grâce au running'
+  );
+  assert(
+    metricsWithRun.fitnessScorePercent === 75,
+    '3 jours sur 4 doivent donner 75%'
+  );
+
+  // 6.3 Cas objectif atteint (4 jours distincts sur 4)
+  const fullWeekSessions = [
+    { date: '2026-10-12T10:00:00Z' }, // Lundi
+    { date: '2026-10-13T10:00:00Z' }, // Mardi
+    { date: '2026-10-15T10:00:00Z' }, // Jeudi
+    { date: '2026-10-17T10:00:00Z' }, // Samedi
+  ];
+  const metricsFull = computeWeeklyFitnessMetrics(fullWeekSessions, [], refDate, 4);
+  assert(metricsFull.distinctTrainedDaysCount === 4, '4 jours distincts complétés');
+  assert(metricsFull.fitnessScorePercent === 100, 'Score de forme à 100%');
+  assert(metricsFull.fitnessLabel === 'Forme maximale ! 🏆', 'Label forme maximale');
+
+  names.push('workoutRepository: calcul de régularité hebdomadaire & jours distincts d’exercice (Fiche 2.14)');
 
   return { passed: names.length, names };
 }

@@ -1333,7 +1333,7 @@ export default function HomeScreen() {
                 Forme de la semaine
               </Text>
               <Text style={styles.weeklyFitnessSubInfo}>
-                • {weeklyFitness?.weekWorkoutsCount || 0}/{weeklyFitness?.targetWeeklyWorkouts || 4} séances
+                • {weeklyFitness?.weekWorkoutsCount || 0}/{weeklyFitness?.targetWeeklyWorkouts || 4} {(weeklyFitness?.weekWorkoutsCount || 0) > 1 ? 'jours' : 'jour'}
               </Text>
             </View>
 
