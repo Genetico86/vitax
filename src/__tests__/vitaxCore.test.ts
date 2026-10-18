@@ -30,6 +30,7 @@ import {
   exportFeedbackSummaryText,
   exportFeedbackSummaryJson,
 } from '../services/exerciseRatingService';
+import { computeNextWorkoutNavigation } from '../utils/workoutNavigation';
 import seedData from '../database/seedData.json';
 
 function assert(condition: boolean, message: string): void {
@@ -295,6 +296,45 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   assert(parsedJson.total_feedbacks >= 1, 'L’export JSON doit contenir au moins 1 avis');
 
   names.push('exerciseRatingService: notation d’exercices, critères détaillés & export feedback dev');
+
+  // 8. Navigation de séance active : passage au suivant sans clôture prématurée
+  const mockWorkoutExercises = [
+    { sets: [{ completed: true }, { completed: true }] }, // Exercice 0 (Terminé)
+    { sets: [{ completed: false }, { completed: false }] }, // Exercice 1 (Non fait)
+    { sets: [{ completed: false }] }, // Exercice 2 (Non fait)
+  ];
+
+  // 8.1 Validation exercice 0 -> Doit orienter vers exercice 1 (et NON fermer la séance !)
+  const navFromEx0 = computeNextWorkoutNavigation(mockWorkoutExercises, 0);
+  assert(navFromEx0.nextIndex === 1, 'Validation ex 0 doit mener à l’exercice 1');
+  assert(navFromEx0.actionType === 'next_exercise', 'Action doit être next_exercise');
+  assert(navFromEx0.isAllWorkoutCompleted === false, 'Séance non terminée car ex 1 et 2 restent');
+  assert(navFromEx0.buttonLabel.includes('suivant'), 'Le bouton doit proposer Exercice suivant');
+
+  // 8.2 Exercice 1 terminé aussi -> Doit orienter vers exercice 2
+  mockWorkoutExercises[1].sets.forEach((s) => (s.completed = true));
+  const navFromEx1 = computeNextWorkoutNavigation(mockWorkoutExercises, 1);
+  assert(navFromEx1.nextIndex === 2, 'Validation ex 1 doit mener à l’exercice 2');
+  assert(navFromEx1.actionType === 'next_exercise', 'Action doit être next_exercise pour le dernier restant');
+
+  // 8.3 Exercice 2 terminé -> TOUS les exercices sont finis -> Doit proposer de terminer la séance
+  mockWorkoutExercises[2].sets[0].completed = true;
+  const navFromEx2 = computeNextWorkoutNavigation(mockWorkoutExercises, 2);
+  assert(navFromEx2.isAllWorkoutCompleted === true, 'Tous les exercices sont complétés');
+  assert(navFromEx2.actionType === 'finish_workout', 'Action finale finish_workout');
+  assert(navFromEx2.buttonLabel.includes('Terminer'), 'Propose de terminer la séance');
+
+  // 8.4 Cas où l'utilisateur est sur le dernier exercice mais un exercice antérieur a été sauté
+  const skippedWorkoutExercises = [
+    { sets: [{ completed: true }] },
+    { sets: [{ completed: false }] }, // Exercice 1 sauté
+    { sets: [{ completed: true }] }, // Exercice 2 (en cours de validation)
+  ];
+  const navSkipped = computeNextWorkoutNavigation(skippedWorkoutExercises, 2);
+  assert(navSkipped.nextIndex === 1, 'Doit réorienter vers l’exercice 1 restant');
+  assert(navSkipped.actionType === 'previous_uncompleted', 'Action previous_uncompleted');
+
+  names.push('workoutNavigation: transition intelligente vers l’exercice suivant sans clôture prématurée');
 
   return { passed: names.length, names };
 }
