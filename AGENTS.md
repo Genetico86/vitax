@@ -37,7 +37,9 @@ Run lint and typecheck before declaring any task done.
 ## Méthodologie Git & Déploiements Vercel
 
 - **Toutes les modifications se font sur une branche dédiée sous forme de Pull Request (PR)**.
+- **Avant de pousser sur une branche existante, TOUJOURS vérifier si sa PR est encore en cours (`OPEN`) ou déjà mergée (`MERGED`)** via `git fetch origin` et `gh pr view <num> --json state`. Si la PR a été mergée sur `main`, créer systématiquement une nouvelle branche à partir de `origin/main` et ouvrir une nouvelle PR.
 - **NE JAMAIS déclencher de déploiement direct ni merger la PR soi-même**.
 - Laisser la PR ouverte sur GitHub avec son lien pour que l'utilisateur puisse la tester via le lien Preview automatique de Vercel.
 - L'utilisateur est seul décisionnaire du moment où la PR est mergée sur `main` afin d'éviter les doubles déploiements simultanés sur Vercel.
+
 
