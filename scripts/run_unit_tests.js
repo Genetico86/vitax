@@ -2,6 +2,7 @@
  * VITAX Unit Test Runner
  * Exécute la suite de tests unitaires Vitax sans dépendance externe lourde
  */
+require('./mock_test_env.js');
 const fs = require('fs');
 const ts = require('typescript');
 

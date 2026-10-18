@@ -39,14 +39,210 @@ function getMuscleGroupsForTarget(target: TargetFocus): MuscleGroup[] {
     case 'dos_biceps':
       return ['Dos', 'Biceps'];
     case 'shoulders':
-      return ['Épaules', 'Dos'];
+      return ['Épaules'];
     case 'glutes_hamstrings':
       return ['Jambes'];
     case 'abs_core':
-      return ['Abdominaux', 'Dos'];
+      return ['Abdominaux'];
     case 'performance_goals':
       return ['Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Triceps', 'Biceps', 'Abdominaux'];
   }
+}
+
+/**
+ * Détermine si un exercice cible la chaîne postérieure (Fessiers & Ischio-jambiers)
+ * en excluant les mouvements quadriceps dominants (Leg Extension, Squat avant, etc.).
+ */
+export function isGluteOrHamstringExercise(exercise: Exercise): boolean {
+  if (exercise.target_muscle !== 'Jambes') return false;
+  const id = exercise.id.toLowerCase();
+  const name = exercise.name.toLowerCase();
+
+  // Exclusions strictes des mouvements à dominante quadriceps
+  if (
+    id.includes('leg_extension') ||
+    id.includes('front_squat') ||
+    id.includes('sissy_squat') ||
+    id.includes('hack_squat') ||
+    id.includes('box_squat') ||
+    id.includes('belt_squat') ||
+    name.includes('extension') ||
+    name.includes('front squat')
+  ) {
+    return false;
+  }
+
+  return (
+    id.includes('hip_thrust') ||
+    id.includes('thrust') ||
+    id.includes('kickback') ||
+    id.includes('glute') ||
+    id.includes('abduction') ||
+    id.includes('pull_through') ||
+    id.includes('leg_curl') ||
+    id.includes('curl') ||
+    id.includes('romanian') ||
+    id.includes('roumain') ||
+    id.includes('good_morning') ||
+    id.includes('lunge') ||
+    id.includes('fente') ||
+    id.includes('bulgarian') ||
+    name.includes('fessier') ||
+    name.includes('ischio') ||
+    name.includes('thrust') ||
+    name.includes('roumain') ||
+    name.includes('jambes tendues') ||
+    name.includes('curl') ||
+    name.includes('fente') ||
+    name.includes('kickback') ||
+    name.includes('abduction') ||
+    name.includes('good morning')
+  );
+}
+
+export function isUpperBodyFocus(target: TargetFocus): boolean {
+  return (
+    target === 'upper_body' ||
+    target === 'push' ||
+    target === 'pull' ||
+    target === 'pecs_triceps' ||
+    target === 'dos_biceps' ||
+    target === 'shoulders'
+  );
+}
+
+export function isLowerBodyFocus(target: TargetFocus): boolean {
+  return (
+    target === 'lower_body' ||
+    target === 'legs' ||
+    target === 'glutes_hamstrings'
+  );
+}
+
+/**
+ * Détermine si un exercice est approprié pour la phase d'échauffement / activation
+ * selon la zone anatomique ciblée par l'athlète.
+ */
+export function isAppropriateWarmupExercise(ex: Exercise, target: TargetFocus): boolean {
+  const id = ex.id.toLowerCase();
+  const name = ex.name.toLowerCase();
+
+  const isCardioMachine =
+    ex.target_muscle === 'Cardio' ||
+    id.includes('treadmill') ||
+    id.includes('walking_active') ||
+    id.includes('running_outdoor') ||
+    id.includes('elliptical') ||
+    id.includes('rower') ||
+    id.includes('jump_rope');
+
+  if (isUpperBodyFocus(target)) {
+    // Échauffement haut du corps : cardio doux, ou activation scapulaire / gainage / pompes légères
+    // INTERDIT formellement : Squats, fentes, presse
+    if (ex.target_muscle === 'Jambes') return false;
+    if (id.includes('squat') || id.includes('lunge') || name.includes('squat') || name.includes('fente')) {
+      return false;
+    }
+    return (
+      isCardioMachine ||
+      ex.target_muscle === 'Abdominaux' ||
+      id.includes('plank') ||
+      id.includes('pushups') ||
+      id.includes('face_pull') ||
+      id.includes('band_pull_apart') ||
+      id.includes('lateral_raise') ||
+      (ex.equipment_needed === 'Sans matériel' && ex.target_muscle !== 'Jambes')
+    );
+  }
+
+  if (isLowerBodyFocus(target)) {
+    // Échauffement bas du corps : cardio doux, air squat, fentes douces, gainage
+    // INTERDIT formellement : Pompes, dips, tractions, développé couché
+    if (
+      ex.target_muscle === 'Pectoraux' ||
+      ex.target_muscle === 'Dos' ||
+      ex.target_muscle === 'Triceps' ||
+      ex.target_muscle === 'Biceps'
+    ) {
+      return false;
+    }
+    return (
+      isCardioMachine ||
+      id.includes('squat') ||
+      id.includes('lunge') ||
+      id.includes('plank') ||
+      id.includes('calf_raise') ||
+      (ex.equipment_needed === 'Sans matériel' && ex.target_muscle === 'Jambes')
+    );
+  }
+
+  if (target === 'abs_core') {
+    return ex.target_muscle === 'Abdominaux' || isCardioMachine;
+  }
+
+  return (
+    isCardioMachine ||
+    id.includes('plank') ||
+    id.includes('squat') ||
+    id.includes('pushups') ||
+    ex.equipment_needed === 'Sans matériel'
+  );
+}
+
+/**
+ * Détermine si un exercice est approprié pour la phase de retour au calme (Cooldown)
+ * en évitant les mouvements lourds, traumatiques ou hors-sujet.
+ */
+export function isAppropriateCooldownExercise(ex: Exercise, target: TargetFocus): boolean {
+  const id = ex.id.toLowerCase();
+  const name = ex.name.toLowerCase();
+
+  // EXCLUSIONS FORMELLES de mouvements lourds / explosifs en retour au calme
+  if (
+    id.includes('burpee') ||
+    id.includes('deadlift') ||
+    id.includes('clean') ||
+    name.includes('burpee') ||
+    name.includes('soulevé de terre')
+  ) {
+    return false;
+  }
+
+  if (isUpperBodyFocus(target)) {
+    // Pas de squats ou d'exercices jambes intenses en cooldown haut du corps
+    if (ex.target_muscle === 'Jambes') return false;
+    return (
+      ex.target_muscle === 'Abdominaux' ||
+      id.includes('plank') ||
+      id.includes('superman') ||
+      id.includes('walking_active')
+    );
+  }
+
+  if (isLowerBodyFocus(target)) {
+    // Pas d'exercices haut du corps intenses en cooldown bas du corps (pas de pompes, dips, etc.)
+    if (
+      ex.target_muscle === 'Pectoraux' ||
+      ex.target_muscle === 'Dos' ||
+      ex.target_muscle === 'Triceps' ||
+      ex.target_muscle === 'Biceps'
+    ) {
+      return false;
+    }
+    return (
+      ex.target_muscle === 'Abdominaux' ||
+      id.includes('plank') ||
+      id.includes('superman') ||
+      id.includes('walking_active')
+    );
+  }
+
+  return (
+    id.includes('superman') ||
+    id.includes('plank') ||
+    id.includes('walking_active') ||
+    ex.target_muscle === 'Abdominaux'
+  );
 }
 
 /**
@@ -680,28 +876,30 @@ export async function generateOfflineWorkoutPlan(
 
   const isFatBurn = params.trainingType === 'hiit';
 
-  if (isFatBurn) {
-    // === SÉQUENCE OPTIMISÉE BRÛLAGE DE GRAISSE / HIIT / CIRCUIT ===
-    // 1. Activation cardio-musculaire progressive (poids du corps ou cardio léger)
+  // 1. Échauffement dynamique (Activation spécifique à la zone ciblée)
+  const warmupOk = pickExercise(
+    (ex) => isAppropriateWarmupExercise(ex, params.targetFocus),
+    'warmup',
+    false
+  );
+  if (!warmupOk) {
     pickExercise(
-      (ex) =>
-        (ex.equipment_needed === 'Sans matériel' || ex.target_muscle === 'Cardio') &&
-        (ex.id.includes('bodyweight_squat') ||
-          ex.id.includes('walking_active') ||
-          ex.id.includes('plank') ||
-          ex.id.includes('squat') ||
-          ex.target_muscle === 'Cardio'),
+      (ex) => ex.equipment_needed === 'Sans matériel' || ex.target_muscle === 'Cardio',
       'warmup',
       false
     );
+  }
 
+  if (isFatBurn) {
+    // === SÉQUENCE OPTIMISÉE BRÛLAGE DE GRAISSE / HIIT / CIRCUIT ===
     // 2. Mouvements polyarticulaires majeurs & métaboliques ciblés (recrutement musculaire massif)
     const compoundTargetCount = Math.min(2, Math.floor(targetExerciseCount / 2));
     for (let i = 0; i < compoundTargetCount; i++) {
       pickExercise(
         (ex) =>
           targetGroups.includes(ex.target_muscle as MuscleGroup) &&
-          (isMajorCompoundExercise(ex) || isMetabolicFatBurnExercise(ex)),
+          (isMajorCompoundExercise(ex) || isMetabolicFatBurnExercise(ex)) &&
+          (params.targetFocus !== 'glutes_hamstrings' || isGluteOrHamstringExercise(ex)),
         'compound',
         true
       );
@@ -711,12 +909,21 @@ export async function generateOfflineWorkoutPlan(
     for (const group of targetGroups) {
       if (selectedList.length >= targetExerciseCount - 1) break;
       const addedMetabolic = pickExercise(
-        (ex) => ex.target_muscle === group && isMetabolicFatBurnExercise(ex),
+        (ex) =>
+          ex.target_muscle === group &&
+          isMetabolicFatBurnExercise(ex) &&
+          (params.targetFocus !== 'glutes_hamstrings' || isGluteOrHamstringExercise(ex)),
         'isolation',
         false
       );
       if (!addedMetabolic) {
-        pickExercise((ex) => ex.target_muscle === group, 'isolation', false);
+        pickExercise(
+          (ex) =>
+            ex.target_muscle === group &&
+            (params.targetFocus !== 'glutes_hamstrings' || isGluteOrHamstringExercise(ex)),
+          'isolation',
+          false
+        );
       }
     }
 
@@ -734,80 +941,301 @@ export async function generateOfflineWorkoutPlan(
       );
     }
 
-    // Compléter si nécessaire jusqu'au quota
+    // Compléter si nécessaire jusqu'au quota avec respect du focus
     while (selectedList.length < targetExerciseCount - 1) {
       const added = pickExercise(
         (ex) =>
-          targetGroups.includes(ex.target_muscle as MuscleGroup) ||
-          isMetabolicFatBurnExercise(ex),
+          (targetGroups.includes(ex.target_muscle as MuscleGroup) || isMetabolicFatBurnExercise(ex)) &&
+          (params.targetFocus !== 'glutes_hamstrings' || isGluteOrHamstringExercise(ex)) &&
+          (!isUpperBodyFocus(params.targetFocus) || ex.target_muscle !== 'Jambes') &&
+          (!isLowerBodyFocus(params.targetFocus) || ex.target_muscle === 'Jambes' || ex.target_muscle === 'Cardio'),
         'isolation',
         false
       );
       if (!added) break;
     }
-
-    // 4. Finisher / Cooldown : Gainage dynamique ou retour au calme
-    pickExercise(
-      (ex) =>
-        ex.id.includes('mountain') ||
-        ex.id.includes('plank') ||
-        ex.target_muscle === 'Abdominaux' ||
-        ex.id.includes('walking_active') ||
-        ex.equipment_needed === 'Sans matériel',
-      'cooldown',
-      false
-    );
   } else {
     // === SÉQUENCE STANDARD (HYPERTROPHIE, FORCE, ENDURANCE, MOBILITÉ) ===
-    // 1. Échauffement dynamique (Activation)
-    pickExercise(
-      (ex) =>
-        ex.equipment_needed === 'Sans matériel' ||
-        ex.target_muscle === 'Cardio' ||
-        ex.id.includes('plank') ||
-        ex.id.includes('squat'),
-      'warmup',
-      false
-    );
-
-    // 2. Mouvements polyarticulaires majeurs (2 exercices)
-    const compoundTargetCount = Math.min(2, Math.floor(targetExerciseCount / 2));
-    for (let i = 0; i < compoundTargetCount; i++) {
+    if (params.targetFocus === 'pecs_triceps') {
+      // Pectoraux polyarticulaire (couché/incliné)
       pickExercise(
-        (ex) =>
-          targetGroups.includes(ex.target_muscle as MuscleGroup) &&
-          isMajorCompoundExercise(ex),
+        (ex) => ex.target_muscle === 'Pectoraux' && isMajorCompoundExercise(ex),
         'compound',
         true
       );
-    }
-
-    // 3. Mouvements d'isolation & compléments ciblés
-    for (const group of targetGroups) {
-      if (selectedList.length >= targetExerciseCount - 1) break;
+      // Triceps polyarticulaire (dips/close grip) ou 2ème Pectoraux lourd
       pickExercise(
-        (ex) => ex.target_muscle === group,
+        (ex) =>
+          ex.target_muscle === 'Triceps' &&
+          (ex.id.includes('dips') || ex.id.includes('close_grip') || ex.id.includes('bench_dips') || isMajorCompoundExercise(ex)),
+        'compound',
+        true
+      ) || pickExercise((ex) => ex.target_muscle === 'Pectoraux', 'compound', true);
+
+      // Pectoraux isolation (écartés/poulie)
+      pickExercise(
+        (ex) => ex.target_muscle === 'Pectoraux' && !isMajorCompoundExercise(ex),
+        'isolation',
+        false
+      ) || pickExercise((ex) => ex.target_muscle === 'Pectoraux', 'isolation', false);
+
+      // Triceps isolation (poulie/barre au front)
+      pickExercise((ex) => ex.target_muscle === 'Triceps', 'isolation', false);
+
+      // Si séances de 60-75 min, alterner pecs et triceps
+      while (selectedList.length < targetExerciseCount - 1) {
+        const pickPec =
+          selectedList.filter((e) => e.target_muscle === 'Pectoraux').length <=
+          selectedList.filter((e) => e.target_muscle === 'Triceps').length;
+        const added = pickExercise(
+          (ex) => ex.target_muscle === (pickPec ? 'Pectoraux' : 'Triceps'),
+          'isolation',
+          false
+        );
+        if (!added) {
+          pickExercise((ex) => ex.target_muscle === 'Pectoraux' || ex.target_muscle === 'Triceps', 'isolation', false);
+          break;
+        }
+      }
+    } else if (params.targetFocus === 'dos_biceps') {
+      // Dos polyarticulaire (rowing lourd/traction)
+      pickExercise(
+        (ex) => ex.target_muscle === 'Dos' && isMajorCompoundExercise(ex),
+        'compound',
+        true
+      );
+      // Dos 2ème polyarticulaire (tirage vertical/rowing)
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Dos' &&
+          (ex.id.includes('pullup') || ex.id.includes('pulldown') || ex.id.includes('row')),
+        'compound',
+        true
+      ) || pickExercise((ex) => ex.target_muscle === 'Dos', 'compound', true);
+
+      // Biceps isolation garanti
+      pickExercise((ex) => ex.target_muscle === 'Biceps', 'isolation', false);
+
+      // Deuxième exercice Biceps ou Dos largeur
+      pickExercise((ex) => ex.target_muscle === 'Biceps', 'isolation', false) ||
+        pickExercise((ex) => ex.target_muscle === 'Dos', 'isolation', false);
+
+      // Si séances de 60-75 min, alterner dos et biceps
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise(
+          (ex) => ex.target_muscle === 'Dos' || ex.target_muscle === 'Biceps',
+          'isolation',
+          false
+        );
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'shoulders') {
+      // Développé épaules vertical lourd
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Épaules' &&
+          (ex.id.includes('press') || ex.name.toLowerCase().includes('développé')),
+        'compound',
+        true
+      );
+      // Deltoïde latéral (élévations latérales)
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Épaules' &&
+          (ex.id.includes('lateral') || ex.name.toLowerCase().includes('latérale')),
         'isolation',
         false
       );
-    }
-
-    // Si on n'a pas encore atteint le nombre cible, piocher dans les groupes cibles
-    while (selectedList.length < targetExerciseCount - 1) {
-      const added = pickExercise(
-        (ex) => targetGroups.includes(ex.target_muscle as MuscleGroup),
+      // Deltoïde postérieur (arrière d'épaules / face pull / oiseau)
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Épaules' &&
+          (ex.id.includes('rear') || ex.id.includes('face_pull') || ex.name.toLowerCase().includes('oiseau')),
         'isolation',
         false
       );
-      if (!added) break;
-    }
+      // Développé complémentaire ou élévations frontales / Y-Raise
+      pickExercise((ex) => ex.target_muscle === 'Épaules', 'isolation', false);
 
-    // 4. Cooldown / Gainage final (Retour au calme)
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => ex.target_muscle === 'Épaules', 'isolation', false);
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'glutes_hamstrings') {
+      // Mouvement lourd Fessiers & Ischios (Hip Thrust ou Soulevé roumain)
+      pickExercise(
+        (ex) =>
+          isGluteOrHamstringExercise(ex) &&
+          (ex.id.includes('thrust') || ex.id.includes('romanian') || ex.id.includes('roumain')),
+        'compound',
+        true
+      );
+      // Mouvement unilatéral fessiers (Fentes bulgares / marchées)
+      pickExercise(
+        (ex) =>
+          isGluteOrHamstringExercise(ex) &&
+          (ex.id.includes('lunge') || ex.id.includes('bulgarian') || ex.id.includes('fente')),
+        'compound',
+        true
+      );
+      // Isolation chaîne postérieure (Leg curl ou Kickback fessier ou Pull-through)
+      pickExercise(
+        (ex) =>
+          isGluteOrHamstringExercise(ex) &&
+          (ex.id.includes('curl') || ex.id.includes('kickback') || ex.id.includes('pull_through')),
+        'isolation',
+        false
+      );
+      // Complément chaîne postérieure
+      pickExercise((ex) => isGluteOrHamstringExercise(ex), 'isolation', false);
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => isGluteOrHamstringExercise(ex), 'isolation', false);
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'abs_core') {
+      // Crunch / Flexion vertébrale
+      pickExercise(
+        (ex) => ex.target_muscle === 'Abdominaux' && ex.name.toLowerCase().includes('crunch'),
+        'isolation',
+        false
+      );
+      // Anti-rotation & Obliques (Woodchopper, Pallof press, Russian twists)
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Abdominaux' &&
+          (ex.id.includes('woodchopper') || ex.id.includes('pallof') || ex.id.includes('twist') || ex.id.includes('oblique')),
+        'isolation',
+        false
+      );
+      // Gainage dynamique & Flexion de hanches (Relevé de jambes, Roue, Mountain climbers)
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Abdominaux' &&
+          (ex.id.includes('leg_raise') || ex.id.includes('wheel') || ex.id.includes('plank') || ex.id.includes('mountain')),
+        'compound',
+        true
+      );
+      // Complément abdominaux
+      pickExercise((ex) => ex.target_muscle === 'Abdominaux', 'isolation', false);
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => ex.target_muscle === 'Abdominaux', 'isolation', false);
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'push') {
+      pickExercise((ex) => ex.target_muscle === 'Pectoraux' && isMajorCompoundExercise(ex), 'compound', true);
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Épaules' &&
+          (ex.id.includes('press') || ex.name.toLowerCase().includes('développé')),
+        'compound',
+        true
+      );
+      pickExercise((ex) => ex.target_muscle === 'Triceps', 'isolation', false);
+      pickExercise(
+        (ex) =>
+          ex.target_muscle === 'Pectoraux' ||
+          ex.target_muscle === 'Triceps' ||
+          ex.target_muscle === 'Épaules',
+        'isolation',
+        false
+      );
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise(
+          (ex) =>
+            ex.target_muscle === 'Pectoraux' ||
+            ex.target_muscle === 'Triceps' ||
+            ex.target_muscle === 'Épaules',
+          'isolation',
+          false
+        );
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'pull') {
+      pickExercise((ex) => ex.target_muscle === 'Dos' && isMajorCompoundExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Dos', 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Biceps', 'isolation', false);
+      pickExercise(
+        (ex) =>
+          (ex.target_muscle === 'Épaules' &&
+            (ex.id.includes('rear') || ex.id.includes('face_pull') || ex.name.toLowerCase().includes('oiseau'))) ||
+          ex.target_muscle === 'Biceps',
+        'isolation',
+        false
+      );
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => ex.target_muscle === 'Dos' || ex.target_muscle === 'Biceps', 'isolation', false);
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'legs') {
+      pickExercise((ex) => ex.target_muscle === 'Jambes' && (ex.id.includes('squat') || ex.id.includes('press')), 'compound', true);
+      pickExercise((ex) => isGluteOrHamstringExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Jambes', 'isolation', false);
+      pickExercise((ex) => ex.target_muscle === 'Jambes', 'isolation', false);
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => ex.target_muscle === 'Jambes', 'isolation', false);
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'upper_body') {
+      pickExercise((ex) => ex.target_muscle === 'Pectoraux' && isMajorCompoundExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Dos' && isMajorCompoundExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Épaules', 'isolation', false);
+      pickExercise((ex) => ex.target_muscle === 'Biceps' || ex.target_muscle === 'Triceps', 'isolation', false);
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise(
+          (ex) =>
+            ex.target_muscle === 'Pectoraux' ||
+            ex.target_muscle === 'Dos' ||
+            ex.target_muscle === 'Épaules' ||
+            ex.target_muscle === 'Biceps' ||
+            ex.target_muscle === 'Triceps',
+          'isolation',
+          false
+        );
+        if (!added) break;
+      }
+    } else if (params.targetFocus === 'lower_body') {
+      pickExercise((ex) => ex.target_muscle === 'Jambes' && (ex.id.includes('squat') || ex.id.includes('press')), 'compound', true);
+      pickExercise((ex) => isGluteOrHamstringExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Jambes', 'isolation', false);
+      pickExercise((ex) => ex.target_muscle === 'Abdominaux' || ex.target_muscle === 'Jambes', 'isolation', false);
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => ex.target_muscle === 'Jambes' || ex.target_muscle === 'Abdominaux', 'isolation', false);
+        if (!added) break;
+      }
+    } else {
+      // full_body
+      pickExercise((ex) => ex.target_muscle === 'Pectoraux' && isMajorCompoundExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Dos' && isMajorCompoundExercise(ex), 'compound', true);
+      pickExercise((ex) => ex.target_muscle === 'Jambes', 'compound', true);
+      pickExercise(
+        (ex) => ex.target_muscle === 'Épaules' || ex.target_muscle === 'Biceps' || ex.target_muscle === 'Triceps',
+        'isolation',
+        false
+      );
+
+      while (selectedList.length < targetExerciseCount - 1) {
+        const added = pickExercise((ex) => ex.target_muscle !== 'Cardio', 'isolation', false);
+        if (!added) break;
+      }
+    }
+  }
+
+  // 4. Cooldown / Finisher (Retour au calme doux et cohérent)
+  const cooldownOk = pickExercise(
+    (ex) => isAppropriateCooldownExercise(ex, params.targetFocus),
+    'cooldown',
+    false
+  );
+  if (!cooldownOk) {
     pickExercise(
-      (ex) =>
-        ex.target_muscle === 'Abdominaux' ||
-        ex.id.includes('superman') ||
-        ex.equipment_needed === 'Sans matériel',
+      (ex) => ex.target_muscle === 'Abdominaux' || ex.equipment_needed === 'Sans matériel',
       'cooldown',
       false
     );

@@ -14,6 +14,7 @@ import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 import { ExerciseIllustration } from '../../components/common/ExerciseIllustration';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useWorkoutSessionStore } from '../../stores/workoutSessionStore';
 import {
   TargetFocus,
   WorkoutTrainingType,
@@ -109,6 +110,34 @@ export default function AIWorkoutGeneratorScreen() {
 
   const handleStartWorkout = async () => {
     if (!generatedPlan) return;
+    const { isActive } = useWorkoutSessionStore.getState();
+    if (isActive) {
+      showAlert(
+        'Séance déjà en cours',
+        'Une séance est déjà active. Voulez-vous la remplacer par ce programme généré ou reprendre votre séance actuelle ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Reprendre en cours',
+            onPress: () => router.push('/workout/active'),
+          },
+          {
+            text: 'Remplacer (Nouvelle)',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await startGeneratedWorkout(generatedPlan);
+                router.push('/workout/active');
+              } catch (err: any) {
+                showAlert('Erreur', 'Impossible de démarrer la séance : ' + err.message);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     try {
       await startGeneratedWorkout(generatedPlan);
       router.push('/workout/active');
