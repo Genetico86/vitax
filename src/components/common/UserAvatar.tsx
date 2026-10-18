@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { UserPhotoModal } from './UserPhotoModal';
 
-interface UserAvatarProps {
+export interface UserAvatarProps {
   avatarUrl?: string | null;
   fallbackEmoji?: string;
   size?: number;
   style?: StyleProp<ViewStyle>;
   showEditBadge?: boolean;
   onPress?: () => void;
+  onEditPress?: () => void;
   accessibilityLabel?: string;
+  userName?: string;
+  userSubtitle?: string;
+  enableEnlarge?: boolean;
 }
 
 export const UserAvatar: React.FC<UserAvatarProps> = ({
@@ -19,10 +24,15 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   style,
   showEditBadge = false,
   onPress,
+  onEditPress,
   accessibilityLabel = 'Photo de profil',
+  userName,
+  userSubtitle,
+  enableEnlarge = true,
 }) => {
   const [imageError, setImageError] = useState(false);
   const [prevAvatarUrl, setPrevAvatarUrl] = useState(avatarUrl);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   if (prevAvatarUrl !== avatarUrl) {
     setPrevAvatarUrl(avatarUrl);
@@ -31,6 +41,18 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
   const borderRadius = size / 2;
   const badgeSize = Math.max(18, Math.round(size * 0.36));
+
+  const hasPhoto = Boolean(avatarUrl && !imageError);
+  const canEnlarge = hasPhoto && enableEnlarge !== false;
+  const isClickable = canEnlarge || Boolean(onPress);
+
+  const handlePress = () => {
+    if (canEnlarge) {
+      setIsModalVisible(true);
+    } else if (onPress) {
+      onPress();
+    }
+  };
 
   const content = (
     <View
@@ -44,9 +66,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
         style,
       ]}
     >
-      {avatarUrl && !imageError ? (
+      {hasPhoto ? (
         <Image
-          source={{ uri: avatarUrl }}
+          source={{ uri: avatarUrl! }}
           style={[styles.image, { width: size, height: size, borderRadius }]}
           resizeMode="cover"
           onError={() => setImageError(true)}
@@ -76,20 +98,36 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     </View>
   );
 
-  if (onPress) {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        activeOpacity={0.8}
-        accessibilityLabel={accessibilityLabel}
-        accessibilityRole="button"
-      >
-        {content}
-      </TouchableOpacity>
-    );
-  }
+  return (
+    <>
+      {isClickable ? (
+        <TouchableOpacity
+          onPress={handlePress}
+          activeOpacity={0.8}
+          accessibilityLabel={
+            accessibilityLabel || (canEnlarge ? `Afficher la photo de ${userName || 'profil'} en grand` : undefined)
+          }
+          accessibilityRole="button"
+        >
+          {content}
+        </TouchableOpacity>
+      ) : (
+        content
+      )}
 
-  return content;
+      {isModalVisible && (
+        <UserPhotoModal
+          visible={isModalVisible}
+          avatarUrl={avatarUrl}
+          userName={userName || 'Photo de profil'}
+          userSubtitle={userSubtitle}
+          fallbackEmoji={fallbackEmoji}
+          onClose={() => setIsModalVisible(false)}
+          onEditPress={onEditPress || (canEnlarge && onPress ? onPress : undefined)}
+        />
+      )}
+    </>
+  );
 };
 
 const styles = StyleSheet.create({

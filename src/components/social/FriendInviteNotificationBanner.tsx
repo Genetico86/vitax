@@ -18,6 +18,7 @@ import {
 } from '../../services/multiplayerService';
 import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
 import { showAlert } from '../../utils/alert';
+import { UserAvatar } from '../common/UserAvatar';
 
 interface Props {
   onFriendAccepted?: () => void;
@@ -202,8 +203,16 @@ export function FriendInviteNotificationBanner({ onFriendAccepted }: Props) {
 
         {/* Info de l'expéditeur */}
         <View style={styles.bodyRow}>
-          <View style={styles.avatarCircle}>
-            <Text style={{ fontSize: 28 }}>{currentRequest.senderAvatarEmoji || '⚡'}</Text>
+          <View style={[styles.avatarCircle, { overflow: 'hidden', padding: 0, backgroundColor: 'transparent' }]}>
+            <UserAvatar
+              avatarUrl={currentRequest.senderAvatarUrl}
+              fallbackEmoji={currentRequest.senderAvatarEmoji || '⚡'}
+              size={50}
+              style={{ borderWidth: 0 }}
+              userName={currentRequest.senderName}
+              userSubtitle={`Code : ${currentRequest.senderCode} • ${currentRequest.senderTrainerTitle || 'Athlète Vitax'}`}
+              enableEnlarge
+            />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.senderName} numberOfLines={1}>

@@ -1039,36 +1039,55 @@ export default function HomeScreen() {
         {/* ======================================================== */}
         <Card style={[styles.topXpCard, dynamic.topXpCard]}>
           <View style={[styles.topUserHeader, dynamic.topUserHeader]}>
-            <TouchableOpacity
-              style={styles.userNameTouch}
-              onPress={async () => {
-                const session = await getPersistedSession();
-                const loggedIn = Boolean(session?.isLoggedIn);
-                setIsUserLoggedIn(loggedIn);
-                setNameInput(user_name || '');
-                setPasswordInput('');
-                setAuthError(null);
-                setIsLoginMode(true);
-                setNameModalVisible(true);
-              }}
-              activeOpacity={0.7}
-            >
+            <View style={styles.userNameTouch}>
               <View style={styles.userGreetingRow}>
                 <UserAvatar
                   avatarUrl={avatar_url}
                   fallbackEmoji={effectiveLevelInfo?.badgeEmoji || '👤'}
                   size={32}
                   style={{ borderWidth: 1, borderColor: '#38BDF8' }}
+                  userName={user_name || "L'athlète"}
+                  userSubtitle={effectiveLevelInfo?.badgeName || effectiveLevelInfo?.title || 'Athlète'}
+                  onPress={async () => {
+                    const session = await getPersistedSession();
+                    const loggedIn = Boolean(session?.isLoggedIn);
+                    setIsUserLoggedIn(loggedIn);
+                    setNameInput(user_name || '');
+                    setPasswordInput('');
+                    setAuthError(null);
+                    setIsLoginMode(true);
+                    setNameModalVisible(true);
+                  }}
+                  onEditPress={() => {
+                    setNameModalVisible(true);
+                    setAvatarPickerVisible(true);
+                  }}
+                  enableEnlarge
                 />
-                <Text style={[styles.userGreetingText, dynamic.userGreetingText]} numberOfLines={1}>
-                  Bonjour {user_name ? user_name : 'l’athlète'} 👋
-                </Text>
-                <Text style={[styles.userSubDot, dynamic.userSubDot]}>•</Text>
-                <Text style={[styles.userSubText, dynamic.userSubText]} numberOfLines={1}>
-                  {effectiveLevelInfo?.badgeName || effectiveLevelInfo?.title || 'Athlète'}
-                </Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    const session = await getPersistedSession();
+                    const loggedIn = Boolean(session?.isLoggedIn);
+                    setIsUserLoggedIn(loggedIn);
+                    setNameInput(user_name || '');
+                    setPasswordInput('');
+                    setAuthError(null);
+                    setIsLoginMode(true);
+                    setNameModalVisible(true);
+                  }}
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}
+                >
+                  <Text style={[styles.userGreetingText, dynamic.userGreetingText]} numberOfLines={1}>
+                    Bonjour {user_name ? user_name : 'l’athlète'} 👋
+                  </Text>
+                  <Text style={[styles.userSubDot, dynamic.userSubDot]}>•</Text>
+                  <Text style={[styles.userSubText, dynamic.userSubText]} numberOfLines={1}>
+                    {effectiveLevelInfo?.badgeName || effectiveLevelInfo?.title || 'Athlète'}
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.athleteHeaderBadge, dynamic.athleteHeaderBadge]}
@@ -1659,22 +1678,28 @@ export default function HomeScreen() {
             {isUserLoggedIn ? (
               <View>
                 <View style={styles.loggedInProfileBox}>
-                  <TouchableOpacity
-                    onPress={() => setAvatarPickerVisible(true)}
-                    activeOpacity={0.8}
-                    style={{ alignItems: 'center', marginBottom: 10 }}
-                    accessibilityLabel="Modifier ma photo de profil"
-                  >
+                  <View style={{ alignItems: 'center', marginBottom: 10 }}>
                     <UserAvatar
                       avatarUrl={avatar_url}
                       fallbackEmoji="👤"
                       size={68}
                       showEditBadge
+                      userName={user_name || 'Mon Profil'}
+                      userSubtitle={`${levelInfo?.badgeName ? levelInfo.badgeName : 'Athlète'} • ${levelInfo?.currentXp || 0} XP`}
+                      onPress={() => setAvatarPickerVisible(true)}
+                      onEditPress={() => setAvatarPickerVisible(true)}
+                      enableEnlarge
                     />
-                    <Text style={{ color: '#38BDF8', fontSize: 12.5, fontWeight: '700', marginTop: 6 }}>
-                      📷 Modifier la photo ❯
-                    </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setAvatarPickerVisible(true)}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Modifier ma photo de profil"
+                    >
+                      <Text style={{ color: '#38BDF8', fontSize: 12.5, fontWeight: '700', marginTop: 6 }}>
+                        📷 Modifier la photo ❯
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   <Text style={styles.loggedInBadge}>✓ Compte Connecté</Text>
                   <Text style={styles.loggedInUsername}>{user_name}</Text>
                   <Text style={styles.loggedInSubtitle}>
