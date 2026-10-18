@@ -177,7 +177,7 @@ export function detectExerciseCategory(
   }
 
   // Écarté pectoraux
-  if (id.includes('fly') || id.includes('ecarte')) {
+  if (id.includes('fly') || id.includes('ecarte') || id.includes('crossover')) {
     return 'cable_fly';
   }
 
@@ -191,13 +191,18 @@ export function detectExerciseCategory(
     return 'dips';
   }
 
-  // Soulevé de terre
-  if (id.includes('deadlift') || id.includes('terre')) {
+  // Soulevé de terre & Pull-through
+  if (id.includes('deadlift') || id.includes('terre') || id.includes('pull_through')) {
     return 'deadlift';
   }
 
-  // Hip Thrust
-  if (id.includes('hip_thrust') || id.includes('thrust') || id.includes('fessier')) {
+  // Hip Thrust & Fessiers (Kickback)
+  if (
+    id.includes('hip_thrust') ||
+    id.includes('thrust') ||
+    id.includes('fessier') ||
+    id.includes('kickback')
+  ) {
     return 'hip_thrust';
   }
 
@@ -218,12 +223,13 @@ export function detectExerciseCategory(
     return 'pullups';
   }
 
-  // Tirage vertical / poulie haute
+  // Tirage vertical / poulie haute / pull-over
   if (
     id.includes('lat_pulldown') ||
     id.includes('pulldown') ||
     id.includes('tirage_vertical') ||
-    id.includes('straight_arm')
+    id.includes('straight_arm') ||
+    id.includes('pullover')
   ) {
     return 'lat_pulldown';
   }
@@ -248,6 +254,8 @@ export function detectExerciseCategory(
     id.includes('lateral') ||
     id.includes('elevation') ||
     id.includes('face_pull') ||
+    id.includes('y_raise') ||
+    id.includes('raise') ||
     muscle.includes('épaule') ||
     muscle.includes('epaule')
   ) {
@@ -279,11 +287,12 @@ export function detectExerciseCategory(
     return 'hanging_leg_raise';
   }
 
-  // Abdominaux : crunch & gainage
+  // Abdominaux : crunch, pallof & gainage
   if (
     id.includes('crunch') ||
     id.includes('abdo') ||
     id.includes('plank') ||
+    id.includes('pallof') ||
     muscle.includes('abdo')
   ) {
     return 'core_crunch';
