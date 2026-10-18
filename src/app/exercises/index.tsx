@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getAllExercises, deleteCustomExercise } from '../../database/exerciseRepository';
-import { Exercise, MuscleGroup } from '../../types';
+import { Exercise, MuscleGroup, ExerciseRatingSummary } from '../../types';
 import {
   MUSCLE_GROUPS,
   MUSCLE_GROUPS_INFO,
@@ -26,6 +26,9 @@ import {
   toggleFavoriteExercise,
 } from '../../services/favoritesService';
 import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
+import { ExerciseRatingModal } from '../../components/workout/ExerciseRatingModal';
+import { DeveloperFeedbackModal } from '../../components/workout/DeveloperFeedbackModal';
+import { getAllRatingsSummaries } from '../../services/exerciseRatingService';
 import { useWorkoutSessionStore } from '../../stores/workoutSessionStore';
 import { showAlert } from '../../utils/alert';
 
@@ -39,6 +42,12 @@ export default function ExercisesCatalogScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [guideModalVisible, setGuideModalVisible] = useState(false);
   const [selectedGuideExercise, setSelectedGuideExercise] = useState<Exercise | null>(null);
+
+  // Système de note et avis développeur
+  const [ratingsMap, setRatingsMap] = useState<Record<string, ExerciseRatingSummary>>({});
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [selectedRatingExercise, setSelectedRatingExercise] = useState<Exercise | null>(null);
+  const [devFeedbackVisible, setDevFeedbackVisible] = useState(false);
 
   const { available_equipments, filter_by_available_equipment } = useSettingsStore();
   const { isActive, startTargetedWorkout, addExerciseToWorkout } = useWorkoutSessionStore();
@@ -115,12 +124,14 @@ export default function ExercisesCatalogScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [list, favs] = await Promise.all([
+      const [list, favs, ratings] = await Promise.all([
         getAllExercises(),
         getFavoriteExerciseIds(),
+        getAllRatingsSummaries(),
       ]);
       setExercises(list);
       setFavoriteIds(favs);
+      setRatingsMap(ratings);
     } catch (err) {
       console.error('Erreur catalogue exercices:', err);
     }
@@ -393,12 +404,21 @@ export default function ExercisesCatalogScreen() {
           <Text style={styles.resultCountText}>
             {filtered.length} exercices trouvés
           </Text>
-          <TouchableOpacity
-            onPress={() => router.push('/exercises/create')}
-            style={styles.addExerciseBtn}
-          >
-            <Text style={styles.addExerciseBtnText}>+ Nouvel exercice</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => setDevFeedbackVisible(true)}
+              style={styles.devFeedbackHeaderBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.devFeedbackHeaderBtnText}>🛠️ Avis Dev</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/exercises/create')}
+              style={styles.addExerciseBtn}
+            >
+              <Text style={styles.addExerciseBtnText}>+ Nouvel exercice</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {filtered.length === 0 ? (
@@ -461,6 +481,26 @@ export default function ExercisesCatalogScreen() {
                           style={{ marginLeft: 6 }}
                         />
                       )}
+                      <TouchableOpacity
+                        style={styles.ratingBadgePill}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setSelectedRatingExercise(item);
+                          setRatingModalVisible(true);
+                        }}
+                        activeOpacity={0.7}
+                        accessibilityLabel={`Noter ${item.name} pour les développeurs`}
+                      >
+                        <Text style={styles.ratingBadgePillStar}>★</Text>
+                        <Text style={styles.ratingBadgePillText}>
+                          {ratingsMap[item.id]?.averageRating
+                            ? `${ratingsMap[item.id].averageRating} (${ratingsMap[item.id].totalRatings})`
+                            : 'Noter'}
+                        </Text>
+                        {ratingsMap[item.id]?.userRating && (
+                          <View style={styles.ratedDot} />
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -561,6 +601,29 @@ export default function ExercisesCatalogScreen() {
         visible={guideModalVisible}
         exercise={selectedGuideExercise}
         onClose={() => setGuideModalVisible(false)}
+      />
+
+      {/* Modal de notation de l'exercice */}
+      <ExerciseRatingModal
+        visible={ratingModalVisible}
+        exercise={selectedRatingExercise}
+        onClose={() => setRatingModalVisible(false)}
+        onRatingSaved={async () => {
+          const updated = await getAllRatingsSummaries();
+          setRatingsMap(updated);
+        }}
+      />
+
+      {/* Modal de consultation des retours développeur */}
+      <DeveloperFeedbackModal
+        visible={devFeedbackVisible}
+        onClose={() => setDevFeedbackVisible(false)}
+        onOpenRatingForExercise={(exerciseId, exerciseName) => {
+          setDevFeedbackVisible(false);
+          const matched = exercises.find((e) => e.id === exerciseId);
+          setSelectedRatingExercise(matched || ({ id: exerciseId, name: exerciseName, target_muscle: '' } as Exercise));
+          setRatingModalVisible(true);
+        }}
       />
     </View>
   );
@@ -945,5 +1008,48 @@ const styles = StyleSheet.create({
     color: '#FF7A45',
     fontSize: 13,
     fontWeight: '900',
+  },
+  devFeedbackHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  devFeedbackHeaderBtnText: {
+    color: '#38BDF8',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  ratingBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  ratingBadgePillStar: {
+    color: '#FBBF24',
+    fontSize: 11,
+  },
+  ratingBadgePillText: {
+    color: '#FBBF24',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  ratedDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#38BDF8',
+    marginLeft: 2,
   },
 });

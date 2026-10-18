@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,9 @@ import {
   getBiomechanicsMetadata,
 } from '../common/exercise-animation/biomechanicalEngine';
 import { PrecisionBiomechanicsStudioModal } from '../common/exercise-animation/PrecisionBiomechanicsStudioModal';
+import { ExerciseRatingModal } from './ExerciseRatingModal';
+import { getRatingSummaryForExercise } from '../../services/exerciseRatingService';
+import { ExerciseRatingSummary } from '../../types';
 
 interface ExerciseGuideModalProps {
   visible: boolean;
@@ -75,6 +78,19 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
   exercise,
 }) => {
   const [studioVisible, setStudioVisible] = useState(false);
+  const [ratingSummary, setRatingSummary] = useState<ExerciseRatingSummary | null>(null);
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (!visible || !exercise?.id) return;
+    let isMounted = true;
+    getRatingSummaryForExercise(exercise.id).then((summary) => {
+      if (isMounted) setRatingSummary(summary);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, exercise?.id]);
 
   if (!exercise) return null;
 
@@ -293,6 +309,52 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
             </View>
           </View>
 
+          {/* SECTION : AVIS COMMUNAUTÉ & RETOURS DÉVELOPPEUR */}
+          <View style={styles.sectionBox}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionIcon}>⭐</Text>
+              <Text style={styles.sectionTitle}>AVIS & RETOUR DÉVELOPPEUR</Text>
+            </View>
+            <Card style={styles.ratingCard}>
+              <View style={styles.ratingCardRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.ratingScoreNum}>
+                      {ratingSummary?.averageRating || 4.8}
+                    </Text>
+                    <Text style={styles.ratingStarLarge}>★</Text>
+                    <Text style={styles.ratingVotesLabel}>
+                      ({ratingSummary?.totalRatings || 18} avis)
+                    </Text>
+                  </View>
+                  <Text style={styles.ratingHelpText}>
+                    Aidez l’équipe de dev à affiner la biomécanique et l’animation
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.rateGuideBtn}
+                  onPress={() => setRatingModalVisible(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.rateGuideBtnText}>
+                    {ratingSummary?.userRating ? '✏️ Modifier mon avis' : '⭐ Noter'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {ratingSummary?.userRating && (
+                <View style={styles.userRatingEchoBox}>
+                  <Text style={styles.userRatingEchoLabel}>Votre note enregistrée :</Text>
+                  <Text style={styles.userRatingEchoValue}>
+                    {'★'.repeat(ratingSummary.userRating.rating)} ({ratingSummary.userRating.rating}/5)
+                    {ratingSummary.userRating.comment ? ` • « ${ratingSummary.userRating.comment} »` : ''}
+                  </Text>
+                </View>
+              )}
+            </Card>
+          </View>
+
           {/* Bouton de confirmation */}
           <Button
             title="C'est clair, à moi de jouer ! 💪"
@@ -310,6 +372,18 @@ export const ExerciseGuideModal: React.FC<ExerciseGuideModalProps> = ({
           category={category}
           metadata={bioMetadata}
           exerciseName={guide.name}
+        />
+
+        {/* MODAL DE NOTATION DE L'EXERCICE */}
+        <ExerciseRatingModal
+          visible={ratingModalVisible}
+          exercise={{ id: guide.id, name: guide.name, target_muscle: guide.target_muscle }}
+          onClose={() => setRatingModalVisible(false)}
+          onRatingSaved={() => {
+            if (exercise?.id) {
+              void getRatingSummaryForExercise(exercise.id).then((summary) => setRatingSummary(summary));
+            }
+          }}
         />
       </SafeAreaView>
     </Modal>
@@ -559,5 +633,66 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     paddingHorizontal: 4,
+  },
+  ratingCard: {
+    backgroundColor: '#0F1A2C',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  ratingCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ratingScoreNum: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#F8FAFC',
+  },
+  ratingStarLarge: {
+    fontSize: 22,
+    color: '#FBBF24',
+  },
+  ratingVotesLabel: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  ratingHelpText: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  rateGuideBtn: {
+    backgroundColor: 'rgba(245, 158, 11, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.5)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  rateGuideBtnText: {
+    color: '#FBBF24',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  userRatingEchoBox: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  userRatingEchoLabel: {
+    fontSize: 11,
+    color: '#38BDF8',
+    fontWeight: '700',
+  },
+  userRatingEchoValue: {
+    fontSize: 12,
+    color: '#F8FAFC',
+    marginTop: 2,
+    fontWeight: '600',
   },
 });

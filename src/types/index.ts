@@ -37,6 +37,29 @@ export interface Exercise {
   is_custom: number; // 0 or 1
 }
 
+export interface ExerciseRating {
+  id: string;
+  exercise_id: string;
+  exercise_name?: string;
+  rating: number; // 1 to 5
+  criteria_animation?: number; // 1 to 5
+  criteria_clarity?: number; // 1 to 5
+  criteria_feeling?: number; // 1 to 5
+  difficulty_tag?: 'too_easy' | 'perfect' | 'too_hard';
+  comment?: string;
+  user_name?: string;
+  user_id?: string;
+  created_at: string;
+}
+
+export interface ExerciseRatingSummary {
+  exerciseId: string;
+  averageRating: number;
+  totalRatings: number;
+  ratingsBreakdown: { 1: number; 2: number; 3: number; 4: number; 5: number };
+  userRating?: ExerciseRating;
+}
+
 export interface Program {
   id: string;
   name: string;

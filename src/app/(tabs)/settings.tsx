@@ -32,6 +32,7 @@ import {
 } from '../../services/authService';
 import { TrainerProfile } from '../../types/social';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { DeveloperFeedbackModal } from '../../components/workout/DeveloperFeedbackModal';
 
 export default function SettingsScreen() {
   const {
@@ -59,6 +60,7 @@ export default function SettingsScreen() {
   const [friendsCount, setFriendsCount] = useState<number>(0);
   const [isTrainerLoggedIn, setIsTrainerLoggedIn] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [devFeedbackModalVisible, setDevFeedbackModalVisible] = useState(false);
 
   // États pour les sections dépliables (accordéons)
   const [profileExpanded, setProfileExpanded] = useState(false);
@@ -870,6 +872,24 @@ export default function SettingsScreen() {
                 style={{ marginTop: 10 }}
               />
 
+              {/* Bloc 3 : Retours & Évaluations des Exercices */}
+              <View style={styles.innerDivider} />
+
+              <View style={styles.subBlockHeaderRow}>
+                <Text style={styles.subBlockTitle}>⭐ Retours & Évaluations des Exercices</Text>
+                <Badge label="Feedback Dev" color="rgba(245, 158, 11, 0.2)" textColor="#FBBF24" />
+              </View>
+              <Text style={styles.sublabel}>
+                Consultez toutes les notes attribuées par les utilisateurs, les remarques anatomiques et exportez les rapports pour perfectionner les exercices.
+              </Text>
+
+              <Button
+                title="🔍 Consulter les retours & notes dev"
+                variant="primary"
+                onPress={() => setDevFeedbackModalVisible(true)}
+                style={{ marginTop: 8 }}
+              />
+
             </View>
           )}
         </Card>
@@ -925,6 +945,12 @@ export default function SettingsScreen() {
             setTrainerProfile({ ...trainerProfile, avatarUrl: url });
           }
         }}
+      />
+
+      {/* Modal de consultation des retours développeur */}
+      <DeveloperFeedbackModal
+        visible={devFeedbackModalVisible}
+        onClose={() => setDevFeedbackModalVisible(false)}
       />
     </View>
   );

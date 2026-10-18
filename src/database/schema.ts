@@ -102,6 +102,23 @@ export const CREATE_TABLES_SQL = `
     FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS exercise_ratings (
+    id TEXT PRIMARY KEY NOT NULL,
+    exercise_id TEXT NOT NULL,
+    exercise_name TEXT,
+    rating INTEGER NOT NULL,
+    criteria_animation INTEGER,
+    criteria_clarity INTEGER,
+    criteria_feeling INTEGER,
+    difficulty_tag TEXT,
+    comment TEXT,
+    user_name TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_exercise_ratings_ex ON exercise_ratings(exercise_id, created_at DESC);
+
   CREATE INDEX IF NOT EXISTS idx_workout_sessions_date ON workout_sessions(date DESC);
   CREATE INDEX IF NOT EXISTS idx_workout_sets_session ON workout_sets(workout_session_id, set_order ASC);
   CREATE INDEX IF NOT EXISTS idx_workout_sets_exercise ON workout_sets(exercise_id);
