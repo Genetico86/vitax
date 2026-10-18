@@ -37,7 +37,8 @@
     "start": "expo start --web",
     "web": "expo start --web",
     "build": "expo export -p web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node scripts/run_unit_tests.js"
   },
   "private": true
 }
