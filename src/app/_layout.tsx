@@ -124,97 +124,119 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: Colors.background,
-          },
-          headerTintColor: Colors.text,
-          headerTitleStyle: {
-            fontWeight: '700',
-          },
-          contentStyle: {
-            backgroundColor: Colors.background,
-          },
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="workout/active"
-          options={{
-            headerShown: false,
-            presentation: 'fullScreenModal',
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="workout/summary"
-          options={{
-            headerShown: false,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="workout/ai-generator"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="running/index"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="programs/[id]"
-          options={{
-            title: 'Détails du programme',
-            headerBackTitle: 'Retour',
-          }}
-        />
-        <Stack.Screen
-          name="programs/create"
-          options={{
-            title: 'Créer un programme',
-            headerBackTitle: 'Retour',
-          }}
-        />
-        <Stack.Screen
-          name="programs/target-muscle"
-          options={{
-            title: 'Ciblage Musculaire',
-            headerBackTitle: 'Retour',
-          }}
-        />
-        <Stack.Screen
-          name="exercises/index"
-          options={{
-            title: 'Catalogue d’exercices',
-            headerBackTitle: 'Retour',
-          }}
-        />
-        <Stack.Screen
-          name="exercises/create"
-          options={{
-            title: 'Nouvel exercice',
-            headerBackTitle: 'Retour',
-          }}
-        />
-        <Stack.Screen
-          name="arena/index"
-          options={{
-            title: 'Arène Vitax',
-            headerBackTitle: 'Retour',
-          }}
-        />
-      </Stack>
-      <FriendInviteNotificationBanner />
+      <View style={styles.webOuterShell}>
+        <View style={styles.webInnerContainer}>
+          <Stack
+            screenOptions={{
+              headerStyle: {
+                backgroundColor: Colors.background,
+              },
+              headerTintColor: Colors.text,
+              headerTitleStyle: {
+                fontWeight: '700',
+              },
+              contentStyle: {
+                backgroundColor: Colors.background,
+              },
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="workout/active"
+              options={{
+                headerShown: false,
+                presentation: 'fullScreenModal',
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="workout/summary"
+              options={{
+                headerShown: false,
+                presentation: 'modal',
+              }}
+            />
+            <Stack.Screen
+              name="workout/ai-generator"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="running/index"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="programs/[id]"
+              options={{
+                title: 'Détails du programme',
+                headerBackTitle: 'Retour',
+              }}
+            />
+            <Stack.Screen
+              name="programs/create"
+              options={{
+                title: 'Créer un programme',
+                headerBackTitle: 'Retour',
+              }}
+            />
+            <Stack.Screen
+              name="programs/target-muscle"
+              options={{
+                title: 'Ciblage Musculaire',
+                headerBackTitle: 'Retour',
+              }}
+            />
+            <Stack.Screen
+              name="exercises/index"
+              options={{
+                title: 'Catalogue d’exercices',
+                headerBackTitle: 'Retour',
+              }}
+            />
+            <Stack.Screen
+              name="exercises/create"
+              options={{
+                title: 'Nouvel exercice',
+                headerBackTitle: 'Retour',
+              }}
+            />
+            <Stack.Screen
+              name="arena/index"
+              options={{
+                title: 'Arène Vitax',
+                headerBackTitle: 'Retour',
+              }}
+            />
+          </Stack>
+          <FriendInviteNotificationBanner />
+        </View>
+      </View>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  webOuterShell: {
+    flex: 1,
+    backgroundColor: '#05070B',
+    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
+  },
+  webInnerContainer: {
+    flex: 1,
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? 520 : undefined,
+    backgroundColor: Colors.background,
+    ...(Platform.OS === 'web'
+      ? {
+          borderLeftWidth: 1,
+          borderRightWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.06)',
+        }
+      : {}),
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: Colors.background,

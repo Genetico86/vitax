@@ -624,6 +624,66 @@ CREATE POLICY "friend_challenges_update_authenticated" ON public.friend_challeng
   USING (public.current_vitax_user_id() IS NOT NULL)
   WITH CHECK (public.current_vitax_user_id() IS NOT NULL);
 
+-- 3.7 Tables relationnelles dédiées remplaçant le détournement de public.trades (Fiche 1.5)
+CREATE TABLE IF NOT EXISTS public.deleted_entities (
+  user_id TEXT PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  deleted_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.active_workouts (
+  user_id TEXT PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  draft JSONB,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.daily_bonuses (
+  user_id TEXT PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  bonus_dates JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_settings (
+  user_id TEXT PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  settings JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.custom_catalog (
+  user_id TEXT PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  custom_exercises JSONB NOT NULL DEFAULT '[]'::jsonb,
+  custom_programs JSONB NOT NULL DEFAULT '[]'::jsonb,
+  custom_program_exercises JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.deleted_entities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.active_workouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_bonuses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.custom_catalog ENABLE ROW LEVEL SECURITY;
+
+DO $$
+DECLARE
+  t text;
+  extra_tables text[] := ARRAY[
+    'deleted_entities',
+    'active_workouts',
+    'daily_bonuses',
+    'user_settings',
+    'custom_catalog'
+  ];
+BEGIN
+  FOREACH t IN ARRAY extra_tables
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "%I_owner_isolation" ON public.%I', t, t);
+    EXECUTE format(
+      'CREATE POLICY "%I_owner_isolation" ON public.%I FOR ALL TO anon, authenticated USING (user_id = public.current_vitax_user_id()) WITH CHECK (user_id = public.current_vitax_user_id())',
+      t, t
+    );
+  END LOOP;
+END $$;
+
 -- 4. PRIVILÈGES DE COLONNES SUR PROFILES (INTERDIT LA LECTURE DE PASSWORD / PASSWORD_HASH AUX CLIENTS)
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
@@ -648,3 +708,4 @@ GRANT SELECT (
 GRANT EXECUTE ON FUNCTION public.current_vitax_user_id() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.register_trainer_secure(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.authenticate_trainer_secure(TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+
