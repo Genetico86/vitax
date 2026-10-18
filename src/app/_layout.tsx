@@ -19,12 +19,12 @@ export default function RootLayout() {
     let isCancelled = false;
     let cleanupRealtime = () => {};
 
-    // Chien de garde (watchdog) : garantit que l'écran de chargement ne reste jamais bloqué plus de 2.5s
+    // Chien de garde (watchdog) de sécurité : laisse le temps au WASM SQLite de terminer le seed initial sur mobile bas de gamme (8s max)
     const watchdog = setTimeout(() => {
       if (!isCancelled) {
         setIsReady(true);
       }
-    }, 2500);
+    }, 8000);
 
     async function setup() {
       try {

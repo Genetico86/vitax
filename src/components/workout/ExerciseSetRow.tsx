@@ -8,7 +8,12 @@ import {
 } from 'react-native';
 import { ActiveWorkoutSetItem } from '../../types';
 import { Colors } from '../../constants/colors';
-import { getExerciseUnitInfo } from '../../utils/exerciseUnits';
+import {
+  getExerciseUnitInfo,
+  convertWeightFromKg,
+  KG_TO_LBS_FACTOR,
+} from '../../utils/exerciseUnits';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 interface ExerciseSetRowProps {
   set: ActiveWorkoutSetItem;
@@ -31,28 +36,46 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
   onToggleComplete,
   onRemove,
 }) => {
+  const weightUnit = useSettingsStore((state) => state.weight_unit);
   const unitInfo = getExerciseUnitInfo(exercise);
   const isDuration = unitInfo.isDuration;
+  const isLbsMode = !isDuration && weightUnit === 'lbs';
 
   const [weightDraft, setWeightDraft] = useState<string | null>(null);
   const [repsDraft, setRepsDraft] = useState<string | null>(null);
 
+  const displayLoadValue = isLbsMode
+    ? convertWeightFromKg(set.weight, 'lbs')
+    : set.weight;
+
   const displayedWeight =
-    weightDraft !== null ? weightDraft : set.weight === 0 ? '' : String(set.weight);
+    weightDraft !== null
+      ? weightDraft
+      : displayLoadValue === 0
+      ? ''
+      : String(displayLoadValue);
   const displayedReps =
     repsDraft !== null ? repsDraft : set.reps === 0 ? '' : String(set.reps);
+
+  const toInternalKg = (enteredVal: number): number => {
+    if (!Number.isFinite(enteredVal) || enteredVal <= 0) return 0;
+    if (isLbsMode) {
+      return Math.round((enteredVal / KG_TO_LBS_FACTOR) * 100) / 100;
+    }
+    return Math.round(enteredVal * 100) / 100;
+  };
 
   const handleWeightChange = (text: string) => {
     const cleaned = text.replace(/[^0-9.,]/g, '');
     setWeightDraft(cleaned);
     const val = parseFloat(cleaned.replace(',', '.'));
-    onUpdate(isNaN(val) ? 0 : val, set.reps);
+    onUpdate(isNaN(val) ? 0 : toInternalKg(val), set.reps);
   };
 
   const handleWeightBlur = () => {
     if (weightDraft !== null) {
       const val = parseFloat(weightDraft.replace(',', '.'));
-      const safeVal = isNaN(val) || val < 0 ? 0 : Math.round(val * 100) / 100;
+      const safeVal = isNaN(val) || val < 0 ? 0 : toInternalKg(val);
       onUpdate(safeVal, set.reps);
       setWeightDraft(null);
     }
@@ -78,13 +101,15 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
     ? unitInfo.loadUnit === 'km/h'
       ? 0.5
       : 1
+    : isLbsMode
+    ? 5
     : 2.5;
 
   const adjustWeight = (multiplier: number) => {
     const delta = multiplier * weightStep;
-    const nextWeight = Math.max(0, Math.round((set.weight + delta) * 10) / 10);
+    const nextDisplay = Math.max(0, Math.round((displayLoadValue + delta) * 10) / 10);
     setWeightDraft(null);
-    onUpdate(nextWeight, set.reps);
+    onUpdate(toInternalKg(nextDisplay), set.reps);
   };
 
   const adjustReps = (delta: number) => {
@@ -102,7 +127,10 @@ export const ExerciseSetRow: React.FC<ExerciseSetRowProps> = ({
         ? `${set.previous_reps}min@${set.previous_weight}`
         : `${set.previous_reps}min`;
     }
-    return `${set.previous_weight}${unitInfo.loadUnit}×${set.previous_reps}`;
+    const prevLoad = isLbsMode
+      ? convertWeightFromKg(set.previous_weight || 0, 'lbs')
+      : set.previous_weight;
+    return `${prevLoad}${unitInfo.loadUnit}×${set.previous_reps}`;
   })();
 
   const exName = exercise?.name || 'Exercice';

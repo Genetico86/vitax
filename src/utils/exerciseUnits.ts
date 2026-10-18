@@ -67,6 +67,34 @@ export function isDurationExercise(exercise?: {
   return false;
 }
 
+export const KG_TO_LBS_FACTOR = 2.20462;
+
+/**
+ * Convertit un poids stocké en kg vers l'unité choisie par l'utilisateur ('kg' ou 'lbs')
+ */
+export function convertWeightFromKg(weightKg: number, unit?: 'kg' | 'lbs'): number {
+  const effectiveUnit = unit || useSettingsStore.getState().weight_unit || 'kg';
+  const safeKg = Number.isFinite(weightKg) ? weightKg : 0;
+  if (effectiveUnit === 'lbs') {
+    return Math.round(safeKg * KG_TO_LBS_FACTOR * 10) / 10;
+  }
+  return Math.round(safeKg * 10) / 10;
+}
+
+/**
+ * Formate un poids ou un volume (en kg) avec l'unité active de l'utilisateur ('kg' ou 'lbs')
+ */
+export function formatWeightWithUnit(
+  weightKg: number,
+  unit?: 'kg' | 'lbs',
+  roundWhole = false
+): string {
+  const effectiveUnit = unit || useSettingsStore.getState().weight_unit || 'kg';
+  const converted = convertWeightFromKg(weightKg, effectiveUnit);
+  const finalVal = roundWhole ? Math.round(converted) : converted;
+  return `${finalVal.toLocaleString()} ${effectiveUnit}`;
+}
+
 /**
  * Fournit les unités et libellés adaptés au matériel utilisé et au réglage kg/lbs.
  */
@@ -136,7 +164,8 @@ export function getExerciseUnitInfo(exercise?: {
     defaultStep: 1, // Pas de 1 rep
     formatSet: (weight: number, reps: number) => {
       if (weight > 0) {
-        return `${reps} reps @ ${weight} ${unit}`;
+        const displayWeight = convertWeightFromKg(weight, unit);
+        return `${reps} reps @ ${displayWeight} ${unit}`;
       }
       return `${reps} reps`;
     },

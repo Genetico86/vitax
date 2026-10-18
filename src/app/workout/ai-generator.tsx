@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { showAlert } from '../../utils/alert';
 import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -80,7 +80,7 @@ export default function AIWorkoutGeneratorScreen() {
   const toggleEquipment = (eq: Equipment) => {
     if (equipments.includes(eq)) {
       if (equipments.length <= 1) {
-        Alert.alert('Attention', 'Vous devez conserver au moins un équipement coché.');
+        showAlert('Attention', 'Vous devez conserver au moins un équipement coché.');
         return;
       }
       setEquipments(equipments.filter((e) => e !== eq));
@@ -101,7 +101,7 @@ export default function AIWorkoutGeneratorScreen() {
       });
       setGeneratedPlan(plan);
     } catch (err: any) {
-      Alert.alert('Erreur de génération', err.message || 'Impossible de créer la séance.');
+      showAlert('Erreur de génération', err.message || 'Impossible de créer la séance.');
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function AIWorkoutGeneratorScreen() {
       await startGeneratedWorkout(generatedPlan);
       router.push('/workout/active');
     } catch (err: any) {
-      Alert.alert('Erreur', 'Impossible de démarrer la séance : ' + err.message);
+      showAlert('Erreur', 'Impossible de démarrer la séance : ' + err.message);
     }
   };
 
@@ -122,7 +122,7 @@ export default function AIWorkoutGeneratorScreen() {
     try {
       setSavingProgram(true);
       const progId = await saveGeneratedPlanAsProgram(generatedPlan);
-      Alert.alert(
+      showAlert(
         'Programme enregistré !',
         'Votre séance a été sauvegardée dans vos programmes personnalisés.',
         [
@@ -134,7 +134,7 @@ export default function AIWorkoutGeneratorScreen() {
         ]
       );
     } catch (err: any) {
-      Alert.alert('Erreur', 'Impossible d’enregistrer le programme : ' + err.message);
+      showAlert('Erreur', 'Impossible d’enregistrer le programme : ' + err.message);
     } finally {
       setSavingProgram(false);
     }

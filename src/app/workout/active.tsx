@@ -31,6 +31,10 @@ import {
 } from '../../services/favoritesService';
 import { ExerciseGuideModal } from '../../components/workout/ExerciseGuideModal';
 import { showAlert } from '../../utils/alert';
+import {
+  calculateActiveExercisesXp,
+  calculateSingleExerciseXp,
+} from '../../services/gamificationService';
 
 export default function ActiveWorkoutScreen() {
   const {
@@ -127,25 +131,7 @@ export default function ActiveWorkoutScreen() {
   };
 
   const liveXp = useMemo(() => {
-    let completedSets = 0;
-    let volume = 0;
-    exercises.forEach((ex) => {
-      ex.sets.forEach((s) => {
-        if (s.completed) {
-          completedSets += 1;
-          volume += (s.weight || 0) * (s.reps || 0);
-        }
-      });
-    });
-    const setsXp = completedSets * 15;
-    const volumeXp = Math.floor(volume / 40);
-    const completionBonus = completedSets > 0 ? 100 : 0;
-    return {
-      completedSets,
-      volume,
-      inProgressXp: setsXp + volumeXp,
-      totalXp: setsXp + volumeXp + completionBonus,
-    };
+    return calculateActiveExercisesXp(exercises);
   }, [exercises]);
 
   if (!isActive) {
@@ -489,8 +475,7 @@ export default function ActiveWorkoutScreen() {
               {(() => {
                 const isCompleted = exItem.sets.length > 0 && exItem.sets.every((s) => s.completed);
                 const exCompletedSets = exItem.sets.filter((s) => s.completed).length;
-                const exVol = exItem.sets.filter((s) => s.completed).reduce((acc, s) => acc + s.weight * s.reps, 0);
-                const exXp = exCompletedSets * 15 + Math.floor(exVol / 40);
+                const exXp = calculateSingleExerciseXp(exItem);
 
                 if (!isCompleted) return null;
 

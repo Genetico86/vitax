@@ -146,12 +146,18 @@ export const ATHLETE_RANK_TIERS: AthleteRankTier[] = [
 ];
 
 /**
- * Calcule l'XP gagné sur une séance spécifique
- * L'XP provient du travail biomécanique réel des séries + du bonus journalier d'entraînement.
+ * Calcule l'XP gagné sur une séance spécifique (source unique de vérité biomécanique)
  */
 export function calculateSessionXp(
   session: WorkoutSession,
-  sets?: { weight: number; reps: number; completed?: number }[]
+  sets?: {
+    weight: number;
+    reps: number;
+    completed?: number | boolean;
+    exercise_name?: string;
+    target_muscle?: string;
+    equipment_needed?: string;
+  }[]
 ): SessionXpSummary {
   const completionXp = 0;
   let setsXp = 0;
@@ -161,7 +167,13 @@ export function calculateSessionXp(
     sets.forEach((s) => {
       const isDone = s.completed === undefined ? true : Boolean(s.completed);
       if (isDone && (s.weight > 0 || s.reps > 0)) {
-        const comp = computeSetXp({ weight: s.weight, reps: s.reps });
+        const comp = computeSetXp({
+          exerciseName: s.exercise_name,
+          targetMuscle: s.target_muscle,
+          equipmentNeeded: s.equipment_needed,
+          weight: s.weight || 0,
+          reps: s.reps || 0,
+        });
         setsXp += comp.baseSetXp;
         volumeXp += comp.volumeXp;
       }
@@ -176,6 +188,81 @@ export function calculateSessionXp(
     setsXp,
     volumeXp,
     totalXp: setsXp + volumeXp,
+  };
+}
+
+/**
+ * Calcule l'XP biomécanique d'un seul exercice actif (pour la bannière de validation en direct)
+ */
+export function calculateSingleExerciseXp(exerciseItem: {
+  exercise: { name?: string; target_muscle?: string; equipment_needed?: string };
+  sets: { weight: number; reps: number; completed?: boolean | number }[];
+}): number {
+  let xp = 0;
+  exerciseItem.sets.forEach((s) => {
+    if (s.completed && (s.weight > 0 || s.reps > 0)) {
+      const comp = computeSetXp({
+        exerciseName: exerciseItem.exercise.name,
+        targetMuscle: exerciseItem.exercise.target_muscle,
+        equipmentNeeded: exerciseItem.exercise.equipment_needed,
+        weight: s.weight || 0,
+        reps: s.reps || 0,
+      });
+      xp += comp.totalSetXp;
+    }
+  });
+  return xp;
+}
+
+/**
+ * Calcule l'XP biomécanique en direct pour l'ensemble des exercices d'une séance active
+ */
+export function calculateActiveExercisesXp(
+  exercises: {
+    exercise: { name?: string; target_muscle?: string; equipment_needed?: string };
+    sets: { weight: number; reps: number; completed?: boolean | number }[];
+  }[]
+): {
+  completedSets: number;
+  volume: number;
+  setsXp: number;
+  volumeXp: number;
+  inProgressXp: number;
+  totalXp: number;
+} {
+  let completedSets = 0;
+  let volume = 0;
+  let setsXp = 0;
+  let volumeXp = 0;
+
+  exercises.forEach((ex) => {
+    ex.sets.forEach((s) => {
+      if (s.completed) {
+        completedSets += 1;
+        volume += (s.weight || 0) * (s.reps || 0);
+        if ((s.weight || 0) > 0 || (s.reps || 0) > 0) {
+          const comp = computeSetXp({
+            exerciseName: ex.exercise.name,
+            targetMuscle: ex.exercise.target_muscle,
+            equipmentNeeded: ex.exercise.equipment_needed,
+            weight: s.weight || 0,
+            reps: s.reps || 0,
+          });
+          setsXp += comp.baseSetXp;
+          volumeXp += comp.volumeXp;
+        }
+      }
+    });
+  });
+
+  const inProgressXp = setsXp + volumeXp;
+  return {
+    completedSets,
+    volume,
+    setsXp,
+    volumeXp,
+    inProgressXp,
+    totalXp: inProgressXp,
   };
 }
 
@@ -333,45 +420,29 @@ export async function getUserGamificationStats(): Promise<{
     // Table non encore migrée si ancien schéma
   }
 
-  // Prise en compte de l'XP et des séances synchronisés sur le profil Supabase
+  // Lecture du nombre de séances synchronisées sur le profil Supabase
   let cloudWorkoutsCount = 0;
+  let parsedProfile: any = null;
   try {
     const rawProfile = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
     if (rawProfile) {
-      const parsed = JSON.parse(rawProfile);
-      let profileUpdated = false;
-      if (parsed.totalXp && parsed.totalXp > totalXp) {
-        totalXp = parsed.totalXp;
-      } else if (totalXp > (parsed.totalXp || 0)) {
-        parsed.totalXp = totalXp;
-        profileUpdated = true;
-      }
-      if (parsed.totalWorkouts && parsed.totalWorkouts > 0) {
-        cloudWorkoutsCount = parsed.totalWorkouts;
-      }
-      if (profileUpdated) {
-        await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
-        import('./multiplayer/profileService')
-          .then(({ syncTrainerProfileToSupabase }) => {
-            void syncTrainerProfileToSupabase(parsed);
-          })
-          .catch(() => {});
+      parsedProfile = JSON.parse(rawProfile);
+      if (parsedProfile?.totalWorkouts && parsedProfile.totalWorkouts > 0) {
+        cloudWorkoutsCount = parsedProfile.totalWorkouts;
       }
     }
   } catch (err) {
     console.warn('Erreur lecture XP profil:', err);
   }
 
-  const levelInfo = computeLevelInfoForXp(totalXp);
-
-  // Calcul des trophées d'Athlète
+  // Calcul des trophées d'Athlète et crédit effectif de leurs récompenses (rewardXp)
   const totalSessions = Math.max(sessions.length, cloudWorkoutsCount);
   const effectiveSetsCount = Math.max(totalSetsCount, allCompletedSetsCount);
   const hasRack900Session = sessions.some(
     (s) => s.program_name && s.program_name.includes('Rack 900')
   );
 
-  const achievements: Achievement[] = [
+  const baseAchievements: Achievement[] = [
     {
       id: 'first_workout',
       title: 'Première Séance Validée',
@@ -432,17 +503,58 @@ export async function getUserGamificationStats(): Promise<{
       maxProgress: 20,
       rewardXp: 500,
     },
+  ];
+
+  // Créditer les récompenses XP des trophées débloqués
+  const baseAchievementsXp = baseAchievements
+    .filter((a) => a.unlocked)
+    .reduce((sum, a) => sum + a.rewardXp, 0);
+
+  totalXp += baseAchievementsXp;
+
+  const isTitanUnlocked = totalXp >= 10500 || (parsedProfile?.totalXp || 0) >= 10500;
+  if (isTitanUnlocked) {
+    totalXp += 1000;
+  }
+
+  const achievements: Achievement[] = [
+    ...baseAchievements,
     {
       id: 'kanto_master_tier',
       title: 'Titan de la Fonte (10 500 XP)',
       description: 'Atteindre le rang Titan de la Fonte en accumulant 10 500 XP',
       icon: '🏆',
-      unlocked: totalXp >= 10500,
+      unlocked: isTitanUnlocked,
       progress: Math.min(10500, totalXp),
       maxProgress: 10500,
       rewardXp: 1000,
     },
   ];
+
+  // Synchronisation bidirectionnelle anti-régression avec le profil
+  try {
+    if (parsedProfile) {
+      let profileUpdated = false;
+      if (parsedProfile.totalXp && parsedProfile.totalXp > totalXp) {
+        totalXp = parsedProfile.totalXp;
+      } else if (totalXp > (parsedProfile.totalXp || 0)) {
+        parsedProfile.totalXp = totalXp;
+        profileUpdated = true;
+      }
+      if (profileUpdated) {
+        await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsedProfile));
+        import('./multiplayer/profileService')
+          .then(({ syncTrainerProfileToSupabase }) => {
+            void syncTrainerProfileToSupabase(parsedProfile);
+          })
+          .catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('Erreur synchronisation XP profil:', err);
+  }
+
+  const levelInfo = computeLevelInfoForXp(totalXp);
 
   return {
     totalXp,

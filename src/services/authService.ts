@@ -874,3 +874,75 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
   }
   return false;
 }
+
+/**
+ * Conformité RGPD (Article 17 - Droit à l'oubli) :
+ * Supprime définitivement le compte athlète et l'intégralité de ses données Cloud (Supabase) et locales (SQLite + AsyncStorage).
+ */
+export async function deleteTrainerAccountAndCloudData(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const session = await getPersistedSession();
+    const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+    const prof = rawProf ? JSON.parse(rawProf) : null;
+    const userId = session?.userId || prof?.id;
+
+    if (userId && isSupabaseConfigured()) {
+      setSupabaseActiveUserId(userId);
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        await Promise.allSettled([
+          supabase.from('workout_sets').delete().eq('user_id', userId),
+          supabase.from('workout_sessions').delete().eq('user_id', userId),
+          supabase.from('user_favorites').delete().eq('user_id', userId),
+          supabase.from('body_weights').delete().eq('user_id', userId),
+          supabase.from('fitness_goals').delete().eq('user_id', userId),
+          supabase.from('running_sessions').delete().eq('user_id', userId),
+          supabase.from('weekly_leaderboards').delete().eq('user_id', userId),
+          supabase.from('raid_contributions').delete().eq('user_id', userId),
+          supabase.from('trades').delete().eq('sender_id', userId),
+          supabase.from('friends').delete().eq('user_id', userId),
+          supabase.from('friends').delete().eq('friend_id', userId),
+          supabase.from('friend_requests').delete().eq('sender_id', userId),
+          supabase.from('friend_requests').delete().eq('receiver_id', userId),
+          supabase.from('friend_gifts').delete().eq('sender_id', userId),
+          supabase.from('friend_gifts').delete().eq('receiver_id', userId),
+          supabase.from('friend_challenges').delete().eq('creator_id', userId),
+        ]);
+
+        await supabase.from('profiles').delete().eq('id', userId);
+        await supabase.auth.signOut().catch(() => {});
+      }
+    }
+
+    setSupabaseActiveUserId(null);
+
+    const { resetDatabase } = await import('../database/db');
+    await resetDatabase();
+
+    await AsyncStorage.multiRemove([
+      STORAGE_KEY_AUTH_SESSION,
+      STORAGE_KEY_PROFILE,
+      STORAGE_KEY_CREDENTIALS,
+      '@vitax_deleted_ids',
+      '@vitax_active_workout_draft',
+      '@vitax_favorite_exercise_ids',
+      '@vitax_daily_bonus_state',
+      '@vitax_friends_list',
+      '@vitax_friend_requests',
+      '@vitax_friend_challenges',
+      '@vitax_friend_gifts_v1',
+    ]);
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Erreur suppression compte RGPD:', err);
+    return {
+      success: false,
+      error: err?.message || 'Erreur lors de la suppression des données.',
+    };
+  }
+}
+
