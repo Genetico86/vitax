@@ -227,7 +227,7 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   webOuterShell: {
     flex: 1,
-    backgroundColor: '#05070B',
+    backgroundColor: '#000000',
     alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
   },
   webInnerContainer: {
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
       ? {
           borderLeftWidth: 1,
           borderRightWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.06)',
+          borderColor: 'rgba(255, 255, 255, 0.08)',
         }
       : {}),
   },
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: -0.4,
   },
   loadingSub: {
     marginTop: 8,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     paddingHorizontal: 28,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 9999,
   },
   retryButtonText: {
     color: Colors.primaryText,

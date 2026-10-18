@@ -211,7 +211,7 @@ export default function WorkoutSummaryScreen() {
 
             <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>XP d’Entraînement</Text>
-              <Text style={[styles.metricValue, { color: '#FF7A45', fontWeight: '900' }]}>
+              <Text style={[styles.metricValue, { color: Colors.primary, fontWeight: '900' }]}>
                 +{xpSummary?.totalXp ?? 100} XP
               </Text>
             </View>
@@ -424,37 +424,40 @@ const styles = StyleSheet.create({
   metricItem: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#0F1624',
+    backgroundColor: Colors.cardElevated,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#192436',
+    borderColor: Colors.surfaceBorder,
   },
   metricLabel: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   metricValue: {
     fontSize: 18,
     fontWeight: '900',
     color: '#FFFFFF',
     marginTop: 4,
+    fontVariant: ['tabular-nums'],
   },
   metricValueHighlight: {
     fontSize: 18,
     fontWeight: '900',
     color: Colors.primary,
     marginTop: 4,
+    fontVariant: ['tabular-nums'],
   },
   exercisesCard: {
-    backgroundColor: '#121A28',
-    borderRadius: 16,
+    backgroundColor: Colors.cardBg,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#1E2D44',
+    borderColor: Colors.surfaceBorder,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -468,7 +471,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   cardSectionSub: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -476,11 +479,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0F1624',
-    padding: 10,
-    borderRadius: 10,
+    backgroundColor: Colors.cardElevated,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#182436',
+    borderColor: Colors.surfaceBorder,
     marginBottom: 8,
   },
   exerciseNameText: {
@@ -489,21 +492,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   exerciseSetsText: {
-    color: '#38BDF8',
+    color: Colors.accent,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   exerciseSetsCountBadge: {
-    backgroundColor: 'rgba(255, 90, 31, 0.15)',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(255, 45, 85, 0.15)',
+    paddingHorizontal: 9,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 9999,
     borderWidth: 1,
-    borderColor: 'rgba(255, 90, 31, 0.3)',
+    borderColor: 'rgba(255, 45, 85, 0.3)',
   },
   exerciseSetsCountText: {
-    color: '#FF7A45',
+    color: Colors.primary,
     fontSize: 10,
     fontWeight: '900',
   },
@@ -513,12 +517,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   dailyConsolidatedCard: {
-    backgroundColor: 'rgba(255, 90, 31, 0.08)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 45, 85, 0.08)',
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
-    borderWidth: 1.5,
-    borderColor: '#FF5A1F',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 45, 85, 0.25)',
   },
   dailyConsolidatedHeader: {
     marginBottom: 12,

@@ -23,12 +23,13 @@ export default function TabsLayout() {
         headerTitleStyle: {
           color: Colors.text,
           fontWeight: '800',
-          fontSize: 20,
+          fontSize: 19,
+          letterSpacing: -0.4,
         },
         tabBarStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: Colors.tabBarBg,
           borderTopColor: Colors.surfaceBorder,
-          borderTopWidth: 1.5,
+          borderTopWidth: 1,
           height: tabHeight,
           paddingBottom: safeBottom,
           paddingTop: 8,
@@ -39,11 +40,12 @@ export default function TabsLayout() {
           shadowRadius: 8,
         },
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textMuted,
+        tabBarInactiveTintColor: Colors.textSecondary,
         tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '800',
+          fontSize: 11,
+          fontWeight: '700',
+          letterSpacing: -0.2,
           marginTop: 2,
         },
       }}
@@ -52,7 +54,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Accueil',
-          headerTitle: 'VITAX MUSCULATION',
+          headerTitle: 'Vitax',
           tabBarIcon: ({ focused }) => (
             <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
               🏋️
@@ -64,7 +66,7 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: 'Progression',
-          headerTitle: 'SUIVI DE PROGRESSION',
+          headerTitle: 'Progression',
           tabBarIcon: ({ focused }) => (
             <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
               📈
@@ -86,7 +88,7 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: 'Paramètres',
-          headerTitle: 'PARAMÈTRES',
+          headerTitle: 'Paramètres',
           tabBarIcon: ({ focused }) => (
             <Text style={{ fontSize: 24, lineHeight: 28, textAlign: 'center', opacity: focused ? 1 : 0.6 }}>
               ⚙️

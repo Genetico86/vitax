@@ -1,50 +1,57 @@
 export const Colors = {
-  // Fond et surfaces (Obsidian & Slate)
-  background: '#080C14',        // Noir obsidienne profond (supprime reflets et halo)
-  surface: '#111827',           // Slate neutre et élégant pour les cartes
-  surfaceHover: '#1E293B',      // État survol / sélection active
-  surfaceBorder: '#283548',     // Bordure subtile haute définition (contraste 3:1)
+  // Fond et surfaces (Apple Dark Mode Semantic Hierarchy)
+  background: '#000000',        // Pure OLED True Black (Apple Fitness / Watch)
+  surface: '#1C1C1E',           // Apple Secondary System Background (Cartes iOS)
+  surfaceHover: '#2C2C2E',      // Apple Tertiary System Background (Survol / Pressé)
+  surfaceBorder: 'rgba(255, 255, 255, 0.08)', // Trait laser ultra-fin Apple
+  surfaceBorderHover: 'rgba(255, 255, 255, 0.16)',
   
-  // Brand Totem (L'Énergie Strava de la Musculation)
-  primary: '#FF5500',           // Apex Ember incandescent
-  primaryLight: '#FF7733',      // Dégradés et états pressés
-  primaryDark: '#D94400',       // Ombres et bordures de boutons
-  primaryText: '#080C14',       // NOUVEAU : Texte noir ultra-contrasté sur bouton orange (WCAG AAA 7.8:1)
+  // Brand Totem (Apple Fitness+ Move Ring & Énergie)
+  primary: '#FF2D55',           // Apple Fitness Move Coral Pink / Vibrant Rose
+  primaryLight: '#FF375F',      // Apple System Pink/Red éclatant
+  primaryDark: '#D70015',       // Nuance profonde
+  primaryText: '#FFFFFF',       // Texte blanc contrasté sur pastilles Apple
   
-  // Accents Fonctionnels
-  accent: '#00E5FF',            // Cryo Cyan : Chrono de repos, Coach IA, biofeedback
-  accentLight: '#67EEFF',
+  // Accents Fonctionnels (Apple Health Teal & iOS Blue)
+  accent: '#00C7BE',            // Apple Health Teal : Chrono, biofeedback, focus
+  accentLight: '#63E6E2',
+  systemBlue: '#0A84FF',        // Apple System Blue (Info & Actions secondaires)
   
-  // Validation et Croissance
-  success: '#10B981',           // Emerald Power : Séries validées, gains musculaires
-  successLight: '#34D399',
-  successBackground: 'rgba(16, 185, 129, 0.15)',
+  // Validation et Croissance (Apple Exercise Ring)
+  success: '#30D158',           // Apple Exercise Ring Neon Green (Séries validées)
+  successLight: '#34C759',
+  successBackground: 'rgba(48, 209, 88, 0.15)',
   
-  // Dangers et Alertes
-  danger: '#EF4444',            // Crimson : Annulations, boss de raid, échecs
-  dangerLight: '#F87171',
-  dangerBackground: 'rgba(239, 68, 68, 0.15)',
+  // Dangers et Alertes (Apple System Red)
+  danger: '#FF453A',            // Apple System Red Dark Mode
+  dangerLight: '#FF6961',
+  dangerBackground: 'rgba(255, 69, 58, 0.15)',
   
-  // Prestige, Trophées & Badges RP
-  warning: '#F59E0B',           // Solar Gold : Records personnels, médailles
-  gold: '#F59E0B',
+  // Prestige, Trophées & Badges (Apple System Yellow / Gold)
+  warning: '#FFD60A',           // Apple System Yellow (Records personnels, étoiles)
+  gold: '#FFD60A',
   
-  // Social & Arène
-  arena: '#8B5CF6',             // Mystic Amethyst : Bannières d'arène, ligues, duels
-  arenaLight: '#A855F7',
+  // Social & Arène (Apple System Purple)
+  arena: '#BF5AF2',             // Apple System Purple (Multijoueur, ligues)
+  arenaLight: '#DA8FFF',
   
-  // Typographie Scientifique (WCAG AAA)
-  text: '#F9FAFB',              // Blanc glacier pur (18.2:1 sur fond)
-  textSecondary: '#94A3B8',     // Slate moyen lisible (7.2:1 sur fond)
-  textMuted: '#64748B',         // Slate discret pour métadonnées (4.6:1)
-  textInverse: '#080C14',
+  // Typographie Apple SF (San Francisco Hierarchy)
+  text: '#FFFFFF',              // Primary Label (100% blanc pur)
+  textSecondary: '#8E8E93',     // Secondary Label (Gris système Apple standard)
+  textMuted: '#636366',         // Tertiary Label (Gris discret métadonnées)
+  textInverse: '#000000',
   
-  // Composants et Formulaires
-  cardBg: '#111827',
-  inputBg: '#0F172A',
-  buttonGray: '#1E293B',
-  buttonGrayText: '#F1F5F9',
+  // Composants et Formulaires (Apple Materials)
+  cardBg: '#1C1C1E',
+  cardElevated: '#2C2C2E',
+  inputBg: '#2C2C2E',
+  buttonGray: '#2C2C2E',
+  buttonGrayText: '#FFFFFF',
   
-  timerOverlay: 'rgba(8, 12, 20, 0.95)',
-  divider: '#1E293B',
+  timerOverlay: 'rgba(0, 0, 0, 0.92)',
+  divider: 'rgba(255, 255, 255, 0.08)',
+  
+  // Matériaux Translucides Apple Glass
+  tabBarBg: 'rgba(28, 28, 30, 0.92)',
+  cardGlassBg: 'rgba(28, 28, 30, 0.75)',
 };
