@@ -7,50 +7,30 @@ const seedData = JSON.parse(
   fs.readFileSync(path.join(__dirname, '../src/database/seedData.json'), 'utf8')
 );
 
-// 2. Extraire MUSCLE_GROUPS_INFO depuis src/constants/muscles.ts
-const musclesTs = fs.readFileSync(
-  path.join(__dirname, '../src/constants/muscles.ts'),
-  'utf8'
-);
-const muscleStartIdx = musclesTs.indexOf(
-  'export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {'
-);
-const muscleSlice = musclesTs.substring(muscleStartIdx);
-const muscleSubSlice = muscleSlice.substring(
-  muscleSlice.indexOf('{'),
-  muscleSlice.indexOf('\n};\n') + 2
-);
-const muscleSandbox = {};
-vm.runInNewContext('muscleGroupsInfo = ' + muscleSubSlice, muscleSandbox);
-const muscleGroupsInfo = muscleSandbox.muscleGroupsInfo;
+// 2. Transpiler et charger MUSCLE_GROUPS_INFO & BODY_ZONES depuis src/constants/muscles.ts
+const ts = require('typescript');
 
-// Extraire BODY_ZONES
-const zoneStartIdx = musclesTs.indexOf('export const BODY_ZONES: BodyZoneInfo[] = [');
-const zoneSlice = musclesTs.substring(zoneStartIdx);
-const zoneSubSlice = zoneSlice.substring(
-  zoneSlice.indexOf('['),
-  zoneSlice.indexOf('\n];\n') + 2
-);
-const zoneSandbox = {};
-vm.runInNewContext('bodyZones = ' + zoneSubSlice, zoneSandbox);
-const bodyZones = zoneSandbox.bodyZones;
+function loadTsModule(filePath) {
+  const code = fs.readFileSync(filePath, 'utf8');
+  const transpiled = ts.transpileModule(code, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const mod = { exports: {} };
+  const fn = new Function('module', 'exports', 'require', transpiled);
+  fn(mod, mod.exports, (id) => ({
+    Platform: { OS: 'web' },
+    default: {},
+  }));
+  return mod.exports;
+}
 
-// 3. Extraire EXERCISE_GUIDES_DATABASE depuis exerciseGuideService.ts
-const guideTs = fs.readFileSync(
-  path.join(__dirname, '../src/services/exerciseGuideService.ts'),
-  'utf8'
-);
-const guideStartIdx = guideTs.indexOf(
-  'export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = {'
-);
-const guideSlice = guideTs.substring(guideStartIdx);
-const guideSubSlice = guideSlice.substring(
-  guideSlice.indexOf('{'),
-  guideSlice.indexOf('\n};\n') + 2
-);
-const guideSandbox = {};
-vm.runInNewContext('expertGuides = ' + guideSubSlice, guideSandbox);
-const expertGuides = guideSandbox.expertGuides;
+const musclesModule = loadTsModule(path.join(__dirname, '../src/constants/muscles.ts'));
+const muscleGroupsInfo = musclesModule.MUSCLE_GROUPS_INFO;
+const bodyZones = musclesModule.BODY_ZONES;
+
+// 3. Charger EXERCISE_GUIDES_DATABASE depuis exerciseGuideService.ts
+const guideModule = loadTsModule(path.join(__dirname, '../src/services/exerciseGuideService.ts'));
+const expertGuides = guideModule.EXERCISE_GUIDES_DATABASE;
 
 console.log('Evaluated expert guides count:', Object.keys(expertGuides).length);
 console.log('Evaluated muscle groups count:', Object.keys(muscleGroupsInfo).length);

@@ -879,6 +879,198 @@
       "target_muscle": "Biceps",
       "equipment_needed": "Élastique",
       "is_custom": 0
+    },
+    {
+      "id": "ex_cable_lat_pulldown_close_grip",
+      "name": "Tirage vertical prise serrée neutre (Poulie haute)",
+      "description": "Assis sous la poulie haute, saisissez la poignée triangle ou double prise neutre. Tirez les coudes vers le bas et l'arrière en bombant le torse pour un étirement profond et une contraction ciblée du grand dorsal.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_single_arm_lat_pulldown",
+      "name": "Tirage vertical unilatéral à la poulie haute",
+      "description": "À genoux ou assis sous la poulie haute avec poignée simple. Tirez le coude le long du flanc dans le plan sagittal pour un étirement maximal et une isolation unilatérale sans compensation.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_lat_pulldown_supinated",
+      "name": "Tirage vertical prise supination (Poulie haute)",
+      "description": "Assis sous la poulie haute, prise en supination (paumes vers vous) à largeur d'épaules. Tirez vers le haut de la poitrine pour engager fortement le bas du grand dorsal et les fléchisseurs du bras.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_high_row",
+      "name": "Tirage haut coudes ouverts à la poulie haute (High Row)",
+      "description": "Debout ou assis face à la poulie haute avec barre large ou corde. Tirez en ouvrant les coudes à 90° vers la clavicule pour cibler le haut du dos, les rhomboïdes et les trapèzes moyens.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_scapular_pulldown",
+      "name": "Décrochement d'omoplates à la poulie haute (Tirage scapulaire)",
+      "description": "Bras tendus en tenant la barre de tirage vertical. Sans fléchir les coudes, abaissez activement les omoplates vers le bas pour renforcer les trapèzes inférieurs et stabiliser la scapula.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_rope_pullover",
+      "name": "Pull-over à la corde à la poulie haute",
+      "description": "Buste légèrement incliné à 45°, saisissez la corde fixée en poulie haute. Bras quasi tendus, amenez la corde vers les cuisses en écartant les extrémités pour une contraction maximale du grand dorsal.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_crossover_high_to_low",
+      "name": "Écarté décliné haut vers le bas à la poulie haute (High-to-Low Crossover)",
+      "description": "Poulies réglées en position haute. Buste légèrement penché en avant, ramenez les mains vers le bas et l'avant devant le nombril en croisant légèrement pour contracter le bas des pectoraux.",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_rear_delt_cross_pulldown",
+      "name": "Écarté croisé arrière d'épaule à la poulie haute",
+      "description": "Face aux poulies hautes croisées sans poignées (saisie directe des câbles). Tirez les bras en diagonale vers le bas et l'extérieur pour isoler chirurgicalement le deltoïde postérieur.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_y_raise",
+      "name": "Y-Raise à la poulie haute (Élévations en Y)",
+      "description": "Câbles croisés en poulie haute ou moyenne. Élevez les bras en diagonale vers le haut et l'extérieur en formant un 'Y' pour recruter le deltoïde latéral et le trapèze inférieur.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_face_pull_rotation",
+      "name": "Face pull avec rotation externe à la poulie haute",
+      "description": "Fixez la corde en poulie haute à niveau du front. Tirez vers le nez puis pivotez les avant-bras vers l'arrière en double biceps pour activer la coiffe des rotateurs et la chaîne postérieure d'épaule.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_rope_triceps_pushdown",
+      "name": "Extension triceps à la corde à la poulie haute",
+      "description": "Debout face à la poulie haute, corde en main coudes fixés au corps. Développez vers le bas en écartant les poignets au bas du geste pour un pic de contraction optimal du vaste latéral.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_katana_extension",
+      "name": "Katana Extension triceps à la poulie haute",
+      "description": "Debout dos à la double poulie haute, câbles croisés derrière la nuque. Tendez les bras en diagonale vers le haut et l'avant (comme dégainer deux katanas) pour un étirement et un recrutement extrême de la longue portion.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_reverse_single_arm_triceps",
+      "name": "Extension triceps unilatérale en supination à la poulie haute",
+      "description": "Face à la poulie haute, poignée simple saisie paume vers le haut. Poussez le câble vers le bas jusqu'à l'extension du coude pour cibler avec précision le vaste médial du triceps.",
+      "target_muscle": "Triceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_hercules_curl",
+      "name": "Curl Hercules double biceps à la poulie haute",
+      "description": "Debout au centre du rack entre deux poulies hautes, bras levés à l'horizontale en croix. Fléchissez simultanément les deux avant-bras vers les oreilles pour un pic de contraction maximal du court chef.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_lying_high_curl",
+      "name": "Curl biceps allongé au sol à la poulie haute",
+      "description": "Allongé sur le dos au sol sous la poulie haute, barre droite ou EZ en mains. Fléchissez les bras vers le front en gardant les coudes verticaux fixes. Élimine tout élan et triche.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_standing_crunch",
+      "name": "Crunch debout à la poulie haute",
+      "description": "Debout dos à la poulie haute, corde maintenue de chaque côté de la nuque. Enroulez activement la cage thoracique vers le bassin en fléchissant le buste pour engager le grand droit.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_kneeling_oblique_crunch",
+      "name": "Crunch obliques à genoux à la poulie haute",
+      "description": "À genoux de profil par rapport à la poulie haute, corde tenue près de la tempe. Fléchissez le torse latéralement et vers l'avant vers le genou opposé pour isoler les obliques sous tension continue.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_crossover_low_to_high",
+      "name": "Écarté bas vers le haut à la poulie basse (Low-to-High Crossover)",
+      "description": "Poulies réglées en bas. Bras semi-tendus, montez les poignées vers le haut et l'intérieur en convergeant à hauteur des yeux pour cibler le haut des pectoraux (faisceau claviculaire).",
+      "target_muscle": "Pectoraux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_behind_back_lateral_raise",
+      "name": "Élévations latérales derrière le dos à la poulie basse",
+      "description": "Debout de profil, câble passant derrière le dos. Élevez le bras sur le côté jusqu'à l'horizontale. Offre une tension mécanique constante dès le bas du mouvement pour le deltoïde latéral.",
+      "target_muscle": "Épaules",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_seated_single_arm_row",
+      "name": "Rowing assis unilatéral à la poulie basse",
+      "description": "Assis face au palonnier de poulie basse, poignée simple en main. Tirez le coude en longeant la hanche avec légère rotation du poignet en pronation vers neutre pour un recrutement ciblé du grand dorsal.",
+      "target_muscle": "Dos",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_pallof_press",
+      "name": "Pallof Press à la poulie (Anti-rotation)",
+      "description": "Debout de profil par rapport à la poulie réglée à hauteur de poitrine, tenez la poignée à deux mains sur le sternum. Tendez les bras devant vous en résistant à la force de rotation pour un gainage anti-rotation du core.",
+      "target_muscle": "Abdominaux",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_ez_bar_curl",
+      "name": "Curl biceps à la barre EZ à la poulie basse",
+      "description": "Debout face à la poulie basse, barre EZ fixée au mousqueton. Fléchissez les avant-bras avec tension continue dès le bas du mouvement sans point mort en haut.",
+      "target_muscle": "Biceps",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_pull_through",
+      "name": "Pull-Through à la poulie basse à la corde",
+      "description": "Dos à la poulie basse, câble passant entre les jambes, corde tenue à deux mains. Charnière de hanche en poussant les fesses vers l'arrière, puis extension explosive des hanches en serrant les fessiers.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
+    },
+    {
+      "id": "ex_cable_donkey_kickback",
+      "name": "Donkey kick fessier à la poulie basse",
+      "description": "À quatre pattes ou en appui buste penché face à la poulie basse, sangle de cheville attachée. Poussez le talon vers le plafond avec genou fléchi à 90° pour isoler le haut du grand fessier.",
+      "target_muscle": "Jambes",
+      "equipment_needed": "Poulie / Machine",
+      "is_custom": 0
     }
   ],
   "programs": [
@@ -1588,6 +1780,57 @@
           "default_reps": 10,
           "rest_time_seconds": 60,
           "order_index": 4
+        }
+      ]
+    },
+    {
+      "id": "prog_rack900_poulie_haute_pro",
+      "name": "Rack 900 - Poulie Haute Focus (Dos & Bras)",
+      "description": "Séance complète haut du corps axée sur la poulie haute : Tirage poitrine, Tirage prise serrée neutre, Katana extension triceps, Face pull rotation externe et Curl Hercules.",
+      "difficulty_level": "Intermédiaire",
+      "is_custom": 0,
+      "exercises": [
+        {
+          "exercise_id": "ex_lat_pulldown",
+          "default_sets": 4,
+          "default_reps": 10,
+          "rest_time_seconds": 75,
+          "order_index": 0
+        },
+        {
+          "exercise_id": "ex_cable_lat_pulldown_close_grip",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 1
+        },
+        {
+          "exercise_id": "ex_cable_face_pull_rotation",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 2
+        },
+        {
+          "exercise_id": "ex_cable_katana_extension",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 3
+        },
+        {
+          "exercise_id": "ex_cable_hercules_curl",
+          "default_sets": 3,
+          "default_reps": 12,
+          "rest_time_seconds": 60,
+          "order_index": 4
+        },
+        {
+          "exercise_id": "ex_cable_standing_crunch",
+          "default_sets": 3,
+          "default_reps": 15,
+          "rest_time_seconds": 60,
+          "order_index": 5
         }
       ]
     }
