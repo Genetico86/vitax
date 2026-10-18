@@ -25,7 +25,11 @@ import { AvatarPickerModal } from '../../components/common/AvatarPickerModal';
 import { EQUIPMENT_CATALOG_METADATA } from '../../utils/exerciseUnits';
 import { EQUIPMENTS } from '../../constants/muscles';
 import { getOrCreateTrainerProfile, getFriendsList } from '../../services/multiplayerService';
-import { getPersistedSession, logoutTrainer } from '../../services/authService';
+import {
+  getPersistedSession,
+  logoutTrainer,
+  deleteTrainerAccountAndCloudData,
+} from '../../services/authService';
 import { TrainerProfile } from '../../types/social';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 
@@ -262,8 +266,8 @@ export default function SettingsScreen() {
 
   const handleResetData = () => {
     showAlert(
-      'Réinitialiser toutes les données',
-      'Cette action effacera tout votre historique d’entraînement et restaurera les programmes par défaut. Cette action est irréversible !',
+      'Réinitialiser les données locales',
+      'Cette action effacera votre base locale SQLite et restaurera les programmes par défaut. Cette action est irréversible !',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -271,7 +275,36 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await resetDatabase();
-            showAlert('Réinitialisé', 'La base de données a été remise à zéro.');
+            showAlert('Réinitialisé', 'La base de données locale a été remise à zéro.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccountAndCloudData = () => {
+    showAlert(
+      'Supprimer mon compte & mes données Cloud (RGPD)',
+      'Conformément au droit à l’effacement (RGPD), cette action supprimera définitivement votre profil, vos séances, vos records, vos pesées et vos amis sur le serveur Cloud Supabase ainsi que sur cet appareil.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer définitivement',
+          style: 'destructive',
+          onPress: async () => {
+            const res = await deleteTrainerAccountAndCloudData();
+            if (res.success) {
+              setIsTrainerLoggedIn(false);
+              setTrainerProfile(null);
+              await setUserName('');
+              await setAvatarUrl('');
+              showAlert(
+                'Compte et données supprimés',
+                'Votre compte Cloud et toutes vos données personnelles et sportives ont été intégralement effacés.'
+              );
+            } else {
+              showAlert('Erreur', res.error || 'Impossible de supprimer le compte Cloud.');
+            }
           },
         },
       ]
@@ -843,19 +876,34 @@ export default function SettingsScreen() {
         </Card>
 
         {/* ========================================================================= */}
-        {/* 5. ZONE DE DANGER                                                        */}
+        {/* 5. ZONE DE DANGER & CONFORMITÉ RGPD                                      */}
         {/* ========================================================================= */}
-        <Text style={[styles.sectionHeader, { color: Colors.danger }]}>ZONE DE DANGER</Text>
+        <Text style={[styles.sectionHeader, { color: Colors.danger }]}>ZONE DE DANGER & RGPD</Text>
 
         <Card style={[styles.card, { borderColor: 'rgba(239, 68, 68, 0.35)' }]}>
-          <Text style={[styles.label, { color: Colors.danger }]}>Réinitialiser la base de données</Text>
+          <Text style={[styles.label, { color: Colors.danger }]}>Réinitialiser la base de données locale</Text>
           <Text style={styles.sublabel}>
-            Efface toutes les séances passées et réinitialise les programmes aux valeurs d’usine. Cette action est irréversible.
+            Efface toutes les séances locales et réinitialise les programmes aux valeurs d’usine sur cet appareil.
           </Text>
           <Button
-            title="Remettre à zéro les données"
+            title="Remettre à zéro les données locales"
             variant="danger"
             onPress={handleResetData}
+            style={{ marginTop: 12 }}
+          />
+
+          <View style={styles.innerDivider} />
+
+          <Text style={[styles.label, { color: Colors.danger }]}>
+            Droit à l’oubli — Supprimer mon compte Cloud (RGPD)
+          </Text>
+          <Text style={styles.sublabel}>
+            Supprime définitivement votre profil athlète et l’intégralité de vos données sportives et personnelles sur Supabase et sur cet appareil.
+          </Text>
+          <Button
+            title="🗑️ Supprimer mon compte et mes données Cloud"
+            variant="danger"
+            onPress={handleDeleteAccountAndCloudData}
             style={{ marginTop: 12 }}
           />
         </Card>

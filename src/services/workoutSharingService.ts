@@ -1,7 +1,8 @@
-import { Share, Platform, Alert } from 'react-native';
+import { Share, Platform } from 'react-native';
 import { WorkoutSessionWithSets, WorkoutSetDetail } from '../types';
 import { DailyWorkoutSummary } from '../database/workoutRepository';
-import { getExerciseUnitInfo } from '../utils/exerciseUnits';
+import { getExerciseUnitInfo, formatWeightWithUnit } from '../utils/exerciseUnits';
+import { showAlert } from '../utils/alert';
 
 const APP_URL = 'https://vitaxsport.vercel.app';
 
@@ -75,7 +76,7 @@ export function formatWorkoutShareText(
     `🏋️ Vitax Sport — Séance Terminée !\n` +
     `⚡ ${session.program_name || 'Séance libre'}\n` +
     `📅 ${dateFormatted}\n` +
-    `⏱ Durée : ${durationText} • 💪 Volume : ${session.total_volume.toLocaleString()} kg • ✓ ${session.total_sets} séries\n` +
+    `⏱ Durée : ${durationText} • 💪 Volume : ${formatWeightWithUnit(session.total_volume, undefined, true)} • ✓ ${session.total_sets} séries\n` +
     exerciseBreakdownText +
     notesText +
     `\n👤 Athlète : ${athleteName || 'Sportif Vitax'}\n` +
@@ -104,7 +105,7 @@ export function formatDailyWorkoutShareText(
 
       const maxLabel =
         ex.maxWeightKg > 0
-          ? `max ${ex.maxWeightKg} kg`
+          ? `max ${formatWeightWithUnit(ex.maxWeightKg)}`
           : 'PDC';
 
       exercisesText += `• ${ex.exerciseName} (${ex.totalSets} séries | ${maxLabel})\n`;
@@ -122,7 +123,7 @@ export function formatDailyWorkoutShareText(
     `📅 Date : ${summary.formattedDate}\n` +
     `🔥 ${summary.sessionsCount} séance${summary.sessionsCount > 1 ? 's' : ''} cumulée${summary.sessionsCount > 1 ? 's' : ''} aujourd'hui\n` +
     `⏱ Durée totale : ${durationText}\n` +
-    `💪 Volume cumulé : ${summary.totalVolumeKg.toLocaleString()} kg\n` +
+    `💪 Volume cumulé : ${formatWeightWithUnit(summary.totalVolumeKg, undefined, true)}\n` +
     `✓ Séries validées : ${summary.totalSets} séries au total\n` +
     exercisesText +
     `\n👤 Athlète : ${athleteName || 'Sportif Vitax'}\n` +
@@ -140,7 +141,7 @@ export async function shareWorkoutContent(
   try {
     if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
       await navigator.clipboard.writeText(message);
-      Alert.alert(
+      showAlert(
         'Récapitulatif copié ! 📋',
         'Le résumé complet de votre entraînement a été copié. Vous pouvez le coller directement sur WhatsApp, Instagram ou vos réseaux !'
       );
@@ -156,7 +157,7 @@ export async function shareWorkoutContent(
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(message);
-        Alert.alert(
+        showAlert(
           'Récapitulatif copié ! 📋',
           'Le résumé complet de votre entraînement a été copié dans le presse-papier.'
         );

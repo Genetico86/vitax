@@ -761,12 +761,21 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
 
     const totalEarnedXp = setsXp + dailyBonusXp;
 
-    // Mise à jour immédiate du profil athlète (XP, séances, tonnage & ligue)
+    // Mise à jour immédiate du profil athlète (XP, séances, tonnage & ligue) + validation auto des défis amis
     try {
-      const { updateTrainerProfileXpAndStats } = await import('../services/multiplayerService');
+      const {
+        updateTrainerProfileXpAndStats,
+        evaluateAndCompleteWorkoutChallenges,
+      } = await import('../services/multiplayerService');
       await updateTrainerProfileXpAndStats(totalEarnedXp, session.total_volume || 0);
+      await evaluateAndCompleteWorkoutChallenges({
+        programId: session.program_id,
+        totalVolumeKg: session.total_volume || 0,
+        durationSeconds: session.duration_seconds || 0,
+        sets: allSets,
+      });
     } catch (err) {
-      console.warn('Erreur mise à jour XP profil:', err);
+      console.warn('Erreur mise à jour XP profil / défis:', err);
     }
 
     // Arrêt de la session active et enregistrement du résumé

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +16,8 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
 } from '../../services/multiplayerService';
+import { getSupabaseClient, isSupabaseConfigured } from '../../services/supabaseClient';
+import { showAlert } from '../../utils/alert';
 
 interface Props {
   onFriendAccepted?: () => void;
@@ -82,12 +83,40 @@ export function FriendInviteNotificationBanner({ onFriendAccepted }: Props) {
     // Vérification initiale
     void checkPendingRequests();
 
-    // Polling toutes les 10 secondes pour détecter les invitations entrantes en direct
+    // Abonnement Supabase Realtime sur friend_requests pour éviter le polling intensif toutes les 10s
+    let realtimeChannel: any = null;
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          realtimeChannel = supabase
+            .channel('vitax-friend-invites-live')
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'friend_requests' },
+              () => {
+                void checkPendingRequests();
+              }
+            )
+            .subscribe();
+        } catch {}
+      }
+    }
+
+    // Filet de sécurité espacé (60s) en cas de coupure WebSocket
     const timer = setInterval(() => {
       void checkPendingRequests();
-    }, 10000);
+    }, 60000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      if (realtimeChannel && isSupabaseConfigured()) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          void supabase.removeChannel(realtimeChannel);
+        }
+      }
+    };
   }, [checkPendingRequests]);
 
   const handleAccept = async () => {
@@ -102,17 +131,17 @@ export function FriendInviteNotificationBanner({ onFriendAccepted }: Props) {
           } catch {}
         }
         hideBanner();
-        Alert.alert(
+        showAlert(
           'Ami ajouté ! 🎉',
           `Vous êtes désormais ami avec ${res.friend.username} (${res.friend.friendCode}). Vos classements et défis sont désormais partagés !`
         );
         onFriendAccepted?.();
       } else {
-        Alert.alert('Info', res.error || 'Impossible d’accepter la demande.');
+        showAlert('Info', res.error || 'Impossible d’accepter la demande.');
         hideBanner();
       }
     } catch (err: any) {
-      Alert.alert('Erreur', err?.message || 'Erreur lors de l’acceptation.');
+      showAlert('Erreur', err?.message || 'Erreur lors de l’acceptation.');
       hideBanner();
     } finally {
       setIsProcessing(false);

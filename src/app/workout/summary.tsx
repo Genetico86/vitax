@@ -27,16 +27,20 @@ import {
   formatDailyWorkoutShareText,
   shareWorkoutContent,
 } from '../../services/workoutSharingService';
-import { getExerciseUnitInfo } from '../../utils/exerciseUnits';
+import { getExerciseUnitInfo, formatWeightWithUnit } from '../../utils/exerciseUnits';
 
 export default function WorkoutSummaryScreen() {
   const lastSession = useWorkoutSessionStore((state) => state.lastCompletedSession);
   const userName = useSettingsStore((state) => state.user_name);
-  const xpSummary = lastSession?.session ? calculateSessionXp(lastSession.session) : null;
+  const weightUnit = useSettingsStore((state) => state.weight_unit);
 
   const [sessionDetails, setSessionDetails] = useState<WorkoutSessionWithSets | null>(null);
   const [dailySummary, setDailySummary] = useState<DailyWorkoutSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const xpSummary = lastSession?.session
+    ? calculateSessionXp(lastSession.session, sessionDetails?.sets || lastSession.sets)
+    : null;
 
   useEffect(() => {
     async function loadFullDetails() {
@@ -187,7 +191,7 @@ export default function WorkoutSummaryScreen() {
             <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>Volume Soulevé</Text>
               <Text style={styles.metricValueHighlight}>
-                {(lastSession?.session.total_volume ?? 0).toLocaleString()} kg
+                {formatWeightWithUnit(lastSession?.session.total_volume ?? 0, weightUnit, true)}
               </Text>
             </View>
 

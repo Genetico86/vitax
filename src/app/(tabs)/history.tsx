@@ -28,7 +28,7 @@ import {
 import { Colors } from '../../constants/colors';
 import { Card } from '../../components/common/Card';
 import { ProgressChart } from '../../components/stats/ProgressChart';
-import { getExerciseUnitInfo } from '../../utils/exerciseUnits';
+import { getExerciseUnitInfo, formatWeightWithUnit } from '../../utils/exerciseUnits';
 import { getUserGamificationStats, AthleteRankTier, Achievement } from '../../services/gamificationService';
 import { UserLevelCard } from '../../components/stats/UserLevelCard';
 import { WeightGoalsView } from '../../components/weight/WeightGoalsView';
@@ -64,6 +64,7 @@ export default function HistoryScreen() {
   const [expandedSessionDetails, setExpandedSessionDetails] =
     useState<WorkoutSessionWithSets | null>(null);
   const userName = useSettingsStore((state) => state.user_name);
+  const weightUnit = useSettingsStore((state) => state.weight_unit);
   const [todaySummary, setTodaySummary] = useState<DailyWorkoutSummary | null>(null);
 
   const handleToggleFavorite = async (exerciseId: string) => {
@@ -397,7 +398,7 @@ export default function HistoryScreen() {
                       </Text>
                     </View>
                     <Text style={styles.todayShareSub}>
-                      {todaySummary.totalVolumeKg.toLocaleString()} kg soulevés • {todaySummary.totalSets} séries • {todaySummary.exercises.length} exercices
+                      {formatWeightWithUnit(todaySummary.totalVolumeKg, weightUnit, true)} soulevés • {todaySummary.totalSets} séries • {todaySummary.exercises.length} exercices
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -468,7 +469,7 @@ export default function HistoryScreen() {
                         <View style={styles.metricItem}>
                           <Text style={styles.metricIcon}>💪</Text>
                           <Text style={styles.metricText}>
-                            {s.total_volume} kg soulevés
+                            {formatWeightWithUnit(s.total_volume, weightUnit, true)} soulevés
                           </Text>
                         </View>
                         <View style={styles.metricItem}>

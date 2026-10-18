@@ -590,6 +590,10 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                   <View style={styles.friendBadge}>
                     <Text style={styles.friendBadgeText}>✓ Ami</Text>
                   </View>
+                ) : entry.isBot || entry.userId.startsWith('vtx_') ? (
+                  <View style={[styles.friendBadge, { opacity: 0.75 }]}>
+                    <Text style={styles.friendBadgeText}>🤖 Coach IA</Text>
+                  </View>
                 ) : (
                   <TouchableOpacity
                     style={styles.inviteAthleteBtn}

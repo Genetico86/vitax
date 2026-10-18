@@ -209,3 +209,69 @@ export async function completeFriendChallenge(
 
   return { success: true, earnedXp: rewardXp };
 }
+
+/**
+ * Évalue automatiquement les défis actifs à la fin d'une séance d'entraînement
+ * et valide ceux dont les objectifs (poids × reps ou volume de programme) sont atteints.
+ */
+export async function evaluateAndCompleteWorkoutChallenges(params: {
+  programId?: string | null;
+  totalVolumeKg: number;
+  durationSeconds: number;
+  sets: {
+    exercise_id: string;
+    weight: number;
+    reps: number;
+    completed?: number | boolean;
+  }[];
+  athleteName?: string;
+}): Promise<{ beatenCount: number; earnedXp: number }> {
+  try {
+    const profile = await getOrCreateTrainerProfile();
+    const winnerName = params.athleteName || profile.username || 'Athlète Vitax';
+    const challenges = await getFriendChallenges();
+    const activeChallenges = challenges.filter((c) => c.status === 'active');
+
+    let beatenCount = 0;
+    let totalEarnedXp = 0;
+
+    for (const challenge of activeChallenges) {
+      let isBeaten = false;
+
+      if (challenge.type === 'program' && challenge.programId) {
+        if (params.programId && params.programId === challenge.programId) {
+          const reqVol = challenge.targetVolumeKg || 0;
+          const reqDur = challenge.targetDurationSeconds || 0;
+          if (params.totalVolumeKg >= reqVol && params.durationSeconds >= reqDur) {
+            isBeaten = true;
+          }
+        }
+      } else if (challenge.exerciseId) {
+        const matchingCompletedSets = params.sets.filter(
+          (s) => Boolean(s.completed) && s.exercise_id === challenge.exerciseId
+        );
+        if (matchingCompletedSets.length > 0) {
+          const reqWeight = challenge.targetWeightKg || 0;
+          const reqReps = challenge.targetReps || 1;
+          isBeaten = matchingCompletedSets.some(
+            (s) => (s.weight || 0) >= reqWeight && (s.reps || 0) >= reqReps
+          );
+        }
+      }
+
+      if (isBeaten) {
+        const res = await completeFriendChallenge(challenge.id, winnerName);
+        if (res.success) {
+          beatenCount += 1;
+          totalEarnedXp += res.earnedXp;
+        }
+      }
+    }
+
+    return { beatenCount, earnedXp: totalEarnedXp };
+  } catch (err) {
+    console.warn('Erreur évaluation automatique des défis amis:', err);
+    return { beatenCount: 0, earnedXp: 0 };
+  }
+}
+
