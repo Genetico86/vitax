@@ -39,6 +39,7 @@ export interface LeaderboardEntry {
   workoutsCount: number;
   isCurrentUser: boolean;
   isFriend?: boolean;
+  isBot?: boolean;
   trend: 'up' | 'down' | 'same';
 }
 
