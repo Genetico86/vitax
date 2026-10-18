@@ -32,23 +32,25 @@ export const ArenaHeader: React.FC<ArenaHeaderProps> = ({
       {/* En-tête Dresseur Profil & Code Ami */}
       {profile && (
         <View style={styles.profileHeader}>
-          <TouchableOpacity
-            style={[styles.profileAvatarBox, { padding: 0, overflow: 'hidden' }]}
-            onPress={onOpenAuth}
-            activeOpacity={0.8}
-            accessibilityLabel="Gérer mon profil athlète"
-          >
+          <View style={[styles.profileAvatarBox, { padding: 0, overflow: 'hidden' }]}>
             <UserAvatar
               avatarUrl={profile.avatarUrl}
               fallbackEmoji={profile.avatarPokemonEmoji || '⚡'}
               size={48}
               style={{ borderWidth: 0 }}
+              userName={profile.username}
+              userSubtitle={`${profile.trainerTitle} • ${leagueName || 'Ligue Musculation'}`}
+              onPress={onOpenAuth}
+              onEditPress={onOpenAuth}
+              enableEnlarge
             />
-          </TouchableOpacity>
+          </View>
 
           <View style={{ flex: 1 }}>
             <View style={styles.profileNameRow}>
-              <Text style={styles.profileUsername}>{profile.username}</Text>
+              <TouchableOpacity onPress={onOpenAuth} activeOpacity={0.7}>
+                <Text style={styles.profileUsername}>{profile.username}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.friendCodeBadge}
                 onPress={onShareFriendCode}

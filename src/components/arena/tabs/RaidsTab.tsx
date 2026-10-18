@@ -333,6 +333,9 @@ export const RaidsTab: React.FC<RaidsTabProps> = ({
                 fallbackEmoji={p.avatarPokemonEmoji || '⚡'}
                 size={32}
                 style={{ borderWidth: 0, marginRight: 10 }}
+                userName={p.username}
+                userSubtitle={`${p.contributionValue.toLocaleString()} kg soulevés (${p.percentage}%)`}
+                enableEnlarge
               />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.participantName, p.isCurrentUser && { color: Colors.primary }]}>

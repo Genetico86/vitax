@@ -140,6 +140,9 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
                 avatarUrl={currentAvatarUrl}
                 size={84}
                 fallbackEmoji="👤"
+                userName="Aperçu de la photo"
+                userSubtitle="Touchez pour afficher en plein écran"
+                enableEnlarge
               />
             </View>
             <Text style={styles.title}>Photo de profil</Text>

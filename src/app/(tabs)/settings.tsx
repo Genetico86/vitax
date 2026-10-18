@@ -332,18 +332,17 @@ export default function SettingsScreen() {
             accessibilityLabel="Déplier ou replier la section Profil"
           >
             <View style={styles.accordionHeaderMain}>
-              <TouchableOpacity
+              <UserAvatar
+                avatarUrl={avatar_url || trainerProfile?.avatarUrl}
+                fallbackEmoji={trainerProfile?.avatarPokemonEmoji || '👤'}
+                size={50}
+                showEditBadge
+                userName={user_name || trainerProfile?.username || 'Mon Profil Athlète'}
+                userSubtitle={trainerProfile?.trainerTitle ? `${trainerProfile.trainerTitle} • Ligue ${trainerProfile.currentLeague || 'Bronze'}` : undefined}
                 onPress={() => setAvatarPickerVisible(true)}
-                activeOpacity={0.8}
-                accessibilityLabel="Changer la photo de profil (Selfie ou Galerie)"
-              >
-                <UserAvatar
-                  avatarUrl={avatar_url || trainerProfile?.avatarUrl}
-                  fallbackEmoji={trainerProfile?.avatarPokemonEmoji || '👤'}
-                  size={50}
-                  showEditBadge
-                />
-              </TouchableOpacity>
+                onEditPress={() => setAvatarPickerVisible(true)}
+                enableEnlarge
+              />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                   <Text style={styles.accordionHeaderTitle}>

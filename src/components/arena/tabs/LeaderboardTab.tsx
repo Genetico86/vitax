@@ -84,8 +84,16 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
 
           {pendingRequests.map((req) => (
             <View key={req.id} style={styles.pendingCardRow}>
-              <View style={styles.pendingAvatarBox}>
-                <Text style={{ fontSize: 24 }}>{req.senderAvatarEmoji || '⚡'}</Text>
+              <View style={[styles.pendingAvatarBox, { padding: 0, overflow: 'hidden', backgroundColor: 'transparent' }]}>
+                <UserAvatar
+                  avatarUrl={req.senderAvatarUrl}
+                  fallbackEmoji={req.senderAvatarEmoji || '⚡'}
+                  size={42}
+                  style={{ borderWidth: 0 }}
+                  userName={req.senderName}
+                  userSubtitle={`Code Ami : ${req.senderCode} • ${req.senderTrainerTitle || 'Athlète'}`}
+                  enableEnlarge
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.pendingSenderTitle}>{req.senderName}</Text>
@@ -367,6 +375,9 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                           fallbackEmoji={gift.senderAvatarEmoji || '⚡'}
                           size={36}
                           style={{ borderWidth: 0 }}
+                          userName={gift.senderName}
+                          userSubtitle={`Cadeau : ${gift.giftName}`}
+                          enableEnlarge
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -540,6 +551,9 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                   fallbackEmoji={entry.avatarPokemonEmoji || '⚡'}
                   size={36}
                   style={{ borderWidth: 0 }}
+                  userName={entry.username}
+                  userSubtitle={`Rang #${entry.rank} • ${entry.workoutsCount} séance(s) • ${entry.totalTonnageKg.toLocaleString()} kg`}
+                  enableEnlarge
                 />
               </View>
 

@@ -63,6 +63,9 @@ export const ManageFriendsModal: React.FC<ManageFriendsModalProps> = ({
                       fallbackEmoji={f.avatarPokemonEmoji || '⚡'}
                       size={36}
                       style={{ borderWidth: 0 }}
+                      userName={f.username}
+                      userSubtitle={`Code Ami : ${f.friendCode} • ${f.trainerTitle}`}
+                      enableEnlarge
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.friendManageName}>{f.username}</Text>
