@@ -227,6 +227,7 @@ export interface RunningSession {
   notes: string | null;
   calories: number | null;
   created_at: string;
+  xp_earned?: number;
 }
 
 export interface RunningStats {
@@ -236,5 +237,6 @@ export interface RunningStats {
   bestPaceSecondsPerKm: number;
   averagePaceSecondsPerKm: number;
   averageDistanceKm: number;
+  totalXpEarned?: number;
 }
 

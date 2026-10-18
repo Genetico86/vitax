@@ -28,6 +28,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RunningSession, RunningStats } from '../../types';
 import { showAlert } from '../../utils/alert';
+import { calculateRunningSessionXp } from '../../services/gamificationService';
+import { claimDailyWorkoutBonus } from '../../services/exerciseWeightingService';
+import { updateTrainerProfileXpAndStats } from '../../services/multiplayer/profileService';
 
 const RUNNING_TIMER_STORAGE_KEY = '@vitax_active_running_timer';
 
@@ -222,11 +225,27 @@ export default function RunningScreen() {
       const tag = isWalk ? '[Marche] ' : '';
       const notesToSave = notesInput.trim() ? `${tag}${notesInput.trim()}` : (isWalk ? '[Marche]' : undefined);
 
+      const sessionXp = calculateRunningSessionXp(dist, timerSeconds, isWalk);
+      let dailyBonus = 0;
+      try {
+        const bonusRes = await claimDailyWorkoutBonus();
+        if (bonusRes.awarded) {
+          dailyBonus = bonusRes.bonusXp;
+        }
+      } catch (bErr) {
+        console.warn('Erreur claimDailyWorkoutBonus:', bErr);
+      }
+      const totalSessionXp = sessionXp + dailyBonus;
+
       await createRunningSession({
         distance_km: dist,
         duration_seconds: timerSeconds,
         notes: notesToSave,
+        xp_earned: sessionXp,
       });
+
+      // Attribution des points d'expérience au profil d'athlète et synchronisation
+      await updateTrainerProfileXpAndStats(totalSessionXp, 0);
 
       setFinishModalVisible(false);
       runStartTimestampRef.current = null;
@@ -237,9 +256,10 @@ export default function RunningScreen() {
       void persistTimerState(false, null, 0, activityType);
       await loadData();
 
+      const bonusMsg = dailyBonus > 0 ? ` (+${dailyBonus} XP bonus quotidien 🎁)` : '';
       showAlert(
         isWalk ? 'Marche enregistrée ! 🚶‍♂️🔥' : 'Course enregistrée ! 🏃‍♂️🔥',
-        `Superbe séance de ${dist} km en ${formatDuration(timerSeconds)} ! Vos points XP ont été attribués.`
+        `Superbe séance de ${dist} km en ${formatDuration(timerSeconds)} !\n⚡ +${sessionXp} XP${bonusMsg} crédités sur votre profil athlète !`
       );
     } catch {
       showAlert('Erreur', 'Impossible d’enregistrer la session.');
@@ -269,11 +289,27 @@ export default function RunningScreen() {
       const tag = isWalk ? '[Marche] ' : '';
       const notesToSave = notesInput.trim() ? `${tag}${notesInput.trim()}` : (isWalk ? '[Marche]' : undefined);
 
+      const sessionXp = calculateRunningSessionXp(dist, totalSecs, isWalk);
+      let dailyBonus = 0;
+      try {
+        const bonusRes = await claimDailyWorkoutBonus();
+        if (bonusRes.awarded) {
+          dailyBonus = bonusRes.bonusXp;
+        }
+      } catch (bErr) {
+        console.warn('Erreur claimDailyWorkoutBonus:', bErr);
+      }
+      const totalSessionXp = sessionXp + dailyBonus;
+
       await createRunningSession({
         distance_km: dist,
         duration_seconds: totalSecs,
         notes: notesToSave,
+        xp_earned: sessionXp,
       });
+
+      // Attribution des points d'expérience au profil d'athlète et synchronisation
+      await updateTrainerProfileXpAndStats(totalSessionXp, 0);
 
       setManualModalVisible(false);
       setDistanceInput('');
@@ -282,9 +318,10 @@ export default function RunningScreen() {
       setNotesInput('');
       await loadData();
 
+      const bonusMsg = dailyBonus > 0 ? ` (+${dailyBonus} XP bonus quotidien 🎁)` : '';
       showAlert(
         isWalk ? 'Marche enregistrée ! 🚶‍♂️🏅' : 'Course enregistrée ! 🏃‍♂️🏅',
-        `${dist} km validés avec une allure moyenne de ${formatPace(totalSecs / dist)}.`
+        `${dist} km validés avec une allure moyenne de ${formatPace(totalSecs / dist)}.\n⚡ +${sessionXp} XP${bonusMsg} ajoutés à votre profil athlète !`
       );
     } catch {
       showAlert('Erreur', 'Impossible d’enregistrer la sortie.');
@@ -416,9 +453,18 @@ export default function RunningScreen() {
                   : 'CHRONOMÈTRE DE SORTIE'}
               </Text>
             </View>
-            <Text style={styles.livePaceEstimate}>
-              {timerSeconds > 0 ? formatDuration(timerSeconds) : 'Prêt'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {timerSeconds > 0 && (
+                <View style={styles.liveTimerXpPill}>
+                  <Text style={styles.liveTimerXpText}>
+                    ⚡ ~{calculateRunningSessionXp(0, timerSeconds, activityType === 'walking')} XP
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.livePaceEstimate}>
+                {timerSeconds > 0 ? formatDuration(timerSeconds) : 'Prêt'}
+              </Text>
+            </View>
           </View>
 
           <Text style={styles.timerBigDisplay}>{formatTimerDisplay(timerSeconds)}</Text>
@@ -467,6 +513,27 @@ export default function RunningScreen() {
             )}
           </View>
         </Card>
+
+        {/* Résumé XP Course & Marche */}
+        <View style={styles.xpSummaryBanner}>
+          <View style={styles.xpSummaryIconWrapper}>
+            <Text style={styles.xpSummaryIcon}>⚡</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+              <Text style={styles.xpSummaryValue}>{stats.totalXpEarned || 0}</Text>
+              <Text style={styles.xpSummaryUnit}>XP GAGNÉS</Text>
+            </View>
+            <Text style={styles.xpSummaryLabel}>
+              Expérience cumulée créditée sur votre rang et ligue athlète
+            </Text>
+          </View>
+          <View style={styles.xpSummaryBadge}>
+            <Text style={styles.xpSummaryBadgeText}>
+              {stats.totalSessions} {stats.totalSessions > 1 ? 'sorties' : 'sortie'}
+            </Text>
+          </View>
+        </View>
 
         {/* 4 Cartes Métriques Clés */}
         <View style={styles.metricsGrid}>
@@ -551,6 +618,9 @@ export default function RunningScreen() {
                       <Text style={styles.sessionPaceBadge}>
                         ⏱ {formatPace(sess.pace_seconds_per_km)}
                       </Text>
+                      <Text style={styles.sessionXpBadge}>
+                        ⚡ +{sess.xp_earned ?? calculateRunningSessionXp(sess.distance_km, sess.duration_seconds, Boolean(sess.notes?.includes('[Marche]')))} XP
+                      </Text>
                     </View>
                     <Text style={styles.sessionDistanceBig}>
                       {sess.distance_km} <Text style={{ fontSize: 16 }}>km</Text>
@@ -612,6 +682,23 @@ export default function RunningScreen() {
               onChangeText={setDistanceInput}
               autoFocus
             />
+
+            {/* Aperçu du gain XP */}
+            <View style={styles.modalXpPreview}>
+              <Text style={styles.modalXpPreviewIcon}>⚡</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalXpPreviewTitle}>
+                  Gain estimé : +{calculateRunningSessionXp(
+                    parseFloat(distanceInput.replace(',', '.')) || 0,
+                    timerSeconds,
+                    activityType === 'walking'
+                  )} XP
+                </Text>
+                <Text style={styles.modalXpPreviewSub}>
+                  Crédité sur votre rang athlète (+ 100 XP bonus si 1ère séance du jour)
+                </Text>
+              </View>
+            </View>
 
             <Text style={styles.inputLabel}>Notes / Sensations (optionnel)</Text>
             <TextInput
@@ -689,6 +776,23 @@ export default function RunningScreen() {
                 value={secondsInput}
                 onChangeText={setSecondsInput}
               />
+            </View>
+
+            {/* Aperçu du gain XP */}
+            <View style={styles.modalXpPreview}>
+              <Text style={styles.modalXpPreviewIcon}>⚡</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalXpPreviewTitle}>
+                  Gain estimé : +{calculateRunningSessionXp(
+                    parseFloat(distanceInput.replace(',', '.')) || 0,
+                    (parseInt(minutesInput, 10) || 0) * 60 + (parseInt(secondsInput, 10) || 0),
+                    activityType === 'walking'
+                  )} XP
+                </Text>
+                <Text style={styles.modalXpPreviewSub}>
+                  Crédité sur votre rang athlète (+ 100 XP bonus si 1ère séance du jour)
+                </Text>
+              </View>
             </View>
 
             <Text style={styles.inputLabel}>Notes / Sensations (optionnel)</Text>
@@ -850,6 +954,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.textMuted,
+  },
+  liveTimerXpPill: {
+    backgroundColor: '#F59E0B22',
+    borderWidth: 1,
+    borderColor: '#F59E0B55',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  liveTimerXpText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#F59E0B',
   },
   timerBigDisplay: {
     fontSize: 48,
@@ -1058,5 +1175,93 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 8,
+  },
+  xpSummaryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1B4B44',
+    borderWidth: 1,
+    borderColor: '#6366F155',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+  },
+  xpSummaryIconWrapper: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#6366F122',
+    borderWidth: 1,
+    borderColor: '#6366F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  xpSummaryIcon: {
+    fontSize: 22,
+  },
+  xpSummaryValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#A5B4FC',
+  },
+  xpSummaryUnit: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#818CF8',
+    letterSpacing: 0.5,
+  },
+  xpSummaryLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  xpSummaryBadge: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  xpSummaryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  sessionXpBadge: {
+    fontSize: 11,
+    color: '#F59E0B',
+    backgroundColor: '#F59E0B18',
+    borderWidth: 1,
+    borderColor: '#F59E0B44',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    fontWeight: '800',
+  },
+  modalXpPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1B4B55',
+    borderWidth: 1,
+    borderColor: '#6366F166',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  modalXpPreviewIcon: {
+    fontSize: 20,
+  },
+  modalXpPreviewTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#A5B4FC',
+  },
+  modalXpPreviewSub: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
   },
 });

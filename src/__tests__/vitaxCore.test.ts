@@ -31,6 +31,11 @@ import {
   exportFeedbackSummaryJson,
 } from '../services/exerciseRatingService';
 import { computeNextWorkoutNavigation } from '../utils/workoutNavigation';
+import { calculateRunningSessionXp } from '../services/gamificationService';
+import {
+  createRunningSession,
+  getRunningStats,
+} from '../database/runningRepository';
 import seedData from '../database/seedData.json';
 
 function assert(condition: boolean, message: string): void {
@@ -335,6 +340,43 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   assert(navSkipped.actionType === 'previous_uncompleted', 'Action previous_uncompleted');
 
   names.push('workoutNavigation: transition intelligente vers l’exercice suivant sans clôture prématurée');
+
+  // 9. Mécaniques d'expérience (XP) pour la course à pied et la marche
+  // 9.1 Formule de course : 5 km en 30 min (1800s) -> 50 + 5*75 + 30*2 = 485 XP
+  const runXp = calculateRunningSessionXp(5, 1800, false);
+  assert(runXp === 485, `Course 5km/30min doit rapporter 485 XP (obtenu: ${runXp})`);
+
+  // 9.2 Formule de marche : 5 km en 50 min (3000s) -> 35 + 5*45 + 50*1.5 = 335 XP
+  const walkXp = calculateRunningSessionXp(5, 3000, true);
+  assert(walkXp === 335, `Marche 5km/50min doit rapporter 335 XP (obtenu: ${walkXp})`);
+
+  // 9.3 Cas limites : session vide vs session très courte avec seuils minimums
+  assert(calculateRunningSessionXp(0, 0, false) === 0, 'Session sans durée ni distance = 0 XP');
+  assert(calculateRunningSessionXp(0.1, 30, false) >= 35, 'Seuil minimum course respecté (min 35 XP)');
+  assert(calculateRunningSessionXp(0.1, 30, true) >= 25, 'Seuil minimum marche respecté (min 25 XP)');
+
+  // 9.4 Persistance d'une session course et calcul dans les stats
+  const savedRun = await createRunningSession({
+    distance_km: 6.2,
+    duration_seconds: 2100, // 35 min -> 50 + 6.2*75 (465) + 35*2 (70) = 585 XP
+    notes: 'Footing en forêt',
+  });
+  assert(savedRun.xp_earned !== undefined && savedRun.xp_earned > 0, 'La session de course doit avoir xp_earned');
+  assert(savedRun.xp_earned === 585, `XP calculé pour 6.2km/35min doit être 585 (obtenu: ${savedRun.xp_earned})`);
+
+  // 9.5 Persistance d'une session de marche détectée via le tag [Marche]
+  const savedWalk = await createRunningSession({
+    distance_km: 4.0,
+    duration_seconds: 2400, // 40 min -> 35 + 4*45 (180) + 40*1.5 (60) = 275 XP
+    notes: '[Marche] Balade active en soirée',
+  });
+  assert(savedWalk.xp_earned === 275, `XP calculé pour marche 4km/40min doit être 275 (obtenu: ${savedWalk.xp_earned})`);
+
+  // 9.6 Agrégation totale de l'XP dans les statistiques de course/marche
+  const runningStats = await getRunningStats();
+  assert(runningStats.totalXpEarned !== undefined && runningStats.totalXpEarned >= 860, 'totalXpEarned calculé dans getRunningStats');
+
+  names.push('runningRepository & gamification: formules XP course/marche, persistance et agrégation');
 
   return { passed: names.length, names };
 }
