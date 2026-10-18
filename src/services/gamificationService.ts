@@ -267,6 +267,33 @@ export function calculateActiveExercisesXp(
 }
 
 /**
+ * Calcule l'XP d'une session de course à pied ou de marche
+ */
+export function calculateRunningSessionXp(
+  distanceKm: number,
+  durationSeconds: number,
+  isWalking = false
+): number {
+  const safeDist = Math.max(0, Number(distanceKm) || 0);
+  const safeDuration = Math.max(0, Number(durationSeconds) || 0);
+  if (safeDist <= 0 && safeDuration <= 0) return 0;
+
+  if (isWalking) {
+    // Marche : 35 XP base + 45 XP / km + 1.5 XP / min
+    const base = 35;
+    const kmXp = Math.round(safeDist * 45);
+    const timeXp = Math.floor(safeDuration / 60) * 1.5;
+    return Math.max(25, Math.round(base + kmXp + timeXp));
+  }
+
+  // Course : 50 XP base + 75 XP / km + 2 XP / min
+  const base = 50;
+  const kmXp = Math.round(safeDist * 75);
+  const timeXp = Math.floor(safeDuration / 60) * 2;
+  return Math.max(35, Math.round(base + kmXp + timeXp));
+}
+
+/**
  * Calcule dynamiquement le niveau, le grade et le pourcentage de progression pour un XP donné
  */
 export function computeLevelInfoForXp(xp: number): LevelInfo {
@@ -406,18 +433,33 @@ export async function getUserGamificationStats(): Promise<{
     console.warn('Erreur lecture daily bonus stats:', err);
   }
 
-  // Prise en compte de la course à pied dans l'XP
+  // Prise en compte de la course à pied et de la marche dans l'XP
+  let runningSessionsCount = 0;
   try {
-    const runningSessions = await db.getAllAsync<{ distance_km: number; duration_seconds: number }>(
-      'SELECT distance_km, duration_seconds FROM running_sessions'
-    );
-    runningSessions?.forEach((r) => {
-      const kmXp = Math.round((r.distance_km || 0) * 75);
-      const timeXp = Math.floor((r.duration_seconds || 0) / 60) * 2;
-      totalXp += kmXp + timeXp + 50;
-    });
-  } catch {
-    // Table non encore migrée si ancien schéma
+    let runningSessions: { distance_km: number; duration_seconds: number; notes?: string | null }[] = [];
+    try {
+      runningSessions = await db.getAllAsync<{ distance_km: number; duration_seconds: number; notes?: string }>(
+        'SELECT distance_km, duration_seconds, notes FROM running_sessions'
+      );
+    } catch {}
+
+    if (!runningSessions || runningSessions.length === 0) {
+      const raw = await AsyncStorage.getItem('@vitax_running_sessions_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) runningSessions = parsed;
+      }
+    }
+
+    if (runningSessions && runningSessions.length > 0) {
+      runningSessionsCount = runningSessions.length;
+      runningSessions.forEach((r) => {
+        const isWalk = Boolean(r.notes && r.notes.includes('[Marche]'));
+        totalXp += calculateRunningSessionXp(r.distance_km, r.duration_seconds, isWalk);
+      });
+    }
+  } catch (runErr) {
+    console.warn('Erreur calcul running XP:', runErr);
   }
 
   // Lecture du nombre de séances synchronisées sur le profil Supabase
@@ -436,7 +478,7 @@ export async function getUserGamificationStats(): Promise<{
   }
 
   // Calcul des trophées d'Athlète et crédit effectif de leurs récompenses (rewardXp)
-  const totalSessions = Math.max(sessions.length, cloudWorkoutsCount);
+  const totalSessions = Math.max(sessions.length + runningSessionsCount, cloudWorkoutsCount);
   const effectiveSetsCount = Math.max(totalSetsCount, allCompletedSetsCount);
   const hasRack900Session = sessions.some(
     (s) => s.program_name && s.program_name.includes('Rack 900')
