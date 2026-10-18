@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  Platform,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWorkoutSessionStore } from '../../stores/workoutSessionStore';
@@ -35,6 +37,7 @@ import {
   calculateActiveExercisesXp,
   calculateSingleExerciseXp,
 } from '../../services/gamificationService';
+import { computeNextWorkoutNavigation } from '../../utils/workoutNavigation';
 
 export default function ActiveWorkoutScreen() {
   const {
@@ -55,6 +58,10 @@ export default function ActiveWorkoutScreen() {
     finishWorkout,
     cancelWorkout,
   } = useWorkoutSessionStore();
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const exerciseLayouts = useRef<{ [key: number]: number }>({});
+  const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
 
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [catalogExercises, setCatalogExercises] = useState<Exercise[]>([]);
@@ -158,7 +165,7 @@ export default function ActiveWorkoutScreen() {
     return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (forceDirect = false) => {
     if (isFinishing) return;
     const totalCompleted = exercises.reduce(
       (acc, ex) => acc + ex.sets.filter((s) => s.completed).length,
@@ -188,6 +195,39 @@ export default function ActiveWorkoutScreen() {
       return;
     }
 
+    // Sécurité : Vérifier s'il reste des exercices non terminés dans la séance
+    const uncompletedExercises = exercises.filter(
+      (ex) => !ex.sets.length || !ex.sets.every((s) => s.completed)
+    );
+
+    if (!forceDirect && uncompletedExercises.length > 0) {
+      showAlert(
+        'Exercices non terminés',
+        `Il vous reste encore ${uncompletedExercises.length} exercice${
+          uncompletedExercises.length > 1 ? 's' : ''
+        } non terminé${
+          uncompletedExercises.length > 1 ? 's' : ''
+        } dans cette séance.\n\nSouhaitez-vous vraiment clore votre entraînement maintenant ?`,
+        [
+          { text: 'Continuer la séance', style: 'cancel' },
+          {
+            text: 'Terminer quand même',
+            style: 'destructive',
+            onPress: async () => {
+              setIsFinishing(true);
+              try {
+                const res = await finishWorkout();
+                if (res) router.replace('/workout/summary');
+              } finally {
+                setIsFinishing(false);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     setIsFinishing(true);
     try {
       const res = await finishWorkout();
@@ -196,6 +236,38 @@ export default function ActiveWorkoutScreen() {
       }
     } finally {
       setIsFinishing(false);
+    }
+  };
+
+  const handleGoToNextExercise = (currentIdx: number) => {
+    const nav = computeNextWorkoutNavigation(exercises, currentIdx);
+
+    if (nav.actionType === 'finish_workout' || nav.nextIndex === -1) {
+      void handleFinish(true);
+      return;
+    }
+
+    const targetIdx = nav.nextIndex;
+
+    // Mise en valeur visuelle temporaire de la carte d'exercice cible
+    setFocusedExerciseIndex(targetIdx);
+    setTimeout(() => {
+      setFocusedExerciseIndex((prev) => (prev === targetIdx ? null : prev));
+    }, 2500);
+
+    // Défilement fluide vers l'exercice suivant
+    const targetY = exerciseLayouts.current[targetIdx];
+    if (typeof targetY === 'number' && scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({
+        y: Math.max(0, targetY - 14),
+        animated: true,
+      });
+    }
+
+    if (Platform.OS !== 'web') {
+      try {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch {}
     }
   };
 
@@ -285,7 +357,7 @@ export default function ActiveWorkoutScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={handleFinish}
+          onPress={() => handleFinish(false)}
           disabled={isFinishing}
           style={[styles.finishBtn, isFinishing && { opacity: 0.6 }]}
           accessibilityRole="button"
@@ -296,6 +368,7 @@ export default function ActiveWorkoutScreen() {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -328,8 +401,20 @@ export default function ActiveWorkoutScreen() {
           </Card>
         ) : (
           exercises.map((exItem, exIdx) => (
-            <Card key={`${exItem.exercise.id}_${exIdx}`} style={styles.exerciseCard}>
-              <View style={styles.exerciseCardHeader}>
+            <View
+              key={`${exItem.exercise.id}_${exIdx}`}
+              onLayout={(event) => {
+                exerciseLayouts.current[exIdx] = event.nativeEvent.layout.y;
+              }}
+              style={styles.exerciseCardWrapper}
+            >
+              <Card
+                style={[
+                  styles.exerciseCard,
+                  focusedExerciseIndex === exIdx && styles.focusedExerciseCard,
+                ]}
+              >
+                <View style={styles.exerciseCardHeader}>
                 <TouchableOpacity
                   onPress={() => {
                     setSelectedGuideExercise(exItem.exercise);
@@ -479,6 +564,29 @@ export default function ActiveWorkoutScreen() {
 
                 if (!isCompleted) return null;
 
+                const nav = computeNextWorkoutNavigation(exercises, exIdx);
+
+                if (nav.actionType === 'finish_workout') {
+                  return (
+                    <View style={styles.exerciseCompletedBanner}>
+                      <Text style={styles.exerciseCompletedEmoji}>🏆</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.exerciseCompletedTitle}>Tous les exercices validés !</Text>
+                        <Text style={styles.exerciseCompletedSub}>
+                          Séance 100% accomplie • +{liveXp.totalXp} XP à cumuler
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.finishExerciseQuickBtn}
+                        onPress={() => handleFinish(true)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.finishExerciseQuickText}>{nav.buttonLabel}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
+
                 return (
                   <View style={styles.exerciseCompletedBanner}>
                     <Text style={styles.exerciseCompletedEmoji}>🎉</Text>
@@ -489,17 +597,18 @@ export default function ActiveWorkoutScreen() {
                       </Text>
                     </View>
                     <TouchableOpacity
-                      style={styles.finishExerciseQuickBtn}
-                      onPress={handleFinish}
+                      style={styles.nextExerciseQuickBtn}
+                      onPress={() => handleGoToNextExercise(exIdx)}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.finishExerciseQuickText}>Terminer ✓</Text>
+                      <Text style={styles.nextExerciseQuickText}>{nav.buttonLabel}</Text>
                     </TouchableOpacity>
                   </View>
                 );
               })()}
             </Card>
-          ))
+          </View>
+        ))
         )}
 
         {/* Bouton pour ajouter un autre exercice à la séance */}
@@ -517,7 +626,7 @@ export default function ActiveWorkoutScreen() {
         {exercises.length > 0 && (
           <TouchableOpacity
             style={styles.bottomFinishBigBtn}
-            onPress={handleFinish}
+            onPress={() => handleFinish(false)}
             activeOpacity={0.85}
           >
             <Text style={styles.bottomFinishBigEmoji}>🏆</Text>
@@ -808,8 +917,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 18,
   },
-  exerciseCard: {
+  exerciseCardWrapper: {
     marginBottom: 16,
+  },
+  exerciseCard: {
+    marginBottom: 0,
+  },
+  focusedExerciseCard: {
+    borderColor: Colors.primary,
+    borderWidth: 2,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 6,
   },
   exerciseCardHeader: {
     flexDirection: 'row',
@@ -966,6 +1087,25 @@ const styles = StyleSheet.create({
   finishExerciseQuickText: {
     color: '#FFFFFF',
     fontSize: 11,
+    fontWeight: '900',
+  },
+  nextExerciseQuickBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  nextExerciseQuickText: {
+    color: Colors.primaryText,
+    fontSize: 12,
     fontWeight: '900',
   },
   bottomFinishBigBtn: {
