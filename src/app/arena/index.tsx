@@ -34,6 +34,8 @@ export default function ArenaScreen() {
     setActiveTab,
     leaderboardFilter,
     setLeaderboardFilter,
+    leaderboardTimeframe,
+    setLeaderboardTimeframe,
     raidsSubTab,
     setRaidsSubTab,
     profile,
@@ -150,6 +152,8 @@ export default function ArenaScreen() {
               leaderboardData={leaderboardData}
               leaderboardFilter={leaderboardFilter}
               onFilterChange={setLeaderboardFilter}
+              timeframe={leaderboardTimeframe}
+              onTimeframeChange={setLeaderboardTimeframe}
               pendingRequests={pendingRequests}
               friendGifts={friendGifts}
               friendsList={friendsList}

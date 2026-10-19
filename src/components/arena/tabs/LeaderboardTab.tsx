@@ -14,8 +14,9 @@ import {
   FriendEntry,
   TrainerProfile,
 } from '../../../types/social';
+import { computeLevelInfoForXp } from '../../../services/gamificationService';
 import { arenaStyles as styles } from '../styles/arenaStyles';
-import { LeaderboardFilter, WEB_APP_URL } from '../hooks/useArenaData';
+import { LeaderboardFilter, LeaderboardTimeframe, WEB_APP_URL } from '../hooks/useArenaData';
 
 interface LeaderboardTabProps {
   leaderboardData: {
@@ -24,9 +25,12 @@ interface LeaderboardTabProps {
     currentUserRank: number;
     timeRemainingText: string;
     totalParticipants: number;
+    timeframe?: LeaderboardTimeframe;
   };
   leaderboardFilter: LeaderboardFilter;
   onFilterChange: (filter: LeaderboardFilter) => void;
+  timeframe?: LeaderboardTimeframe;
+  onTimeframeChange?: (timeframe: LeaderboardTimeframe) => void;
   pendingRequests: FriendRequest[];
   friendGifts: {
     sent: FriendGift[];
@@ -53,6 +57,8 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   leaderboardData,
   leaderboardFilter,
   onFilterChange,
+  timeframe: initialTimeframe,
+  onTimeframeChange,
   pendingRequests,
   friendGifts,
   friendsList,
@@ -70,11 +76,22 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   onInviteAthlete,
   onSelectAthlete,
 }) => {
-  const [timeframe, setTimeframe] = useState<'weekly' | 'allTime'>('weekly');
+  const [localTimeframe, setLocalTimeframe] = useState<LeaderboardTimeframe>(
+    initialTimeframe || leaderboardData.timeframe || 'weekly'
+  );
+
+  const currentTimeframe = initialTimeframe || localTimeframe;
+
+  const handleTimeframeChange = (tf: LeaderboardTimeframe) => {
+    setLocalTimeframe(tf);
+    if (onTimeframeChange) {
+      onTimeframeChange(tf);
+    }
+  };
 
   const sortedEntries = useMemo(() => {
     const list = [...leaderboardData.entries];
-    if (timeframe === 'weekly') {
+    if (currentTimeframe === 'weekly') {
       list.sort((a, b) => {
         if (b.weeklyXp !== a.weeklyXp) return b.weeklyXp - a.weeklyXp;
         return (b.totalXp || 0) - (a.totalXp || 0);
@@ -88,12 +105,20 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
       });
     }
     return list.map((item, idx) => ({ ...item, rank: idx + 1 }));
-  }, [leaderboardData.entries, timeframe]);
+  }, [leaderboardData.entries, currentTimeframe]);
+
+  const currentUserEntry = useMemo(() => {
+    return sortedEntries.find((e) => e.isCurrentUser) || null;
+  }, [sortedEntries]);
 
   const effectiveUserRank = useMemo(() => {
-    const found = sortedEntries.find((e) => e.isCurrentUser);
-    return found ? found.rank : leaderboardData.currentUserRank;
-  }, [sortedEntries, leaderboardData.currentUserRank]);
+    return currentUserEntry ? currentUserEntry.rank : leaderboardData.currentUserRank;
+  }, [currentUserEntry, leaderboardData.currentUserRank]);
+
+  const currentUserLevelInfo = useMemo(() => {
+    const totalXp = currentUserEntry?.totalXp ?? profile?.totalXp ?? 0;
+    return computeLevelInfoForXp(totalXp);
+  }, [currentUserEntry?.totalXp, profile?.totalXp]);
 
   return (
     <View>
@@ -171,42 +196,167 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
         </TouchableOpacity>
       )}
 
-      {/* Bannière de la Ligue Courante */}
-      <Card style={[styles.leagueBannerCard, { borderColor: leaderboardData.league.color }]}>
-        <View style={styles.leagueBannerContent}>
-          <View style={[styles.leagueIconCircle, { backgroundColor: `${leaderboardData.league.color}25` }]}>
-            <Text style={{ fontSize: 28 }}>{leaderboardData.league.emoji}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.leagueBannerTitle}>{leaderboardData.league.name}</Text>
-            <Text style={styles.leagueBannerSub}>
-              Top {leaderboardData.league.promotionSpots} monte en ligue supérieure
+      {/* SÉLECTEUR MAJEUR DU TYPE DE CLASSEMENT : HEBDO (LIGUE) VS PERMANENT (TOTAL EXP) */}
+      <View style={styles.timeframeSegmentContainer}>
+        <TouchableOpacity
+          style={[
+            styles.timeframeSegmentBtn,
+            currentTimeframe === 'weekly' && styles.timeframeSegmentBtnActive,
+          ]}
+          onPress={() => handleTimeframeChange('weekly')}
+          activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: currentTimeframe === 'weekly' }}
+          accessibilityLabel="Afficher le classement hebdomadaire de la ligue"
+        >
+          <Text style={styles.timeframeSegmentIcon}>⚡</Text>
+          <View>
+            <Text
+              style={[
+                styles.timeframeSegmentTitle,
+                currentTimeframe === 'weekly' && styles.timeframeSegmentTitleActive,
+              ]}
+            >
+              Classement Hebdo
+            </Text>
+            <Text
+              style={[
+                styles.timeframeSegmentSub,
+                currentTimeframe === 'weekly' && styles.timeframeSegmentSubActive,
+              ]}
+            >
+              Ligue • Reset dim. 23h59
             </Text>
           </View>
-          <View style={styles.leagueTimeBadge}>
-            <Text style={styles.leagueTimeText}>⏱ {leaderboardData.timeRemainingText}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.timeframeSegmentBtn,
+            currentTimeframe === 'allTime' && styles.timeframeSegmentBtnActivePermanent,
+          ]}
+          onPress={() => handleTimeframeChange('allTime')}
+          activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: currentTimeframe === 'allTime' }}
+          accessibilityLabel="Afficher le classement permanent basé sur le total d'expérience"
+        >
+          <Text style={styles.timeframeSegmentIcon}>🏆</Text>
+          <View>
+            <Text
+              style={[
+                styles.timeframeSegmentTitle,
+                currentTimeframe === 'allTime' && styles.timeframeSegmentTitleActive,
+              ]}
+            >
+              Classement Permanent
+            </Text>
+            <Text
+              style={[
+                styles.timeframeSegmentSub,
+                currentTimeframe === 'allTime' && styles.timeframeSegmentSubActivePermanent,
+              ]}
+            >
+              Panthéon • Total d’EXP
+            </Text>
           </View>
-        </View>
-      </Card>
+        </TouchableOpacity>
+      </View>
+
+      {/* BANNIÈRE CONTEXTUELLE : HEBDO (LIGUE) VS PERMANENT (PANTHÉON TOTAL XP) */}
+      {currentTimeframe === 'weekly' ? (
+        <Card style={[styles.leagueBannerCard, { borderColor: leaderboardData.league.color }]}>
+          <View style={styles.leagueBannerContent}>
+            <View style={[styles.leagueIconCircle, { backgroundColor: `${leaderboardData.league.color}25` }]}>
+              <Text style={{ fontSize: 28 }}>{leaderboardData.league.emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.leagueBannerTitle}>{leaderboardData.league.name}</Text>
+              <Text style={styles.leagueBannerSub}>
+                Top {leaderboardData.league.promotionSpots} monte en ligue supérieure
+              </Text>
+            </View>
+            <View style={styles.leagueTimeBadge}>
+              <Text style={styles.leagueTimeText}>⏱ {leaderboardData.timeRemainingText}</Text>
+            </View>
+          </View>
+        </Card>
+      ) : (
+        <Card style={styles.permanentBannerCard}>
+          <View style={styles.permanentBannerContent}>
+            <View style={styles.permanentIconCircle}>
+              <Text style={{ fontSize: 26 }}>👑</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.permanentBannerTitle}>Panthéon des Athlètes</Text>
+                <Badge label="Permanent" color="rgba(245, 158, 11, 0.2)" textColor="#F59E0B" />
+              </View>
+              <Text style={styles.permanentBannerSub}>
+                Classement perpétuel basé sur le total d’EXP cumulée • Aucun reset
+              </Text>
+            </View>
+            <View style={styles.permanentTrophyBadge}>
+              <Text style={styles.permanentTrophyText}>🏆 Hall of Fame</Text>
+            </View>
+          </View>
+        </Card>
+      )}
 
       {/* Rang de l'athlète mis en valeur */}
-      <View style={styles.myRankCard}>
-        <Text style={styles.myRankLabel}>
-          {leaderboardFilter === 'friends'
-            ? (timeframe === 'weekly' ? 'Votre Rang Amis (Cette Semaine) :' : 'Votre Rang Amis (Tous les Temps) :')
-            : (timeframe === 'weekly' ? 'Votre Rang Ligue (Cette Semaine) :' : 'Votre Classement Général (Tous les Temps) :')}
-        </Text>
-        <Text style={styles.myRankValue}>#{effectiveUserRank}</Text>
-        <Text style={styles.myRankHint}>
-          {leaderboardFilter === 'friends'
-            ? `Sur ${sortedEntries.length} athlète(s) dans votre cercle privé`
-            : timeframe === 'weekly' && effectiveUserRank <= leaderboardData.league.promotionSpots
-            ? '✨ En zone de promotion ! Continuez ainsi.'
-            : timeframe === 'weekly'
-            ? 'Entraînez-vous pour grimper au classement avant dimanche !'
-            : 'Classement calculé sur l’expérience totale cumulée de votre profil.'}
-        </Text>
-      </View>
+      {currentTimeframe === 'weekly' ? (
+        <View style={styles.myRankCard}>
+          <View style={styles.myRankTopRow}>
+            <View>
+              <Text style={styles.myRankLabel}>
+                {leaderboardFilter === 'friends'
+                  ? 'Votre Rang Amis (Cette Semaine) :'
+                  : 'Votre Rang Ligue (Cette Semaine) :'}
+              </Text>
+              <Text style={styles.myRankValue}>#{effectiveUserRank}</Text>
+            </View>
+            <View style={styles.myRankWeeklyXpBox}>
+              <Text style={styles.myRankWeeklyXpValue}>
+                +{currentUserEntry?.weeklyXp ? currentUserEntry.weeklyXp.toLocaleString() : 0} XP
+              </Text>
+              <Text style={styles.myRankWeeklyXpSub}>Cette semaine</Text>
+            </View>
+          </View>
+          <Text style={styles.myRankHint}>
+            {leaderboardFilter === 'friends'
+              ? `Sur ${sortedEntries.length} ami(s) dans votre cercle privé`
+              : effectiveUserRank <= leaderboardData.league.promotionSpots
+              ? '✨ En zone de promotion ! Continuez ainsi avant dimanche 23h59.'
+              : 'Entraînez-vous pour grimper au classement avant dimanche 23h59 !'}
+          </Text>
+        </View>
+      ) : (
+        <View style={[styles.myRankCard, styles.myRankCardPermanent]}>
+          <View style={styles.myRankTopRow}>
+            <View>
+              <Text style={styles.myRankLabel}>
+                {leaderboardFilter === 'friends'
+                  ? 'Votre Rang Amis (Permanent) :'
+                  : 'Votre Classement Permanent (Tous les Temps) :'}
+              </Text>
+              <Text style={[styles.myRankValue, { color: '#F59E0B' }]}>#{effectiveUserRank}</Text>
+            </View>
+            <View style={styles.myRankPermanentXpBox}>
+              <Text style={styles.myRankPermanentXpValue}>
+                {(currentUserEntry?.totalXp || 0).toLocaleString()} XP
+              </Text>
+              <Text style={styles.myRankPermanentLevelSub}>
+                Niv. {currentUserLevelInfo.level} • {currentUserLevelInfo.badgeName}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.myRankHint}>
+            {leaderboardFilter === 'friends'
+              ? `Sur ${sortedEntries.length} ami(s) • Total d'EXP accumulé sur l'ensemble de vos entraînements`
+              : `Sur ${sortedEntries.length} athlètes • Votre total d'expérience détermine votre rang à vie dans l'arène.`}
+          </Text>
+        </View>
+      )}
 
       {/* MODULE D'INVITATION À REJOINDRE L'APPLICATION AVEC LIEN WEB */}
       <Card style={styles.inviteWebCard}>
@@ -503,71 +653,19 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
         </Card>
       )}
 
-      {/* SÉLECTEUR DE PÉRIODE : CETTE SEMAINE (LIGUE) VS TOUS LES TEMPS (GÉNÉRAL) */}
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: Colors.cardElevated,
-          borderRadius: 9999,
-          padding: 3,
-          marginBottom: 12,
-          marginTop: 8,
-          borderWidth: 1,
-          borderColor: Colors.surfaceBorder,
-        }}
-      >
-        <TouchableOpacity
-          style={[
-            { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9999 },
-            timeframe === 'weekly' && { backgroundColor: Colors.primary },
-          ]}
-          onPress={() => setTimeframe('weekly')}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '800',
-              color: timeframe === 'weekly' ? '#FFFFFF' : Colors.textSecondary,
-            }}
-          >
-            ⚡ Cette Semaine (Ligue)
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9999 },
-            timeframe === 'allTime' && { backgroundColor: Colors.primary },
-          ]}
-          onPress={() => setTimeframe('allTime')}
-          activeOpacity={0.8}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '800',
-              color: timeframe === 'allTime' ? '#FFFFFF' : Colors.textSecondary,
-            }}
-          >
-            🏆 Tous les Temps
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Liste des concurrents du classement */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 4 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 6 }}>
         <Text style={styles.sectionHeaderTitle}>
-          {timeframe === 'weekly'
+          {currentTimeframe === 'weekly'
             ? leaderboardFilter === 'friends'
               ? `Cercle d’Amis (${sortedEntries.length})`
-              : `Tous les Athlètes (${sortedEntries.length})`
+              : `Athlètes de la Semaine (${sortedEntries.length})`
             : leaderboardFilter === 'friends'
-            ? `Général Amis (${sortedEntries.length})`
-            : `Général Communauté (${sortedEntries.length})`}
+            ? `Panthéon Amis (${sortedEntries.length})`
+            : `Panthéon Permanent (${sortedEntries.length})`}
         </Text>
-        <Text style={{ color: Colors.textMuted, fontSize: 11 }}>
-          {timeframe === 'weekly' ? 'Reset dimanche 23h59' : 'XP Totale Cumulée'}
+        <Text style={{ color: currentTimeframe === 'allTime' ? '#F59E0B' : Colors.textMuted, fontSize: 11, fontWeight: '700' }}>
+          {currentTimeframe === 'weekly' ? 'Reset dimanche 23h59' : 'XP Totale Cumulée (À Vie)'}
         </Text>
       </View>
 
@@ -589,9 +687,13 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
       ) : (
         sortedEntries.map((entry) => {
           const isPromoted =
-            timeframe === 'weekly' &&
+            currentTimeframe === 'weekly' &&
             leaderboardFilter === 'global' &&
             entry.rank <= leaderboardData.league.promotionSpots;
+
+          const isFirst = currentTimeframe === 'allTime' && entry.rank === 1;
+          const isSecond = currentTimeframe === 'allTime' && entry.rank === 2;
+          const isThird = currentTimeframe === 'allTime' && entry.rank === 3;
 
           const isAlreadyFriend =
             entry.isFriend ||
@@ -602,9 +704,11 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
             );
 
           const workoutsLabel =
-            timeframe === 'weekly'
+            currentTimeframe === 'weekly'
               ? `${entry.weeklyWorkoutsCount ?? (entry.isCurrentUser ? 0 : entry.workoutsCount)} séance(s) cette sem.`
               : `${entry.workoutsCount} séance(s) au total`;
+
+          const entryLevel = computeLevelInfoForXp(entry.totalXp || 0);
 
           return (
             <TouchableOpacity
@@ -612,6 +716,9 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
               style={[
                 styles.leaderboardRow,
                 entry.isCurrentUser && styles.leaderboardRowCurrent,
+                isFirst && styles.leaderboardRowFirst,
+                isSecond && styles.leaderboardRowSecond,
+                isThird && styles.leaderboardRowThird,
               ]}
               onPress={() => onSelectAthlete ? onSelectAthlete(entry) : null}
               activeOpacity={0.75}
@@ -665,13 +772,27 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                     </View>
                   )}
                 </View>
-                <Text style={styles.entrySub}>
-                  {workoutsLabel} • {entry.totalTonnageKg.toLocaleString()} kg
-                </Text>
+
+                {currentTimeframe === 'allTime' ? (
+                  <>
+                    <View style={styles.permanentLevelBadge}>
+                      <Text style={styles.permanentLevelText}>
+                        Niv. {entryLevel.level} • {entryLevel.badgeEmoji} {entry.trainerTitle || entryLevel.badgeName}
+                      </Text>
+                    </View>
+                    <Text style={styles.entrySub}>
+                      {workoutsLabel} • {entry.totalTonnageKg.toLocaleString()} kg
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.entrySub}>
+                    {workoutsLabel} • {entry.totalTonnageKg.toLocaleString()} kg
+                  </Text>
+                )}
               </View>
 
               <View style={styles.xpCol}>
-                {timeframe === 'weekly' ? (
+                {currentTimeframe === 'weekly' ? (
                   <>
                     <Text style={styles.xpValue}>
                       {entry.weeklyXp > 0 ? `+${entry.weeklyXp.toLocaleString()} XP` : '0 XP'}
@@ -682,8 +803,8 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                   </>
                 ) : (
                   <>
-                    <Text style={styles.xpValue}>
-                      {(entry.totalXp || 0).toLocaleString()} XP
+                    <Text style={styles.permanentXpValue}>
+                      🏆 {(entry.totalXp || 0).toLocaleString()} XP
                     </Text>
                     <Text style={styles.weeklyXpSubMuted}>
                       {entry.workoutsCount} séance(s)

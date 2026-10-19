@@ -422,7 +422,7 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   assert(sanitizeUsername('Sarah-94!') === 'sarah-94_', 'Sanitize remplace les caractères spéciaux par _');
 
   // 11.2 Écouteur réactif onAuthStateChanged
-  let listenerCalled = false;
+  let listenerCalled: any = false;
   let receivedSession: any = null;
   const unsubscribe = onAuthStateChanged((sess) => {
     listenerCalled = true;
@@ -438,7 +438,7 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
     createdAt: new Date().toISOString(),
   });
 
-  assert(listenerCalled === true, 'Le listener onAuthStateChanged a bien été notifié');
+  assert(Boolean(listenerCalled) === true, 'Le listener onAuthStateChanged a bien été notifié');
   assert(receivedSession?.username === 'TestUser', 'La session transmise est conforme');
   assert(useAuthStore.getState().isLoggedIn === true, 'Le store useAuthStore réagit instantanément au login');
 
@@ -448,6 +448,48 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   unsubscribe();
 
   names.push('mandatoryAuth: verrouillage d’ouverture, réactivité useAuthStore et onAuthStateChanged');
+
+  // 12. Classement Permanent vs Classement Hebdomadaire (Total XP vs Weekly XP)
+  const { VITAX_COMMUNITY_ATHLETES: communityList } = await import('../services/multiplayer/leagueService');
+
+  // Test de tri hebdomadaire
+  const weeklySorted = [...communityList].sort((a, b) => {
+    if (b.weeklyXp !== a.weeklyXp) return b.weeklyXp - a.weeklyXp;
+    return (b.totalXp || 0) - (a.totalXp || 0);
+  });
+  assert(
+    weeklySorted[0].weeklyXp >= weeklySorted[1].weeklyXp,
+    'En classement hebdomadaire, le premier a une XP de la semaine supérieure ou égale au second'
+  );
+
+  // Test de tri permanent (Total d'EXP cumulée)
+  const permanentSorted = [...communityList].sort((a, b) => {
+    const aTotal = a.totalXp || 0;
+    const bTotal = b.totalXp || 0;
+    if (bTotal !== aTotal) return bTotal - aTotal;
+    return (b.workoutsCount || 0) - (a.workoutsCount || 0);
+  });
+  assert(
+    (permanentSorted[0].totalXp || 0) >= (permanentSorted[1].totalXp || 0),
+    'En classement permanent, le premier a une XP totale supérieure ou égale au second'
+  );
+  assert(
+    permanentSorted[0].username === 'Alexandre' && permanentSorted[0].totalXp === 5890,
+    'Alexandre domine le classement permanent avec 5 890 XP totale'
+  );
+  assert(
+    permanentSorted[1].username === 'kador557' && permanentSorted[1].totalXp === 5200,
+    'kador557 est second au classement permanent avec 5 200 XP totale'
+  );
+
+  // Vérification de la compatibilité du calcul de niveau d'athlète sur le top permanent
+  const alexLevel = getLevelInfo(permanentSorted[0].totalXp || 0);
+  assert(
+    alexLevel.level >= 5,
+    `Le leader du panthéon permanent doit être au moins niveau 5 (obtenu: Niv. ${alexLevel.level})`
+  );
+
+  names.push('leaderboardTimeframe: classement permanent au Total d’EXP vs classement hebdo de ligue');
 
   return { passed: names.length, names };
 }
