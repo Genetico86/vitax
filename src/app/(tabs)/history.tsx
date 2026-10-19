@@ -677,7 +677,7 @@ export default function HistoryScreen() {
           <View>
             <Text style={styles.sectionTitle}>Rangs & Trophées d’Athlète</Text>
             <Text style={styles.sectionSubtitle}>
-              Gagnez des points d’expérience (XP) à chaque séance et charge pour gravir les 9 Rangs Athlètes et devenir Légende Vitax !
+              Gagnez des points d’expérience (XP) à chaque séance et charge pour gravir les {gamificationStats.allTiers.length} Rangs Athlètes et devenir Légende Vitax !
             </Text>
 
             <UserLevelCard
@@ -685,9 +685,9 @@ export default function HistoryScreen() {
               onPress={handleLevelCardPress}
             />
 
-            {/* Collection des 9 Rangs Athlètes */}
+            {/* Collection des Rangs Athlètes */}
             <Text style={[styles.sectionTitle, { marginTop: 14, marginBottom: 4 }]}>
-              Progression des Rangs Athlètes ({gamificationStats.allTiers.filter((t) => gamificationStats.totalXp >= t.minXp).length}/9)
+              Progression des Rangs Athlètes ({gamificationStats.allTiers.filter((t) => gamificationStats.totalXp >= t.minXp).length}/{gamificationStats.allTiers.length})
             </Text>
             <Text style={styles.sectionSubtitle}>
               Chaque palier d’XP valide votre montée en grade sportif

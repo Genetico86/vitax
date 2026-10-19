@@ -7,3 +7,4 @@ export * from './multiplayer/friendsService';
 export * from './multiplayer/leagueService';
 export * from './multiplayer/raidBossService';
 export * from './multiplayer/friendChallengeService';
+export * from './multiplayer/athleteProfileService';

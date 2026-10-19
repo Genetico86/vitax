@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, RefreshControl, ActivityIndicator, Text } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/colors';
-import { FriendGift } from '../../types/social';
+import { FriendGift, LeaderboardEntry } from '../../types/social';
 import { useArenaData } from '../../components/arena/hooks/useArenaData';
 import { arenaStyles as styles } from '../../components/arena/styles/arenaStyles';
 import { ArenaHeader } from '../../components/arena/ArenaHeader';
@@ -14,6 +14,7 @@ import { TrainerAuthModal } from '../../components/arena/modals/TrainerAuthModal
 import { CreateChallengeModal } from '../../components/arena/modals/CreateChallengeModal';
 import { CreateGiftModal } from '../../components/arena/modals/CreateGiftModal';
 import { CelebrateGiftModal } from '../../components/arena/modals/CelebrateGiftModal';
+import { AthleteProfileModal } from '../../components/arena/modals/AthleteProfileModal';
 
 export default function ArenaScreen() {
   const params = useLocalSearchParams<{
@@ -92,6 +93,7 @@ export default function ArenaScreen() {
 
   const [celebrateModalVisible, setCelebrateModalVisible] = useState(false);
   const [celebratedGift, setCelebratedGift] = useState<FriendGift | null>(null);
+  const [selectedAthlete, setSelectedAthlete] = useState<LeaderboardEntry | null>(null);
 
   const handleOpenAuth = () => {
     const isAutoName =
@@ -163,6 +165,7 @@ export default function ArenaScreen() {
               onClaimGift={onClaimGiftAndCelebrate}
               onRemoveFriend={handleRemoveFriend}
               onInviteAthlete={handleInviteAthlete}
+              onSelectAthlete={setSelectedAthlete}
             />
           ) : null
         )}
@@ -243,6 +246,22 @@ export default function ArenaScreen() {
           setCelebrateModalVisible(false);
           setCelebratedGift(null);
         }}
+      />
+
+      <AthleteProfileModal
+        visible={!!selectedAthlete}
+        athlete={selectedAthlete}
+        onClose={() => setSelectedAthlete(null)}
+        onInviteAthlete={handleInviteAthlete}
+        isAlreadyFriend={
+          selectedAthlete
+            ? friendsList.some(
+                (f) =>
+                  f.friendId === selectedAthlete.userId ||
+                  (selectedAthlete.friendCode && f.friendCode === selectedAthlete.friendCode)
+              )
+            : false
+        }
       />
     </View>
   );

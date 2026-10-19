@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { showAlert } from '../../../utils/alert';
@@ -46,6 +46,7 @@ interface LeaderboardTabProps {
   onClaimGift: (gift: FriendGift) => void;
   onRemoveFriend: (id: string, name: string) => void;
   onInviteAthlete?: (entry: LeaderboardEntry) => void;
+  onSelectAthlete?: (entry: LeaderboardEntry) => void;
 }
 
 export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
@@ -67,7 +68,33 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
   onClaimGift,
   onRemoveFriend,
   onInviteAthlete,
+  onSelectAthlete,
 }) => {
+  const [timeframe, setTimeframe] = useState<'weekly' | 'allTime'>('weekly');
+
+  const sortedEntries = useMemo(() => {
+    const list = [...leaderboardData.entries];
+    if (timeframe === 'weekly') {
+      list.sort((a, b) => {
+        if (b.weeklyXp !== a.weeklyXp) return b.weeklyXp - a.weeklyXp;
+        return (b.totalXp || 0) - (a.totalXp || 0);
+      });
+    } else {
+      list.sort((a, b) => {
+        const aTotal = a.totalXp || 0;
+        const bTotal = b.totalXp || 0;
+        if (bTotal !== aTotal) return bTotal - aTotal;
+        return (b.workoutsCount || 0) - (a.workoutsCount || 0);
+      });
+    }
+    return list.map((item, idx) => ({ ...item, rank: idx + 1 }));
+  }, [leaderboardData.entries, timeframe]);
+
+  const effectiveUserRank = useMemo(() => {
+    const found = sortedEntries.find((e) => e.isCurrentUser);
+    return found ? found.rank : leaderboardData.currentUserRank;
+  }, [sortedEntries, leaderboardData.currentUserRank]);
+
   return (
     <View>
       {/* DEMANDES D'AMIS EN ATTENTE */}
@@ -166,16 +193,18 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
       <View style={styles.myRankCard}>
         <Text style={styles.myRankLabel}>
           {leaderboardFilter === 'friends'
-            ? 'Votre Rang parmi vos Amis :'
-            : 'Votre Classement Général :'}
+            ? (timeframe === 'weekly' ? 'Votre Rang Amis (Cette Semaine) :' : 'Votre Rang Amis (Tous les Temps) :')
+            : (timeframe === 'weekly' ? 'Votre Rang Ligue (Cette Semaine) :' : 'Votre Classement Général (Tous les Temps) :')}
         </Text>
-        <Text style={styles.myRankValue}>#{leaderboardData.currentUserRank}</Text>
+        <Text style={styles.myRankValue}>#{effectiveUserRank}</Text>
         <Text style={styles.myRankHint}>
           {leaderboardFilter === 'friends'
-            ? `Sur ${leaderboardData.totalParticipants} athlète(s) dans votre cercle privé`
-            : leaderboardData.currentUserRank <= leaderboardData.league.promotionSpots
+            ? `Sur ${sortedEntries.length} athlète(s) dans votre cercle privé`
+            : timeframe === 'weekly' && effectiveUserRank <= leaderboardData.league.promotionSpots
             ? '✨ En zone de promotion ! Continuez ainsi.'
-            : 'Entraînez-vous pour grimper au classement avant dimanche !'}
+            : timeframe === 'weekly'
+            ? 'Entraînez-vous pour grimper au classement avant dimanche !'
+            : 'Classement calculé sur l’expérience totale cumulée de votre profil.'}
         </Text>
       </View>
 
@@ -474,19 +503,75 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
         </Card>
       )}
 
+      {/* SÉLECTEUR DE PÉRIODE : CETTE SEMAINE (LIGUE) VS TOUS LES TEMPS (GÉNÉRAL) */}
+      <View
+        style={{
+          flexDirection: 'row',
+          backgroundColor: Colors.cardElevated,
+          borderRadius: 9999,
+          padding: 3,
+          marginBottom: 12,
+          marginTop: 8,
+          borderWidth: 1,
+          borderColor: Colors.surfaceBorder,
+        }}
+      >
+        <TouchableOpacity
+          style={[
+            { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9999 },
+            timeframe === 'weekly' && { backgroundColor: Colors.primary },
+          ]}
+          onPress={() => setTimeframe('weekly')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '800',
+              color: timeframe === 'weekly' ? '#FFFFFF' : Colors.textSecondary,
+            }}
+          >
+            ⚡ Cette Semaine (Ligue)
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            { flex: 1, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 9999 },
+            timeframe === 'allTime' && { backgroundColor: Colors.primary },
+          ]}
+          onPress={() => setTimeframe('allTime')}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '800',
+              color: timeframe === 'allTime' ? '#FFFFFF' : Colors.textSecondary,
+            }}
+          >
+            🏆 Tous les Temps
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Liste des concurrents du classement */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 10 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 4 }}>
         <Text style={styles.sectionHeaderTitle}>
-          {leaderboardFilter === 'friends'
-            ? `Cercle d’Amis (${leaderboardData.entries.length})`
-            : `Tous les Athlètes (${leaderboardData.entries.length})`}
+          {timeframe === 'weekly'
+            ? leaderboardFilter === 'friends'
+              ? `Cercle d’Amis (${sortedEntries.length})`
+              : `Tous les Athlètes (${sortedEntries.length})`
+            : leaderboardFilter === 'friends'
+            ? `Général Amis (${sortedEntries.length})`
+            : `Général Communauté (${sortedEntries.length})`}
         </Text>
         <Text style={{ color: Colors.textMuted, fontSize: 11 }}>
-          Reset dimanche 23h59
+          {timeframe === 'weekly' ? 'Reset dimanche 23h59' : 'XP Totale Cumulée'}
         </Text>
       </View>
 
-      {leaderboardData.entries.length === 0 ? (
+      {sortedEntries.length === 0 ? (
         <Card style={styles.emptyCard}>
           <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 6 }}>👥</Text>
           <Text style={styles.emptyCardTitle}>Aucun ami pour le moment</Text>
@@ -502,8 +587,9 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
           />
         </Card>
       ) : (
-        leaderboardData.entries.map((entry) => {
+        sortedEntries.map((entry) => {
           const isPromoted =
+            timeframe === 'weekly' &&
             leaderboardFilter === 'global' &&
             entry.rank <= leaderboardData.league.promotionSpots;
 
@@ -515,16 +601,22 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                 (entry.friendCode && f.friendCode === entry.friendCode)
             );
 
-          const displayedXp =
-            entry.totalXp !== undefined ? entry.totalXp : entry.weeklyXp;
+          const workoutsLabel =
+            timeframe === 'weekly'
+              ? `${entry.weeklyWorkoutsCount ?? (entry.isCurrentUser ? 0 : entry.workoutsCount)} séance(s) cette sem.`
+              : `${entry.workoutsCount} séance(s) au total`;
 
           return (
-            <View
+            <TouchableOpacity
               key={entry.userId}
               style={[
                 styles.leaderboardRow,
                 entry.isCurrentUser && styles.leaderboardRowCurrent,
               ]}
+              onPress={() => onSelectAthlete ? onSelectAthlete(entry) : null}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`Ouvrir le profil de ${entry.username}`}
             >
               <View style={styles.rankCol}>
                 <Text
@@ -552,7 +644,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                   size={36}
                   style={{ borderWidth: 0 }}
                   userName={entry.username}
-                  userSubtitle={`Rang #${entry.rank} • ${entry.workoutsCount} séance(s) • ${entry.totalTonnageKg.toLocaleString()} kg`}
+                  userSubtitle={`Rang #${entry.rank} • ${workoutsLabel} • ${entry.totalTonnageKg.toLocaleString()} kg`}
                   enableEnlarge
                 />
               </View>
@@ -574,24 +666,42 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                   )}
                 </View>
                 <Text style={styles.entrySub}>
-                  {entry.workoutsCount} séance(s) • {entry.totalTonnageKg.toLocaleString()} kg
+                  {workoutsLabel} • {entry.totalTonnageKg.toLocaleString()} kg
                 </Text>
               </View>
 
               <View style={styles.xpCol}>
-                <Text style={styles.xpValue}>{displayedXp.toLocaleString()} XP</Text>
-                {entry.weeklyXp > 0 ? (
-                  <Text style={styles.weeklyXpSub}>+{entry.weeklyXp} hebdo</Text>
+                {timeframe === 'weekly' ? (
+                  <>
+                    <Text style={styles.xpValue}>
+                      {entry.weeklyXp > 0 ? `+${entry.weeklyXp.toLocaleString()} XP` : '0 XP'}
+                    </Text>
+                    <Text style={styles.weeklyXpSub}>
+                      Total : {(entry.totalXp || 0).toLocaleString()} XP
+                    </Text>
+                  </>
                 ) : (
-                  <Text style={styles.weeklyXpSubMuted}>Total profil</Text>
+                  <>
+                    <Text style={styles.xpValue}>
+                      {(entry.totalXp || 0).toLocaleString()} XP
+                    </Text>
+                    <Text style={styles.weeklyXpSubMuted}>
+                      {entry.workoutsCount} séance(s)
+                    </Text>
+                  </>
                 )}
                 {isPromoted && <Text style={styles.promotedBadge}>▲ Promu</Text>}
               </View>
 
+              <Text style={{ fontSize: 16, color: Colors.textMuted, marginHorizontal: 2 }}>›</Text>
+
               {leaderboardFilter === 'friends' && !entry.isCurrentUser && (
                 <TouchableOpacity
                   style={styles.deleteFriendBtn}
-                  onPress={() => onRemoveFriend(entry.userId, entry.username)}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onRemoveFriend(entry.userId, entry.username);
+                  }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   activeOpacity={0.7}
                 >
@@ -611,7 +721,12 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                 ) : (
                   <TouchableOpacity
                     style={styles.inviteAthleteBtn}
-                    onPress={() => onInviteAthlete ? onInviteAthlete(entry) : null}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (onInviteAthlete) {
+                        onInviteAthlete(entry);
+                      }
+                    }}
                     activeOpacity={0.8}
                     accessibilityRole="button"
                     accessibilityLabel={`Inviter ${entry.username} en ami`}
@@ -620,7 +735,7 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = ({
                   </TouchableOpacity>
                 )
               )}
-            </View>
+            </TouchableOpacity>
           );
         })
       )}
