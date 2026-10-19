@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Share, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { showAlert } from '../../../utils/alert';
@@ -34,7 +34,11 @@ import {
   acceptFriendRequest,
   declineFriendRequest,
   simulateFriendRequest,
+  invalidateWeeklyStatsCache,
+  subscribeToLeaderboardUpdates,
 } from '../../../services/multiplayerService';
+import { invalidateGamificationCache } from '../../../services/gamificationService';
+import { getSupabaseClient, isSupabaseConfigured } from '../../../services/supabaseClient';
 import { getAllExercises } from '../../../database/exerciseRepository';
 import { getAllPrograms } from '../../../database/programRepository';
 import { useWorkoutSessionStore } from '../../../stores/workoutSessionStore';
@@ -152,8 +156,78 @@ export function useArenaData(initialTab?: ArenaTab) {
     }, [loadData])
   );
 
+  // 1. Écoute immédiate des événements locaux (ex: fin de séance d'entraînement, gain d'XP)
+  useEffect(() => {
+    const unsubscribe = subscribeToLeaderboardUpdates(() => {
+      void loadData();
+    });
+    return unsubscribe;
+  }, [loadData]);
+
+  // 2. Écoute Supabase Realtime (multiplayer cloud) pour synchroniser en temps réel
+  // les scores des autres utilisateurs sans avoir à quitter l'application
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const triggerDebouncedReload = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        void loadData();
+      }, 600);
+    };
+
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel('vitax-realtime-arena-leaderboard')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'weekly_leaderboards' },
+          () => {
+            triggerDebouncedReload();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles' },
+          (payload: any) => {
+            const newRow = payload?.new;
+            const oldRow = payload?.old;
+            if (
+              !oldRow ||
+              newRow?.total_xp !== oldRow?.total_xp ||
+              newRow?.current_league !== oldRow?.current_league ||
+              newRow?.total_workouts !== oldRow?.total_workouts
+            ) {
+              triggerDebouncedReload();
+            }
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('Erreur souscription Supabase Realtime leaderboard:', err);
+    }
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (channel && isSupabaseConfigured()) {
+        const client = getSupabaseClient();
+        if (client) {
+          try {
+            void client.removeChannel(channel);
+          } catch {}
+        }
+      }
+    };
+  }, [loadData]);
+
   const onRefresh = async () => {
     setRefreshing(true);
+    invalidateWeeklyStatsCache();
+    invalidateGamificationCache();
     await loadData();
     setRefreshing(false);
   };

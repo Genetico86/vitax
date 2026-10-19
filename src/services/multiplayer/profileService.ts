@@ -259,43 +259,59 @@ export async function updateTrainerProfileXpAndStats(
   xpGained: number,
   _volumeGained: number = 0
 ): Promise<TrainerProfile> {
-  const profile = await getOrCreateTrainerProfile();
-
-  profile.totalXp = Math.max(0, (profile.totalXp || 0) + Math.round(xpGained));
-  profile.totalWorkouts = Math.max(1, (profile.totalWorkouts || 0) + 1);
-
-  // Mise à jour de la ligue si l'XP dépasse le palier
-  if (profile.totalXp >= 35000) {
-    profile.currentLeague = 'maitre';
-  } else if (profile.totalXp >= 15000) {
-    profile.currentLeague = 'volcan';
-  } else if (profile.totalXp >= 5000) {
-    profile.currentLeague = 'foudre';
-  } else if (profile.totalXp >= 1500) {
-    profile.currentLeague = 'cascade';
-  } else {
-    profile.currentLeague = 'pierre';
-  }
-
-  // Sauvegarde locale dans AsyncStorage
-  await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
-
-  // Mise à jour de la session auth si connecté
   try {
-    const rawSession = await AsyncStorage.getItem(STORAGE_KEY_AUTH_SESSION);
-    if (rawSession) {
-      const parsed = JSON.parse(rawSession);
-      parsed.totalXp = profile.totalXp;
-      await AsyncStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(parsed));
+    const { invalidateWeeklyStatsCache, notifyLeaderboardUpdated, syncWeeklyLeaderboardEntry } = await import('./leagueService');
+    const { invalidateGamificationCache } = await import('../gamificationService');
+    invalidateWeeklyStatsCache();
+    invalidateGamificationCache();
+
+    const profile = await getOrCreateTrainerProfile();
+
+    profile.totalXp = Math.max(0, (profile.totalXp || 0) + Math.round(xpGained));
+    profile.totalWorkouts = Math.max(1, (profile.totalWorkouts || 0) + 1);
+
+    // Mise à jour de la ligue si l'XP dépasse le palier
+    if (profile.totalXp >= 35000) {
+      profile.currentLeague = 'maitre';
+    } else if (profile.totalXp >= 15000) {
+      profile.currentLeague = 'volcan';
+    } else if (profile.totalXp >= 5000) {
+      profile.currentLeague = 'foudre';
+    } else if (profile.totalXp >= 1500) {
+      profile.currentLeague = 'cascade';
+    } else {
+      profile.currentLeague = 'pierre';
     }
-  } catch (sessErr) {
-    console.warn('Erreur mise à jour auth session XP:', sessErr);
+
+    // Sauvegarde locale dans AsyncStorage
+    await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+
+    // Mise à jour de la session auth si connecté
+    try {
+      const rawSession = await AsyncStorage.getItem(STORAGE_KEY_AUTH_SESSION);
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        parsed.totalXp = profile.totalXp;
+        await AsyncStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(parsed));
+      }
+    } catch (sessErr) {
+      console.warn('Erreur mise à jour auth session XP:', sessErr);
+    }
+
+    // Synchronisation immédiate vers Supabase (profiles ET weekly_leaderboards)
+    void Promise.allSettled([
+      syncTrainerProfileToSupabase(profile),
+      syncWeeklyLeaderboardEntry(profile, true),
+    ]);
+
+    // Notifier immédiatement les vues actives (Arène / hooks) pour une mise à jour instantanée
+    notifyLeaderboardUpdated();
+
+    return profile;
+  } catch (err) {
+    console.error('Erreur updateTrainerProfileXpAndStats:', err);
+    return getOrCreateTrainerProfile();
   }
-
-  // Synchronisation avec Supabase
-  void syncTrainerProfileToSupabase(profile);
-
-  return profile;
 }
 
 export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {

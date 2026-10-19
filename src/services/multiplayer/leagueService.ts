@@ -1,10 +1,11 @@
 import { getDatabase } from '../../database/db';
 import { WorkoutSession } from '../../types';
-import { LeagueConfig, LeaderboardEntry } from '../../types/social';
+import { LeagueConfig, LeaderboardEntry, TrainerProfile } from '../../types/social';
 import { calculateSessionXp, calculateRunningSessionXp, getUserGamificationStats } from '../gamificationService';
 import { getSupabaseClient, isSupabaseConfigured } from '../supabaseClient';
-import { getOrCreateTrainerProfile, getCurrentWeekBounds, LEAGUE_CONFIGS } from './profileService';
+import { getOrCreateTrainerProfile, getCurrentWeekBounds, LEAGUE_CONFIGS, isAnonymousProfileId } from './profileService';
 import { getFriendsList } from './friendsService';
+import { getPersistedSession } from '../authService';
 
 let cachedWeeklyStats: {
   timestamp: number;
@@ -15,6 +16,88 @@ let cachedWeeklyStats: {
     workoutsCount: number;
   };
 } | null = null;
+
+/**
+ * Invalide le cache local des statistiques hebdomadaires pour garantir un recalcul immédiat
+ */
+export function invalidateWeeklyStatsCache(): void {
+  cachedWeeklyStats = null;
+}
+
+// -------------------------------------------------------------
+// SYSTÈME DE NOTIFICATION LOCAL TEMPS RÉEL (BROADCAST EN DIRECT)
+// -------------------------------------------------------------
+type LeaderboardUpdateListener = () => void;
+const leaderboardUpdateListeners = new Set<LeaderboardUpdateListener>();
+
+export function subscribeToLeaderboardUpdates(listener: LeaderboardUpdateListener): () => void {
+  leaderboardUpdateListeners.add(listener);
+  return () => {
+    leaderboardUpdateListeners.delete(listener);
+  };
+}
+
+export function notifyLeaderboardUpdated(): void {
+  leaderboardUpdateListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {}
+  });
+}
+
+/**
+ * Synchronise immédiatement les statistiques de la semaine courante vers Supabase (weekly_leaderboards).
+ * Appelé automatiquement dès qu'une séance ou course est validée pour une synchronisation temps réel sans délai.
+ */
+export async function syncWeeklyLeaderboardEntry(
+  profileParam?: TrainerProfile,
+  forceRefresh = false
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  const profile = profileParam || (await getOrCreateTrainerProfile());
+  const session = await getPersistedSession();
+  if (!profile.id || (isAnonymousProfileId(profile.id) && !session?.isLoggedIn)) {
+    return false;
+  }
+
+  const { weekId } = getCurrentWeekBounds();
+  const userStats = await getWeeklyUserStats(forceRefresh);
+
+  const lbPayload: any = {
+    id: `${weekId}_${profile.id}`,
+    week_id: weekId,
+    user_id: profile.id,
+    username: profile.username || 'Athlète Vitax',
+    trainer_title: profile.trainerTitle || 'Athlète Vitax',
+    avatar_pokemon_emoji: profile.avatarPokemonEmoji || '⚡',
+    current_league: profile.currentLeague || 'pierre',
+    weekly_xp: userStats.weeklyXp,
+    total_tonnage_kg: userStats.totalTonnageKg,
+    cardio_minutes: userStats.cardioMinutes,
+    workouts_count: userStats.workoutsCount,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (profile.avatarUrl && profile.avatarUrl.length < 350000) {
+    lbPayload.avatar_url = profile.avatarUrl;
+  }
+
+  try {
+    let { error } = await supabase.from('weekly_leaderboards').upsert(lbPayload, { onConflict: 'id' });
+    if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
+      delete lbPayload.avatar_url;
+      const retry = await supabase.from('weekly_leaderboards').upsert(lbPayload, { onConflict: 'id' });
+      error = retry.error;
+    }
+    return !error;
+  } catch (err) {
+    console.warn('Erreur syncWeeklyLeaderboardEntry:', err);
+    return false;
+  }
+}
 
 export async function getWeeklyUserStats(forceRefresh = false): Promise<{
   weeklyXp: number;
@@ -295,7 +378,8 @@ export const VITAX_COMMUNITY_ATHLETES: Omit<LeaderboardEntry, 'rank' | 'isCurren
  */
 export async function getLeagueLeaderboard(
   filter: 'global' | 'friends' = 'global',
-  timeframe: 'weekly' | 'allTime' = 'weekly'
+  timeframe: 'weekly' | 'allTime' = 'weekly',
+  forceRefresh = false
 ): Promise<{
   league: LeagueConfig;
   entries: LeaderboardEntry[];
@@ -306,7 +390,7 @@ export async function getLeagueLeaderboard(
 }> {
   const profile = await getOrCreateTrainerProfile();
   const leagueConfig = LEAGUE_CONFIGS[profile.currentLeague] || LEAGUE_CONFIGS.pierre;
-  const userStats = await getWeeklyUserStats();
+  const userStats = await getWeeklyUserStats(forceRefresh);
   const { end, weekId } = getCurrentWeekBounds();
 
   const msRemaining = Math.max(0, end.getTime() - Date.now());
@@ -344,38 +428,9 @@ export async function getLeagueLeaderboard(
     trend: 'same',
   };
 
-  // Synchronisation de nos statistiques vers Supabase
+  // Synchronisation ordonnée de nos statistiques vers Supabase
   if (isSupabaseConfigured()) {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      const lbPayload: any = {
-        id: `${weekId}_${profile.id}`,
-        week_id: weekId,
-        user_id: profile.id,
-        username: profile.username,
-        trainer_title: profile.trainerTitle,
-        avatar_pokemon_emoji: profile.avatarPokemonEmoji,
-        current_league: profile.currentLeague,
-        weekly_xp: userStats.weeklyXp,
-        total_tonnage_kg: userStats.totalTonnageKg,
-        cardio_minutes: userStats.cardioMinutes,
-        workouts_count: userStats.workoutsCount,
-        updated_at: new Date().toISOString(),
-      };
-      if (profile.avatarUrl) {
-        lbPayload.avatar_url = profile.avatarUrl;
-      }
-
-      void (async () => {
-        try {
-          const { error } = await supabase.from('weekly_leaderboards').upsert(lbPayload);
-          if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
-            delete lbPayload.avatar_url;
-            await supabase.from('weekly_leaderboards').upsert(lbPayload);
-          }
-        } catch {}
-      })();
-    }
+    void syncWeeklyLeaderboardEntry(profile, false);
   }
 
   // -----------------------------------------------------------
