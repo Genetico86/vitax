@@ -272,9 +272,9 @@ export const MandatoryAuthScreen: React.FC = () => {
             <View style={styles.featureItem}>
               <Text style={styles.featureEmoji}>🏆</Text>
               <View style={styles.featureTextWrapper}>
-                <Text style={styles.featureHeading}>Arène & Classements Hebdomadaires</Text>
+                <Text style={styles.featureHeading}>Arène & Classements (Hebdo & Permanent)</Text>
                 <Text style={styles.featureDescription}>
-                  Gagnez de l’XP à chaque répétition, grimpez les ligues et défiez vos amis.
+                  Gagnez de l’XP à chaque répétition, grimpez les ligues de la semaine et hissez-vous au panthéon permanent.
                 </Text>
               </View>
             </View>

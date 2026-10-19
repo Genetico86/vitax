@@ -50,10 +50,12 @@ export const WEB_APP_URL = 'https://vitaxsport.vercel.app';
 
 export type ArenaTab = 'leaderboard' | 'raids';
 export type LeaderboardFilter = 'global' | 'friends';
+export type LeaderboardTimeframe = 'weekly' | 'allTime';
 
 export function useArenaData(initialTab?: ArenaTab) {
   const [activeTab, setActiveTab] = useState<ArenaTab>(initialTab || 'leaderboard');
   const [leaderboardFilter, setLeaderboardFilter] = useState<LeaderboardFilter>('global');
+  const [leaderboardTimeframe, setLeaderboardTimeframe] = useState<LeaderboardTimeframe>('weekly');
 
   const [profile, setProfile] = useState<TrainerProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -65,6 +67,7 @@ export function useArenaData(initialTab?: ArenaTab) {
     currentUserRank: number;
     timeRemainingText: string;
     totalParticipants: number;
+    timeframe?: LeaderboardTimeframe;
   } | null>(null);
   const [raidBoss, setRaidBoss] = useState<CoOpRaidBoss | null>(null);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
@@ -98,7 +101,7 @@ export function useArenaData(initialTab?: ArenaTab) {
       void syncTrainerProfileToSupabase(prof);
 
       // 2. Charger le classement en priorité absolue
-      const lbPromise = getLeagueLeaderboard(leaderboardFilter)
+      const lbPromise = getLeagueLeaderboard(leaderboardFilter, leaderboardTimeframe)
         .then((lb) => {
           setLeaderboardData(lb);
           setLoading(false);
@@ -141,7 +144,7 @@ export function useArenaData(initialTab?: ArenaTab) {
       console.error('Erreur chargement arène:', err);
       setLoading(false);
     }
-  }, [leaderboardFilter, allExercises.length]);
+  }, [leaderboardFilter, leaderboardTimeframe, allExercises.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -514,6 +517,8 @@ export function useArenaData(initialTab?: ArenaTab) {
     setActiveTab,
     leaderboardFilter,
     setLeaderboardFilter,
+    leaderboardTimeframe,
+    setLeaderboardTimeframe,
     raidsSubTab,
     setRaidsSubTab,
     profile,

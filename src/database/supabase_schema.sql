@@ -43,6 +43,7 @@ WHERE password IS NOT NULL AND password_hash IS NULL;
 -- UNICITÉ STRICTE DES PSEUDOS (insensible à la casse : impossible d'avoir des doublons 'Matthieu' et 'matthieu')
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique_lower ON public.profiles (LOWER(TRIM(username)));
 CREATE INDEX IF NOT EXISTS idx_profiles_friend_code ON public.profiles(friend_code);
+CREATE INDEX IF NOT EXISTS idx_profiles_total_xp ON public.profiles(total_xp DESC);
 
 -- 2. TABLE DES SÉANCES D'ENTRAÎNEMENT (HISTORIQUE SYNCHRONISÉ)
 CREATE TABLE IF NOT EXISTS public.workout_sessions (
