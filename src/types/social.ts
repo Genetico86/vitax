@@ -37,10 +37,65 @@ export interface LeaderboardEntry {
   totalTonnageKg: number;
   cardioMinutes: number;
   workoutsCount: number;
+  weeklyWorkoutsCount?: number;
   isCurrentUser: boolean;
   isFriend?: boolean;
   isBot?: boolean;
   trend: 'up' | 'down' | 'same';
+  currentLeague?: LeagueTier;
+}
+
+export interface AthleteTopExercise {
+  id: string;
+  name: string;
+  targetMuscle: string;
+  totalSets: number;
+  maxWeightKg: number;
+  totalVolumeKg: number;
+}
+
+export interface AthletePersonalRecord {
+  id: string;
+  exerciseName: string;
+  targetMuscle: string;
+  bestWeightKg: number;
+  reps: number;
+  estimatedOneRepMaxKg: number;
+  achievedAt?: string;
+}
+
+export interface AthleteRecentWorkout {
+  id: string;
+  date: string;
+  programName: string;
+  durationMinutes: number;
+  totalVolumeKg: number;
+  totalSets: number;
+}
+
+export interface AthleteShowcase {
+  userId: string;
+  username: string;
+  friendCode?: string;
+  trainerTitle?: string;
+  avatarUrl?: string;
+  avatarPokemonEmoji?: string;
+  currentLeague: LeagueTier;
+  totalXp: number;
+  weeklyXp: number;
+  workoutsCount: number;
+  totalTonnageKg: number;
+  isCurrentUser: boolean;
+  isFriend?: boolean;
+  athleteRank: {
+    level: number;
+    badgeName: string;
+    emoji: string;
+    category: string;
+  };
+  topExercises: AthleteTopExercise[];
+  personalRecords: AthletePersonalRecord[];
+  recentWorkouts: AthleteRecentWorkout[];
 }
 
 export interface FriendEntry {

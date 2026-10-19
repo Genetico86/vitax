@@ -26,7 +26,7 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
     name: 'Ligue Argent (Régulier)',
     emoji: '🥈',
     color: '#38BDF8',
-    minXpRequirement: 500,
+    minXpRequirement: 1500,
     promotionSpots: 5,
     relegationSpots: 5,
   },
@@ -35,7 +35,7 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
     name: 'Ligue Or (Confirmé)',
     emoji: '🥇',
     color: '#FACC15',
-    minXpRequirement: 1500,
+    minXpRequirement: 5000,
     promotionSpots: 4,
     relegationSpots: 5,
   },
@@ -44,7 +44,7 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
     name: 'Ligue Platine (Élite)',
     emoji: '🔥',
     color: '#F97316',
-    minXpRequirement: 3500,
+    minXpRequirement: 15000,
     promotionSpots: 3,
     relegationSpots: 4,
   },
@@ -53,7 +53,7 @@ export const LEAGUE_CONFIGS: Record<LeagueTier, LeagueConfig> = {
     name: 'Ligue Diamant (Légende)',
     emoji: '👑',
     color: '#A855F7',
-    minXpRequirement: 7000,
+    minXpRequirement: 35000,
     promotionSpots: 0,
     relegationSpots: 5,
   },
@@ -265,14 +265,16 @@ export async function updateTrainerProfileXpAndStats(
   profile.totalWorkouts = Math.max(1, (profile.totalWorkouts || 0) + 1);
 
   // Mise à jour de la ligue si l'XP dépasse le palier
-  if (profile.totalXp >= 7000) {
+  if (profile.totalXp >= 35000) {
     profile.currentLeague = 'maitre';
-  } else if (profile.totalXp >= 3500) {
+  } else if (profile.totalXp >= 15000) {
     profile.currentLeague = 'volcan';
-  } else if (profile.totalXp >= 1500) {
+  } else if (profile.totalXp >= 5000) {
     profile.currentLeague = 'foudre';
-  } else if (profile.totalXp >= 500) {
+  } else if (profile.totalXp >= 1500) {
     profile.currentLeague = 'cascade';
+  } else {
+    profile.currentLeague = 'pierre';
   }
 
   // Sauvegarde locale dans AsyncStorage
@@ -416,10 +418,10 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
       }
 
       const activeLeagueXp = parsed.totalXp;
-      if (activeLeagueXp >= 7000) parsed.currentLeague = 'maitre';
-      else if (activeLeagueXp >= 3500) parsed.currentLeague = 'volcan';
-      else if (activeLeagueXp >= 1500) parsed.currentLeague = 'foudre';
-      else if (activeLeagueXp >= 500) parsed.currentLeague = 'cascade';
+      if (activeLeagueXp >= 35000) parsed.currentLeague = 'maitre';
+      else if (activeLeagueXp >= 15000) parsed.currentLeague = 'volcan';
+      else if (activeLeagueXp >= 5000) parsed.currentLeague = 'foudre';
+      else if (activeLeagueXp >= 1500) parsed.currentLeague = 'cascade';
       else parsed.currentLeague = 'pierre';
 
       await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));

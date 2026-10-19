@@ -1523,9 +1523,9 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* Défilement des 9 Rangs Athlètes */}
+            {/* Défilement des Rangs Athlètes */}
             <Text style={styles.kantoBadgesTitle}>
-              🏅 Les 9 Rangs Athlètes Vitax
+              🏅 Les {ATHLETE_RANK_TIERS.length} Rangs Athlètes Vitax
             </Text>
             <ScrollView
               horizontal

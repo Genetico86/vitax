@@ -378,6 +378,42 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('runningRepository & gamification: formules XP course/marche, persistance et agrégation');
 
+  // 10. Rangs d'athlète (16 tiers), recalibration des ligues et profil vitrine (Fiche XP & Arène)
+  const { ATHLETE_RANK_TIERS: allTiers, computeLevelInfoForXp: getLevelInfo } = await import('../services/gamificationService');
+  const { LEAGUE_CONFIGS: leagues } = await import('../services/multiplayer/profileService');
+  const { getAthleteShowcase: getShowcase } = await import('../services/multiplayer/athleteProfileService');
+
+  // 10.1 Validation des 16 Rangs d'Athlète
+  assert(allTiers.length === 16, `Il doit y avoir exactement 16 Rangs d’Athlète (actuel: ${allTiers.length})`);
+  assert(allTiers[0].minXp === 0 && allTiers[0].level === 1, 'Rang 1 débute à 0 XP');
+  assert(allTiers[15].level === 16 && allTiers[15].minXp === 140000, 'Rang 16 (Légende Vitax) à 140 000 XP');
+
+  // 10.2 Cohérence du profil de Matthieu (2 330 XP)
+  const matthieuLevel = getLevelInfo(2330);
+  assert(matthieuLevel.level === 3, `2 330 XP doit correspondre au Niveau 3 (obtenu: Niv. ${matthieuLevel.level})`);
+  assert(matthieuLevel.badgeName === 'Athlète Régulier', 'Niveau 3 est Athlète Régulier');
+  assert(matthieuLevel.minXp === 1800, 'Palier min Niveau 3 = 1 800 XP');
+  assert(matthieuLevel.nextLevelXp === 3200, 'Palier suivant = 3 200 XP');
+  assert(matthieuLevel.progressPercent === 38, `Progression calculée: 38% (obtenu: ${matthieuLevel.progressPercent}%)`);
+
+  // 10.3 Recalibration des 5 Ligues
+  assert(leagues.pierre.minXpRequirement === 0, 'Ligue Bronze débute à 0 XP');
+  assert(leagues.cascade.minXpRequirement === 1500, 'Ligue Argent débute à 1 500 XP');
+  assert(leagues.foudre.minXpRequirement === 5000, 'Ligue Or débute à 5 000 XP (et non plus 1 500 XP)');
+  assert(leagues.volcan.minXpRequirement === 15000, 'Ligue Platine débute à 15 000 XP');
+  assert(leagues.maitre.minXpRequirement === 35000, 'Ligue Diamant débute à 35 000 XP');
+
+  // 10.4 Vérification du profil vitrine (Showcase) athlète
+  const alexShowcase = await getShowcase('vtx_alexandre_pl');
+  assert(alexShowcase.username === 'Alexandre', 'Showcase identifie Alexandre');
+  assert(alexShowcase.topExercises.length >= 4, 'Au moins 4 exercices préférés répertoriés');
+  assert(alexShowcase.personalRecords.length >= 4, 'Au moins 4 records personnels répertoriés');
+  assert(alexShowcase.recentWorkouts.length >= 2, 'Historique d’entraînement présent');
+  assert(alexShowcase.personalRecords[0].bestWeightKg >= 200, 'PR Powerlifting lourd vérifié');
+
+  names.push('athleteRanks & leagues: 16 tiers d’athlète, recalibration des ligues et profil vitrine (PRs & Historique)');
+
   return { passed: names.length, names };
 }
+
 
