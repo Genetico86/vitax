@@ -83,6 +83,29 @@ export async function getPersistedSession(): Promise<AuthSession | null> {
   }
 }
 
+type AuthChangeListener = (session: AuthSession | null) => void;
+const authChangeListeners = new Set<AuthChangeListener>();
+
+/**
+ * Permet aux stores et composants d'écouter en temps réel tout changement d'état d'authentification
+ */
+export function onAuthStateChanged(listener: AuthChangeListener): () => void {
+  authChangeListeners.add(listener);
+  return () => {
+    authChangeListeners.delete(listener);
+  };
+}
+
+export function notifyAuthStateChanged(session: AuthSession | null): void {
+  authChangeListeners.forEach((listener) => {
+    try {
+      listener(session);
+    } catch (e) {
+      console.warn('Erreur listener onAuthStateChanged:', e);
+    }
+  });
+}
+
 /**
  * Sauvegarde la session persistée
  */
@@ -91,6 +114,7 @@ export async function savePersistedSession(session: AuthSession): Promise<void> 
     setSupabaseActiveUserId(session.userId);
   }
   await AsyncStorage.setItem(STORAGE_KEY_AUTH_SESSION, JSON.stringify(session));
+  notifyAuthStateChanged(session);
 }
 
 /**
@@ -838,6 +862,7 @@ export async function logoutTrainer(): Promise<void> {
       '@vitax_favorite_exercise_ids',
       '@vitax_daily_bonus_state',
     ]);
+    notifyAuthStateChanged(null);
   } catch (e) {
     console.error('Erreur logout:', e);
   }
@@ -935,6 +960,7 @@ export async function deleteTrainerAccountAndCloudData(): Promise<{
       '@vitax_friend_challenges',
       '@vitax_friend_gifts_v1',
     ]);
+    notifyAuthStateChanged(null);
 
     return { success: true };
   } catch (err: any) {
