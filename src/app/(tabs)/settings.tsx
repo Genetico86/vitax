@@ -111,7 +111,7 @@ export default function SettingsScreen() {
   const handleTrainerLogout = () => {
     showAlert(
       'Déconnexion',
-      'Voulez-vous vous déconnecter de votre compte partagé ?',
+      'Voulez-vous vous déconnecter de votre compte Athlète ? Vous devrez vous reconnecter ou créer un compte pour réutiliser l’application.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -120,7 +120,6 @@ export default function SettingsScreen() {
           onPress: async () => {
             await logoutTrainer();
             await loadTrainerData();
-            showAlert('Déconnecté', 'Session fermée.');
           },
         },
       ]

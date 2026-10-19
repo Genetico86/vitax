@@ -5,15 +5,17 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDatabase } from '../database/db';
 import { useSettingsStore } from '../stores/settingsStore';
-import { restoreSessionSilently } from '../services/authService';
+import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/colors';
 import { FriendInviteNotificationBanner } from '../components/social/FriendInviteNotificationBanner';
+import { MandatoryAuthScreen } from '../components/auth/MandatoryAuthScreen';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
+  const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
 
   useEffect(() => {
     let isCancelled = false;
@@ -30,7 +32,7 @@ export default function RootLayout() {
       try {
         await initDatabase();
         await loadSettings();
-        await restoreSessionSilently();
+        await useAuthStore.getState().initialize();
 
         // Restauration automatique d'une séance en cours si l'application avait été fermée
         try {
@@ -217,7 +219,8 @@ export default function RootLayout() {
               }}
             />
           </Stack>
-          <FriendInviteNotificationBanner />
+          {!isLoggedIn && <MandatoryAuthScreen />}
+          {isLoggedIn && <FriendInviteNotificationBanner />}
         </View>
       </View>
     </SafeAreaProvider>

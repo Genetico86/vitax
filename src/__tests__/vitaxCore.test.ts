@@ -413,6 +413,42 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('athleteRanks & leagues: 16 tiers d’athlète, recalibration des ligues et profil vitrine (PRs & Historique)');
 
+  // 11. Authentification obligatoire & useAuthStore
+  const { onAuthStateChanged, sanitizeUsername } = await import('../services/authService');
+  const { useAuthStore } = await import('../stores/authStore');
+
+  // 11.1 Nettoyage des pseudos athlètes
+  assert(sanitizeUsername('  Matthieu  ') === 'matthieu', 'Sanitize nettoie les espaces et met en minuscules');
+  assert(sanitizeUsername('Sarah-94!') === 'sarah-94_', 'Sanitize remplace les caractères spéciaux par _');
+
+  // 11.2 Écouteur réactif onAuthStateChanged
+  let listenerCalled = false;
+  let receivedSession: any = null;
+  const unsubscribe = onAuthStateChanged((sess) => {
+    listenerCalled = true;
+    receivedSession = sess;
+  });
+
+  const { notifyAuthStateChanged } = await import('../services/authService');
+  notifyAuthStateChanged({
+    userId: 'vtx_test',
+    username: 'TestUser',
+    friendCode: '12345',
+    isLoggedIn: true,
+    createdAt: new Date().toISOString(),
+  });
+
+  assert(listenerCalled === true, 'Le listener onAuthStateChanged a bien été notifié');
+  assert(receivedSession?.username === 'TestUser', 'La session transmise est conforme');
+  assert(useAuthStore.getState().isLoggedIn === true, 'Le store useAuthStore réagit instantanément au login');
+
+  notifyAuthStateChanged(null);
+  assert(useAuthStore.getState().isLoggedIn === false, 'Le store useAuthStore réagit instantanément au logout');
+
+  unsubscribe();
+
+  names.push('mandatoryAuth: verrouillage d’ouverture, réactivité useAuthStore et onAuthStateChanged');
+
   return { passed: names.length, names };
 }
 
