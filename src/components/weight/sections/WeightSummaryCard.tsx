@@ -3,18 +3,28 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { Card } from '../../common/Card';
 import { WeightProgressStats } from '../../../types';
+import { analyzeBmi } from '../../../utils/physiologyUtils';
 
 interface WeightSummaryCardProps {
   stats: WeightProgressStats | null;
   weightUnit: string;
+  userHeightCm?: number;
   onAddLogPress: () => void;
+  onSetHeightPress?: () => void;
 }
 
 export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
   stats,
   weightUnit,
+  userHeightCm,
   onAddLogPress,
+  onSetHeightPress,
 }) => {
+  const bmiAnalysis =
+    stats?.currentWeight && userHeightCm
+      ? analyzeBmi(stats.currentWeight, userHeightCm)
+      : null;
+
   return (
     <Card style={styles.summaryCard}>
       <View style={styles.summaryTopRow}>
@@ -70,11 +80,32 @@ export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
           </Text>
         </View>
 
-        {stats?.bmi !== null && stats?.bmi !== undefined && (
-          <View style={styles.metricItem}>
+        {bmiAnalysis ? (
+          <TouchableOpacity
+            style={styles.metricItem}
+            onPress={onSetHeightPress}
+            activeOpacity={0.7}
+          >
             <Text style={styles.metricItemLabel}>IMC estimé</Text>
-            <Text style={styles.metricItemValue}>{stats.bmi}</Text>
-          </View>
+            <Text style={[styles.metricItemValue, { color: bmiAnalysis.color }]}>
+              {bmiAnalysis.bmi}
+            </Text>
+            <Text style={[styles.bmiCategorySubtitle, { color: bmiAnalysis.color }]}>
+              {bmiAnalysis.categoryShort}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.metricItem}
+            onPress={onSetHeightPress}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.metricItemLabel}>IMC</Text>
+            <Text style={[styles.metricItemValue, { color: '#38BDF8', fontSize: 13 }]}>
+              + Taille
+            </Text>
+            <Text style={styles.bmiCategorySubtitle}>Calculer</Text>
+          </TouchableOpacity>
         )}
 
         <View style={styles.metricItem}>
@@ -165,5 +196,11 @@ const styles = StyleSheet.create({
   },
   deltaNegative: {
     color: '#4ADE80',
+  },
+  bmiCategorySubtitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    marginTop: 1,
   },
 });

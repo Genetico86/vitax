@@ -521,6 +521,62 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('realtimeLeaderboardSync: invalidation de cache, broadcast local & écoute temps réel');
 
+  // 14. Statistiques Physiologiques & Analyse de l'IMC (BMR, TDEE, OMS, FFMI)
+  const {
+    calculateBmi,
+    analyzeBmi,
+    calculateMetabolism,
+    calculateFfmi,
+    buildPhysiologicalProfile,
+  } = await import('../utils/physiologyUtils');
+
+  // Test de calcul d'IMC
+  const bmiStandard = calculateBmi(75, 178);
+  assert(bmiStandard === 23.7, `IMC standard attendu 23.7 (obtenu: ${bmiStandard})`);
+  assert(calculateBmi(0, 178) === null, 'Poids invalide doit retourner null');
+  assert(calculateBmi(75, 40) === null, 'Taille invalide doit retourner null');
+
+  // Test d'analyse OMS & jauge
+  const analysisNormal = analyzeBmi(75, 178);
+  assert(analysisNormal !== null, 'L’analyse IMC doit être instanciée');
+  assert(analysisNormal?.category === 'normal', '75kg pour 178cm doit être en Corpulence normale');
+  assert(analysisNormal?.idealWeightMinKg === 58.6, 'Poids min idéal attendu 58.6 kg');
+  assert(analysisNormal?.idealWeightMaxKg === 78.9, 'Poids max idéal attendu 78.9 kg');
+  assert(analysisNormal?.deltaToHealthyKg === 0, 'Dans la fourchette santé, deltaToHealthyKg doit valoir 0');
+
+  // Test paradoxe de l'athlète musclé (surpoids athlétique)
+  const analysisOverweight = analyzeBmi(90, 178);
+  assert(analysisOverweight?.category === 'overweight', '90kg pour 178cm doit être en surpoids');
+  assert(Boolean(analysisOverweight?.athleticNote.includes('Paradoxe')), 'Doit mentionner le paradoxe de l’athlète musclé');
+  assert((analysisOverweight?.deltaToHealthyKg || 0) > 0, 'Au-dessus de la fourchette, deltaToHealthyKg doit être positif');
+
+  // Test métabolisme et TDEE
+  const meta = calculateMetabolism(75, 178);
+  assert(meta !== null, 'Le métabolisme doit être calculé');
+  assert(meta?.bmrKcal === 1728, `BMR Mifflin attendu 1728 kcal (obtenu: ${meta?.bmrKcal})`);
+  assert(meta?.tdeeKcal.moderateAthlete === 2506, `TDEE athlète modéré attendu 2506 kcal (obtenu: ${meta?.tdeeKcal.moderateAthlete})`);
+  assert(meta?.targetsKcal.leanBulk === 2806, 'Prise de masse propre attendue à +300 kcal (2806)');
+  assert(meta?.targetsKcal.fatLoss === 2156, 'Sèche progressive attendue à -350 kcal (2156)');
+  assert(meta?.recommendedWaterLiters === 3.1, `Hydratation attendue 3.1 L (obtenu: ${meta?.recommendedWaterLiters})`);
+
+  // Test métabolisme avec masse grasse (Katch-McArdle)
+  const metaKatch = calculateMetabolism(75, 178, 12);
+  assert(metaKatch?.formulaUsed === 'katch_mcardle', 'Formule Katch-McArdle doit être utilisée avec % gras');
+
+  // Test FFMI (Indice de masse maigre)
+  const ffmiResult = calculateFfmi(75, 178, 14);
+  assert(ffmiResult !== null, 'FFMI doit être calculé');
+  assert(ffmiResult?.fatMassKg === 10.5, 'Masse grasse attendue 10.5 kg');
+  assert(ffmiResult?.leanMassKg === 64.5, 'Masse maigre attendue 64.5 kg');
+  assert(ffmiResult?.normalizedFfmi === 20.5, `FFMI normalisé attendu 20.5 (obtenu: ${ffmiResult?.normalizedFfmi})`);
+  assert(ffmiResult?.classification === 'Athlète musclé', `Classification attendue 'Athlète musclé' (obtenu: ${ffmiResult?.classification})`);
+
+  // Profil physiologique consolidé
+  const fullProfile = buildPhysiologicalProfile(75, 178, 14);
+  assert(fullProfile !== null && fullProfile.bmi.bmi === 23.7 && fullProfile.ffmi?.normalizedFfmi === 20.5, 'Profil consolidé complet');
+
+  names.push('physiologyUtils: calculs IMC, classification OMS, jauge, BMR, TDEE et FFMI');
+
   return { passed: names.length, names };
 }
 

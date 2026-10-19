@@ -213,6 +213,7 @@ export interface WeightProgressStats {
   delta30Days: number;
   logsCount: number;
   bmi: number | null;
+  latestBodyFat?: number | null;
 }
 
 // -------------------------------------------------------------

@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { BodyWeightLog } from '../../types';
 import { useWeightGoals } from './hooks/useWeightGoals';
 import { WeightSummaryCard } from './sections/WeightSummaryCard';
+import { PhysiologicalStatsCard } from './sections/PhysiologicalStatsCard';
 import { WeightHistoryChart } from './sections/WeightHistoryChart';
 import { WeightGoalCard } from './sections/WeightGoalCard';
 import { StrengthGoalsSection } from './sections/StrengthGoalsSection';
@@ -10,12 +11,16 @@ import { WeightHistoryList } from './sections/WeightHistoryList';
 import { WeightLogModal } from './modals/WeightLogModal';
 import { WeightGoalModal } from './modals/WeightGoalModal';
 import { StrengthGoalModal } from './modals/StrengthGoalModal';
+import { HeightModal } from './modals/HeightModal';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 interface WeightGoalsViewProps {
   onWeightUpdated?: () => void;
 }
 
 export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdated }) => {
+  const { user_height_cm, setUserHeight } = useSettingsStore();
+
   const {
     logs,
     stats,
@@ -38,6 +43,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
 
   const [weightGoalModalVisible, setWeightGoalModalVisible] = useState(false);
   const [strengthGoalModalVisible, setStrengthGoalModalVisible] = useState(false);
+  const [heightModalVisible, setHeightModalVisible] = useState(false);
 
   const handleOpenAddLog = () => {
     setEditingLog(null);
@@ -49,12 +55,28 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
     setLogModalVisible(true);
   };
 
+  const handleSaveHeight = async (heightVal: number) => {
+    await setUserHeight(heightVal);
+    onWeightUpdated?.();
+  };
+
   return (
     <View style={styles.container}>
-      {/* 1. Carte Résumé */}
+      {/* 1. Carte Résumé Poids */}
       <WeightSummaryCard
         stats={stats}
         weightUnit={weight_unit}
+        userHeightCm={user_height_cm}
+        onAddLogPress={handleOpenAddLog}
+        onSetHeightPress={() => setHeightModalVisible(true)}
+      />
+
+      {/* 2. Analyse Physiologique & IMC Complète */}
+      <PhysiologicalStatsCard
+        stats={stats}
+        userHeightCm={user_height_cm}
+        weightUnit={weight_unit}
+        onSetHeightPress={() => setHeightModalVisible(true)}
         onAddLogPress={handleOpenAddLog}
       />
 
@@ -111,6 +133,14 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
         exercises={exercises}
         onClose={() => setStrengthGoalModalVisible(false)}
         onSave={handleSaveStrengthGoal}
+      />
+
+      {/* Modale de saisie / modification de la taille */}
+      <HeightModal
+        visible={heightModalVisible}
+        currentHeight={user_height_cm}
+        onClose={() => setHeightModalVisible(false)}
+        onSave={handleSaveHeight}
       />
     </View>
   );

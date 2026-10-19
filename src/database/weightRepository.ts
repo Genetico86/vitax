@@ -219,6 +219,11 @@ export async function getWeightStats(heightCm?: number): Promise<WeightProgressS
     bmi = Math.round((currentKg / (heightM * heightM)) * 10) / 10;
   }
 
+  const lastLogWithBodyFat = [...logs].reverse().find(
+    (l) => l.body_fat_percentage !== undefined && l.body_fat_percentage !== null
+  );
+  const latestBodyFat = lastLogWithBodyFat?.body_fat_percentage ?? null;
+
   return {
     currentWeight: current,
     startingWeight: starting,
@@ -229,6 +234,7 @@ export async function getWeightStats(heightCm?: number): Promise<WeightProgressS
     delta30Days,
     logsCount: logs.length,
     bmi,
+    latestBodyFat,
   };
 }
 
