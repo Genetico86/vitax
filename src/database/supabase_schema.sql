@@ -710,3 +710,23 @@ GRANT EXECUTE ON FUNCTION public.current_vitax_user_id() TO anon, authenticated,
 GRANT EXECUTE ON FUNCTION public.register_trainer_secure(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.authenticate_trainer_secure(TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 
+-- 5. RÉPLICATION TEMPS RÉEL SUPABASE (SUPABASE REALTIME)
+-- Active la diffusion WebSocket instantanée pour les classements et profils athlètes
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.weekly_leaderboards;
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+      WHEN others THEN NULL;
+    END;
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+    EXCEPTION
+      WHEN duplicate_object THEN NULL;
+      WHEN others THEN NULL;
+    END;
+  END IF;
+END $$;
+

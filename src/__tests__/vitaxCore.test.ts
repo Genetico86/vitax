@@ -491,6 +491,36 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('leaderboardTimeframe: classement permanent au Total d’EXP vs classement hebdo de ligue');
 
+  // 13. Synchronisation Temps Réel du Classement & Invalidation de Cache
+  const {
+    invalidateWeeklyStatsCache,
+    subscribeToLeaderboardUpdates,
+    notifyLeaderboardUpdated,
+  } = await import('../services/multiplayer/leagueService');
+  const { invalidateGamificationCache } = await import('../services/gamificationService');
+
+  // Test invalidation sans crash
+  invalidateWeeklyStatsCache();
+  invalidateGamificationCache();
+  assert(true, 'invalidateWeeklyStatsCache et invalidateGamificationCache s’exécutent avec succès');
+
+  // Test système de souscription temps réel
+  let notifiedTimes = 0;
+  const unsubscribeLeaderboard = subscribeToLeaderboardUpdates(() => {
+    notifiedTimes += 1;
+  });
+  notifyLeaderboardUpdated();
+  assert(notifiedTimes === 1, 'L’écouteur de leaderboard est notifié immédiatement lors d’un changement d’XP');
+  notifyLeaderboardUpdated();
+  assert(notifiedTimes === 2, 'L’écouteur reçoit les notifications successives');
+
+  // Test de désinscription
+  unsubscribeLeaderboard();
+  notifyLeaderboardUpdated();
+  assert(notifiedTimes === 2, 'Après désinscription, l’écouteur ne reçoit plus les événements');
+
+  names.push('realtimeLeaderboardSync: invalidation de cache, broadcast local & écoute temps réel');
+
   return { passed: names.length, names };
 }
 

@@ -408,6 +408,14 @@ let cachedSetsXpKey = '';
 let cachedSetsBiomechanicalXp = 0;
 
 /**
+ * Invalide le cache des calculs d'XP biomécanique pour forcer un recalcul immédiat
+ */
+export function invalidateGamificationCache(): void {
+  cachedSetsXpKey = '';
+  cachedSetsBiomechanicalXp = 0;
+}
+
+/**
  * Récupère le total d'XP de l'utilisateur et calcule son niveau d'Athlète et ses trophées
  */
 export async function getUserGamificationStats(): Promise<{
