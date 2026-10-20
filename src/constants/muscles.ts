@@ -233,6 +233,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
           'ex_incline_dumbbell_row',
           'ex_tbar_row',
           'ex_shrugs_barbell',
+          'ex_band_row',
         ],
       },
       {
@@ -302,6 +303,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
           'ex_cable_rear_delt_cross_pulldown',
           'ex_cable_incline_rear_delt',
           'ex_chest_supported_rear_delt_fly',
+          'ex_band_pull_apart',
         ],
       },
     ],
@@ -338,6 +340,7 @@ export const MUSCLE_GROUPS_INFO: Record<MuscleGroup, MuscleGroupInfo> = {
           'ex_cable_concentration_curl',
           'ex_cable_hercules_curl',
           'ex_cable_lying_high_curl',
+          'ex_band_bicep_curl',
         ],
       },
       {

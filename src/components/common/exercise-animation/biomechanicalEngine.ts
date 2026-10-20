@@ -150,162 +150,192 @@ export function detectExerciseCategory(
   const id = exerciseId.toLowerCase();
   const muscle = targetMuscle.toLowerCase();
 
-  // Cardio & Running
+  // 1. Cardio strict
   if (
-    id.includes('running_outdoor') ||
-    id.includes('treadmill') ||
-    id.includes('tapis') ||
-    id.includes('course') ||
-    id.includes('running') ||
-    id.includes('walking') ||
-    id.includes('marche') ||
-    id.includes('velo') ||
-    id.includes('elliptique') ||
-    muscle.includes('cardio')
+    muscle.includes('cardio') ||
+    id === 'ex_running_outdoor' ||
+    id === 'ex_treadmill' ||
+    id === 'ex_walking_active' ||
+    id === 'ex_walking_incline' ||
+    id === 'ex_farmers_walk' ||
+    id === 'ex_elliptical' ||
+    id === 'ex_jump_rope' ||
+    id === 'ex_rower' ||
+    id === 'ex_burpees'
   ) {
     return 'running';
   }
 
-  // Développé incliné
-  if (id.includes('incline')) {
-    return 'incline_press';
+  // 2. Superman & Mountain Climber
+  if (id.includes('superman')) return 'superman';
+  if (id.includes('mountain') || id.includes('climber')) return 'mountain_climber';
+
+  // 3. Mollets
+  if (id.includes('calf') || id.includes('mollet')) return 'calf_raise';
+
+  // 4. Abdominaux : relevé de jambes / bassin
+  if (
+    id.includes('hanging') ||
+    id.includes('leg_raise') ||
+    id.includes('releve_jambes') ||
+    id.includes('releve_bassin')
+  ) {
+    return 'hanging_leg_raise';
   }
 
-  // Développé couché
-  if (id.includes('bench') || (muscle.includes('pec') && id.includes('press'))) {
-    return 'bench_press';
+  // 5. Abdominaux : crunch, rouleau, pallof, twist, woodchopper, planche
+  if (
+    muscle.includes('abdo') ||
+    id.includes('crunch') ||
+    id.includes('ab_wheel') ||
+    id.includes('twist') ||
+    id.includes('woodchopper') ||
+    id.includes('pallof') ||
+    id.includes('plank')
+  ) {
+    return 'core_crunch';
   }
 
-  // Écarté pectoraux
-  if (id.includes('fly') || id.includes('ecarte') || id.includes('crossover')) {
+  // 6. Dips
+  if (id.includes('dips')) return 'dips';
+
+  // 7. Pompes
+  if (id.includes('pushup') || id.includes('pompe')) return 'pushups';
+
+  // 8. Triceps (inclut close grip bench, kickback triceps, extensions corde/barre/katana)
+  if (
+    id.includes('tricep') ||
+    id.includes('pushdown') ||
+    id.includes('skull_crushers') ||
+    id.includes('katana') ||
+    id.includes('close_grip_bench') ||
+    (muscle.includes('tricep') && !id.includes('dips'))
+  ) {
+    return 'triceps_extension';
+  }
+
+  // 9. Biceps (attention à ne pas attraper leg_curl)
+  if (
+    (id.includes('curl') && !id.includes('leg_curl')) ||
+    muscle.includes('bicep')
+  ) {
+    return 'biceps_curl';
+  }
+
+  // 10. Deltoïdes postérieurs / oiseau / face pull / élévations
+  if (
+    id.includes('rear_delt') ||
+    id.includes('oiseau') ||
+    id.includes('face_pull') ||
+    id.includes('lateral_raise') ||
+    id.includes('front_raise') ||
+    id.includes('y_raise') ||
+    id.includes('pull_apart') ||
+    ((muscle.includes('épaule') || muscle.includes('epaule')) &&
+      (id.includes('elevation') || id.includes('raise') || id.includes('lateral')))
+  ) {
+    return 'lateral_raise';
+  }
+
+  // 11. Développé épaules (militaire, haltères assis, barre assis, nuque)
+  if (
+    (muscle.includes('épaule') || muscle.includes('epaule')) &&
+    (id.includes('press') ||
+      id.includes('overhead') ||
+      id.includes('military') ||
+      id.includes('nuque'))
+  ) {
+    return 'overhead_press';
+  }
+
+  // 12. Pectoraux : Écartés & Crossovers
+  if (
+    id.includes('fly') ||
+    id.includes('crossover') ||
+    id.includes('ecarte')
+  ) {
     return 'cable_fly';
   }
 
-  // Pompes
-  if (id.includes('pushup') || id.includes('pompe')) {
-    return 'pushups';
+  // 13. Pectoraux : Développé incliné
+  if (
+    (muscle.includes('pec') || id.includes('bench') || id.includes('chest')) &&
+    id.includes('incline')
+  ) {
+    return 'incline_press';
   }
 
-  // Dips
-  if (id.includes('dips')) {
-    return 'dips';
+  // 14. Pectoraux : Développé couché / décliné / pin press / pull-over haltères
+  if (
+    muscle.includes('pec') ||
+    id.includes('bench_press') ||
+    id.includes('flat_bench') ||
+    id.includes('flat_dumbbell_press') ||
+    id.includes('pin_press') ||
+    (id.includes('pullover') && muscle.includes('pec'))
+  ) {
+    return 'bench_press';
   }
 
-  // Soulevé de terre & Pull-through
-  if (id.includes('deadlift') || id.includes('terre') || id.includes('pull_through')) {
-    return 'deadlift';
-  }
-
-  // Hip Thrust & Fessiers (Kickback)
+  // 15. Fessiers : Hip Thrust, Kickback fessier, Abduction/Adduction hanche
   if (
     id.includes('hip_thrust') ||
-    id.includes('thrust') ||
-    id.includes('fessier') ||
-    id.includes('kickback')
+    id.includes('glute_kickback') ||
+    id.includes('donkey_kickback') ||
+    id.includes('hip_abduction') ||
+    id.includes('hip_adduction')
   ) {
     return 'hip_thrust';
   }
 
-  // Squat, presse, fentes
+  // 16. Soulevé de terre & Charnière postérieure (Deadlift, Romanian, Pull-through, Good morning, Rack pull)
+  if (
+    id.includes('deadlift') ||
+    id.includes('pull_through') ||
+    id.includes('good_morning') ||
+    id.includes('rack_pull')
+  ) {
+    return 'deadlift';
+  }
+
+  // 17. Jambes : Squat, Presse, Fentes (dont walking_lunges), Leg Extension, Leg Curl
   if (
     id.includes('squat') ||
     id.includes('leg_press') ||
-    id.includes('presse') ||
     id.includes('lunge') ||
     id.includes('fente') ||
+    id.includes('leg_extension') ||
+    id.includes('leg_curl') ||
+    id.includes('belt_squat') ||
     muscle.includes('jambe')
   ) {
     return 'squat';
   }
 
-  // Tractions
+  // 18. Tractions
   if (id.includes('pullup') || id.includes('chinup') || id.includes('traction')) {
     return 'pullups';
   }
 
-  // Tirage vertical / poulie haute / pull-over
+  // 19. Tirage vertical dos & Pull-over poulie haute dos
   if (
-    id.includes('lat_pulldown') ||
     id.includes('pulldown') ||
-    id.includes('tirage_vertical') ||
+    id.includes('lat_pulldown') ||
     id.includes('straight_arm') ||
-    id.includes('pullover')
+    id.includes('scapular_pulldown') ||
+    (id.includes('pullover') && muscle.includes('dos'))
   ) {
     return 'lat_pulldown';
   }
 
-  // Rowing
-  if (id.includes('row') || id.includes('tirage_horizontal') || muscle.includes('dos')) {
+  // 20. Rowing & Tirages horizontaux dos
+  if (
+    id.includes('row') ||
+    id.includes('shrug') ||
+    id.includes('hyperextension') ||
+    muscle.includes('dos')
+  ) {
     return 'rowing';
-  }
-
-  // Développé militaire / épaules
-  if (
-    id.includes('overhead') ||
-    id.includes('military') ||
-    id.includes('militaire') ||
-    id.includes('shoulder_press')
-  ) {
-    return 'overhead_press';
-  }
-
-  // Élévations latérales
-  if (
-    id.includes('lateral') ||
-    id.includes('elevation') ||
-    id.includes('face_pull') ||
-    id.includes('y_raise') ||
-    id.includes('raise') ||
-    muscle.includes('épaule') ||
-    muscle.includes('epaule')
-  ) {
-    return 'lateral_raise';
-  }
-
-  // Biceps
-  if (id.includes('curl') || muscle.includes('bicep')) {
-    return 'biceps_curl';
-  }
-
-  // Triceps
-  if (
-    id.includes('pushdown') ||
-    id.includes('tricep') ||
-    id.includes('extension') ||
-    muscle.includes('tricep')
-  ) {
-    return 'triceps_extension';
-  }
-
-  // Mollets
-  if (id.includes('calf') || id.includes('mollet')) {
-    return 'calf_raise';
-  }
-
-  // Abdominaux : relevé de jambes
-  if (id.includes('hanging') || id.includes('leg_raise') || id.includes('releve_jambes')) {
-    return 'hanging_leg_raise';
-  }
-
-  // Abdominaux : crunch, pallof & gainage
-  if (
-    id.includes('crunch') ||
-    id.includes('abdo') ||
-    id.includes('plank') ||
-    id.includes('pallof') ||
-    muscle.includes('abdo')
-  ) {
-    return 'core_crunch';
-  }
-
-  // Superman lombaire
-  if (id.includes('superman') || id.includes('lombaire')) {
-    return 'superman';
-  }
-
-  // Mountain climbers
-  if (id.includes('mountain') || id.includes('climber')) {
-    return 'mountain_climber';
   }
 
   return 'default_weights';

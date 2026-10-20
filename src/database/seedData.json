@@ -34,8 +34,8 @@
     },
     {
       "id": "ex_cable_fly",
-      "name": "Écarté à la poulie",
-      "description": "Debout buste légèrement penché, serrez la poignée de poulie devant votre poitrine en gardant une légère flexion des coudes. Contrôlez l'ouverture.",
+      "name": "Écarté horizontal à la poulie (Mi-hauteur)",
+      "description": "Poulies réglées à mi-hauteur (hauteur de poitrine), buste stable en fente avant. Rapprochez les poignées vers l'avant dans un plan horizontal en gardant les coudes légèrement fléchis pour une tension maximale sur le faisceau sternocostal des pectoraux.",
       "target_muscle": "Pectoraux",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -74,8 +74,8 @@
     },
     {
       "id": "ex_straight_arm_pulldown",
-      "name": "Pull-over bras tendus (Poulie haute)",
-      "description": "Debout buste penché à 30°, bras quasi-tendus. Abaissez la barre de la poulie haute vers les cuisses en contractant fortement le grand dorsal.",
+      "name": "Pull-over bras tendus à la barre (Poulie haute)",
+      "description": "Debout buste penché à 30-45°, saisissez la barre droite de la poulie haute en pronation. Bras quasi-tendus, abaissez la barre vers les cuisses en arc de cercle en isolant le grand dorsal.",
       "target_muscle": "Dos",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -138,8 +138,8 @@
     },
     {
       "id": "ex_cable_bicep_curl",
-      "name": "Curl biceps à la poulie basse",
-      "description": "Debout face à la poulie basse du rack avec la barre ou la corde. Fléchissez les avant-bras en gardant les coudes fixes pour une tension constante sans point mort.",
+      "name": "Curl biceps à la barre droite (Poulie basse)",
+      "description": "Debout face à la poulie basse avec barre droite en supination. Fléchissez les avant-bras en gardant les coudes fixes le long du flanc pour une tension continue du bas jusqu'en haut.",
       "target_muscle": "Biceps",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -170,16 +170,16 @@
     },
     {
       "id": "ex_tricep_pushdown",
-      "name": "Extension triceps à la poulie haute",
-      "description": "Coudes verrouillés le long du corps, étendez les bras vers le bas en écartant la corde ou en appuyant sur la barre droite de la poulie haute.",
+      "name": "Extension triceps à la barre droite (Poulie haute)",
+      "description": "Coudes verrouillés le long des flancs, poussez la barre droite de la poulie haute vers le bas jusqu'au verrouillage contrôlé des coudes pour cibler le vaste latéral et médial du triceps.",
       "target_muscle": "Triceps",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
     },
     {
       "id": "ex_overhead_cable_triceps",
-      "name": "Extension triceps au-dessus de la tête (Poulie)",
-      "description": "Dos à la poulie avec la corde tenue au-dessus de la tête. Tendez les avant-bras vers l'avant pour étirer et contracter la longue portion du triceps.",
+      "name": "Extension triceps au-dessus de la tête debout à la poulie",
+      "description": "Dos à la poulie en fente stable, corde tenue derrière la tête. Tendez les avant-bras vers l'avant au-dessus de la tête pour maximiser l'étirement et la contraction de la longue portion du triceps.",
       "target_muscle": "Triceps",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -218,8 +218,8 @@
     },
     {
       "id": "ex_calf_raise",
-      "name": "Élévations des mollets debout",
-      "description": "En équilibre sur la pointe des pieds, montez au maximum en marquant 1 seconde de pause en contraction, puis descendez lentement au plus bas.",
+      "name": "Élévations des mollets debout au poids du corps",
+      "description": "Debout sur une marche ou un step, hissez-vous sur la pointe des pieds en contractant les mollets (gastrocnémiens et soléaires), marquez une pause au sommet puis descendez sous l'horizontale pour un étirement complet contrôlé.",
       "target_muscle": "Jambes",
       "equipment_needed": "Sans matériel",
       "is_custom": 0
@@ -538,8 +538,8 @@
     },
     {
       "id": "ex_cable_single_arm_row",
-      "name": "Rowing unilatéral à la poulie basse",
-      "description": "Face à la poulie basse, saisissez la poignée simple à un bras. Tirez le coude vers la hanche avec rotation du poignet pour isoler le grand dorsal.",
+      "name": "Rowing debout unilatéral à la poulie basse",
+      "description": "Debout face à la poulie basse en fente stable, saisissez la poignée simple à un bras. Tirez le coude vers la hanche en resserrant l'omoplate pour un ciblage optimal du grand dorsal sans rotation du buste.",
       "target_muscle": "Dos",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -586,8 +586,8 @@
     },
     {
       "id": "ex_cable_glute_kickback",
-      "name": "Kickback fessier à la poulie basse",
-      "description": "Fixez la sangle de cheville à la poulie basse. En appui sur le rack, poussez la jambe vers l'arrière en contractant le grand fessier au sommet.",
+      "name": "Kickback fessier jambe tendue à la poulie basse",
+      "description": "Sangle fixée à la cheville à la poulie basse, buste en appui penché sur le rack. Tendez la jambe vers l'arrière en arc de cercle contrôlé sans cambrer les lombaires pour cibler le grand fessier et le haut des ischio-jambiers.",
       "target_muscle": "Jambes",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -675,7 +675,7 @@
     {
       "id": "ex_cable_seated_overhead_triceps",
       "name": "Extension triceps assis au banc à la poulie haute",
-      "description": "Assis dos à la poulie sur le banc incliné à 75°. Développez la corde au-dessus de la tête pour un étirement maximal de la longue portion des triceps.",
+      "description": "Assis sur un banc incliné dos à la poulie haute, corde tenue derrière la nuque. Poussez la corde vers le haut pour étirer et contracter la longue portion des triceps sans compensation lombaire.",
       "target_muscle": "Triceps",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -763,7 +763,7 @@
     {
       "id": "ex_barbell_calf_raise",
       "name": "Élévations des mollets debout à la barre",
-      "description": "Barre sur les trapèzes dans la cage, montez sur la pointe des pieds en haut d'une cale pour une amplitude complète des mollets.",
+      "description": "Barre sur les trapèzes dans le rack, avant-pieds calés sur une marche ou cale. Rehaussez les talons le plus haut possible contre la charge, bloquez une seconde au sommet puis redescendez lentement jusqu'à l'étirement maximal.",
       "target_muscle": "Jambes",
       "equipment_needed": "Barre",
       "is_custom": 0
@@ -923,7 +923,7 @@
     {
       "id": "ex_cable_rope_pullover",
       "name": "Pull-over à la corde à la poulie haute",
-      "description": "Buste légèrement incliné à 45°, saisissez la corde fixée en poulie haute. Bras quasi tendus, amenez la corde vers les cuisses en écartant les extrémités pour une contraction maximale du grand dorsal.",
+      "description": "Buste légèrement incliné à 45°, saisissez la corde fixée en poulie haute. Bras quasi-tendus, amenez la corde vers les cuisses en écartant les extrémités au bas du geste pour une contraction maximale du grand dorsal.",
       "target_muscle": "Dos",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -963,7 +963,7 @@
     {
       "id": "ex_cable_rope_triceps_pushdown",
       "name": "Extension triceps à la corde à la poulie haute",
-      "description": "Debout face à la poulie haute, corde en main coudes fixés au corps. Développez vers le bas en écartant les poignets au bas du geste pour un pic de contraction optimal du vaste latéral.",
+      "description": "Debout face à la poulie haute, corde en main, coudes collés au buste. Développez vers le bas en écartant les poignets au bas du mouvement pour un pic de contraction maximal du vaste latéral.",
       "target_muscle": "Triceps",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -1051,7 +1051,7 @@
     {
       "id": "ex_cable_ez_bar_curl",
       "name": "Curl biceps à la barre EZ à la poulie basse",
-      "description": "Debout face à la poulie basse, barre EZ fixée au mousqueton. Fléchissez les avant-bras avec tension continue dès le bas du mouvement sans point mort en haut.",
+      "description": "Debout face à la poulie basse, barre EZ fixée au mousqueton. La courbure physiologique de la barre EZ soulage les poignets tout en maintenant une tension constante sur le brachial antérieur et le biceps.",
       "target_muscle": "Biceps",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0
@@ -1066,8 +1066,8 @@
     },
     {
       "id": "ex_cable_donkey_kickback",
-      "name": "Donkey kick fessier à la poulie basse",
-      "description": "À quatre pattes ou en appui buste penché face à la poulie basse, sangle de cheville attachée. Poussez le talon vers le plafond avec genou fléchi à 90° pour isoler le haut du grand fessier.",
+      "name": "Donkey kick fessier genou fléchi à la poulie basse",
+      "description": "En appui buste penché ou quadrupédie face à la poulie basse, genou de la jambe de travail fléchi à 90°. Poussez la plante du pied et le talon directement vers le haut pour isoler le grand fessier en réduisant l'intervention des ischio-jambiers.",
       "target_muscle": "Jambes",
       "equipment_needed": "Poulie / Machine",
       "is_custom": 0

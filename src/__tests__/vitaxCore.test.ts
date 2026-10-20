@@ -37,6 +37,12 @@ import {
   getRunningStats,
 } from '../database/runningRepository';
 import seedData from '../database/seedData.json';
+import {
+  EXERCISE_GUIDES_DATABASE,
+  getExerciseGuide,
+} from '../services/exerciseGuideService';
+import { detectExerciseCategory } from '../components/common/exercise-animation/biomechanicalEngine';
+import { MUSCLE_GROUPS_INFO } from '../constants/muscles';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -843,6 +849,110 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
   assert(Boolean(fatLossSuccess.compositionInsight && fatLossSuccess.compositionInsight.includes('masse grasse')), 'Doit expliciter la perte de masse grasse réelle');
 
   names.push('weightProgressionCoherence: analyse scientifique des variations, objectifs sèche/masse/maintien sans félicitations arbitraires');
+
+  // 19. Intégrité des exercices, vérification stricte anti-doublons & précision biomécanique
+  const allExercises = ((seedData as any).exercises || (seedData as any).default?.exercises) as any[];
+  assert(allExercises.length === 134, `Le catalogue Vitax doit contenir exactement 134 exercices (trouvé: ${allExercises.length})`);
+
+  // A. Unicité stricte des identifiants (aucun ID en double)
+  const uniqueIds = new Set(allExercises.map((e) => e.id));
+  assert(uniqueIds.size === allExercises.length, `Aucun doublon d’identifiant ne doit exister (${uniqueIds.size}/${allExercises.length})`);
+
+  // B. Unicité stricte des noms d’exercices (aucun libellé en double)
+  const uniqueNames = new Set(allExercises.map((e) => e.name.trim().toLowerCase()));
+  assert(uniqueNames.size === allExercises.length, `Aucun nom d’exercice en doublon (${uniqueNames.size}/${allExercises.length})`);
+
+  // C. Vérification de la désambiguïsation des paires d’exercices à haute similarité
+  const standingCableRow = allExercises.find((e) => e.id === 'ex_cable_single_arm_row');
+  assert(Boolean(standingCableRow && standingCableRow.name.includes('debout unilatéral')), 'ex_cable_single_arm_row doit être qualifié debout unilatéral');
+
+  const seatedCableRowUni = allExercises.find((e) => e.id === 'ex_cable_seated_single_arm_row');
+  assert(Boolean(seatedCableRowUni && seatedCableRowUni.name.includes('assis unilatéral')), 'ex_cable_seated_single_arm_row doit être qualifié assis unilatéral');
+
+  const bodyweightCalf = allExercises.find((e) => e.id === 'ex_calf_raise');
+  assert(Boolean(bodyweightCalf && bodyweightCalf.name.includes('poids du corps')), 'ex_calf_raise doit être qualifié au poids du corps');
+
+  const barbellCalf = allExercises.find((e) => e.id === 'ex_barbell_calf_raise');
+  assert(Boolean(barbellCalf && barbellCalf.name.includes('à la barre')), 'ex_barbell_calf_raise doit mentionner la barre');
+
+  const straightArmBar = allExercises.find((e) => e.id === 'ex_straight_arm_pulldown');
+  assert(Boolean(straightArmBar && straightArmBar.name.includes('à la barre')), 'ex_straight_arm_pulldown doit mentionner la barre droite');
+
+  const ropePullover = allExercises.find((e) => e.id === 'ex_cable_rope_pullover');
+  assert(Boolean(ropePullover && ropePullover.name.includes('à la corde')), 'ex_cable_rope_pullover doit mentionner la corde');
+
+  const tricepBarPushdown = allExercises.find((e) => e.id === 'ex_tricep_pushdown');
+  assert(Boolean(tricepBarPushdown && tricepBarPushdown.name.includes('barre droite')), 'ex_tricep_pushdown doit mentionner la barre droite');
+
+  const tricepRopePushdown = allExercises.find((e) => e.id === 'ex_cable_rope_triceps_pushdown');
+  assert(Boolean(tricepRopePushdown && tricepRopePushdown.name.includes('à la corde')), 'ex_cable_rope_triceps_pushdown doit mentionner la corde');
+
+  const bicepBarCurl = allExercises.find((e) => e.id === 'ex_cable_bicep_curl');
+  assert(Boolean(bicepBarCurl && bicepBarCurl.name.includes('barre droite')), 'ex_cable_bicep_curl doit mentionner la barre droite');
+
+  const bicepEzCurl = allExercises.find((e) => e.id === 'ex_cable_ez_bar_curl');
+  assert(Boolean(bicepEzCurl && bicepEzCurl.name.includes('barre EZ')), 'ex_cable_ez_bar_curl doit mentionner la barre EZ');
+
+  const straightGluteKick = allExercises.find((e) => e.id === 'ex_cable_glute_kickback');
+  assert(Boolean(straightGluteKick && straightGluteKick.name.includes('jambe tendue')), 'ex_cable_glute_kickback doit mentionner jambe tendue');
+
+  const donkeyKick = allExercises.find((e) => e.id === 'ex_cable_donkey_kickback');
+  assert(Boolean(donkeyKick && donkeyKick.name.includes('genou fléchi')), 'ex_cable_donkey_kickback doit mentionner genou fléchi');
+
+  // D. Couverture 100% experte de la base des guides d’exécution (134/134)
+  const expertGuideCount = Object.keys(EXERCISE_GUIDES_DATABASE).length;
+  assert(expertGuideCount === 134, `La base experte des guides doit couvrir 134 exercices (trouvé: ${expertGuideCount})`);
+
+  // E. Complétude et rigueur biomécanique pour chaque exercice du catalogue
+  for (const ex of allExercises) {
+    const guide = getExerciseGuide(ex);
+    assert(guide.id === ex.id, `ID conforme pour ${ex.id}`);
+    assert(guide.objectif.length >= 30, `Objectif détaillé pour ${ex.id}`);
+    assert(guide.chargeAdaptee.length >= 30, `Charge adaptée détaillée pour ${ex.id}`);
+    assert(guide.position.length >= 30, `Position détaillée pour ${ex.id}`);
+    assert(guide.posture.length >= 30, `Posture détaillée pour ${ex.id}`);
+    assert(guide.completude.length >= 30, `Complétude du geste détaillée pour ${ex.id}`);
+    assert(['Faible', 'Modéré', 'Élevé', 'Très Élevé'].includes(guide.niveauRisque), `Niveau de risque valide pour ${ex.id}`);
+    assert(guide.mentionRisque.length >= 20, `Alerte de risque substantielle pour ${ex.id}`);
+    assert(Array.isArray(guide.pointsAttention) && guide.pointsAttention.length >= 3, `Au moins 3 points d’attention pour ${ex.id}`);
+  }
+
+  // F. Classification cinématique exacte (sans faux positifs)
+  assert(detectExerciseCategory('ex_tricep_kickback', 'Triceps') === 'triceps_extension', 'Kickback triceps doit être classé en triceps_extension et non hip_thrust');
+  assert(detectExerciseCategory('ex_incline_curl', 'Biceps') === 'biceps_curl', 'Curl incliné doit être classé en biceps_curl et non incline_press');
+  assert(detectExerciseCategory('ex_cable_incline_curl', 'Biceps') === 'biceps_curl', 'Curl incliné poulie doit être classé en biceps_curl et non incline_press');
+  assert(detectExerciseCategory('ex_incline_dumbbell_row', 'Dos') === 'rowing', 'Rowing sur banc incliné doit être classé en rowing et non incline_press');
+  assert(detectExerciseCategory('ex_walking_lunges', 'Jambes') === 'squat', 'Fentes marchées doit être classé en squat/jambes et non running');
+  assert(detectExerciseCategory('ex_bench_dips', 'Triceps') === 'dips', 'Dips banc doit être classé en dips et non bench_press');
+  assert(detectExerciseCategory('ex_decline_bench_leg_raise', 'Abdominaux') === 'hanging_leg_raise', 'Relevé de jambes sur banc décliné doit être classé en hanging_leg_raise et non bench_press');
+  assert(detectExerciseCategory('ex_decline_bench_crunch', 'Abdominaux') === 'core_crunch', 'Crunch banc décliné doit être classé en core_crunch et non bench_press');
+  assert(detectExerciseCategory('ex_cable_rope_triceps_pushdown', 'Triceps') === 'triceps_extension', 'Extension triceps corde doit être classé en triceps_extension et non running');
+  assert(detectExerciseCategory('ex_cable_rear_delt_cross_pulldown', 'Épaules') === 'lateral_raise', 'Écarté croisé arrière épaule doit être classé en lateral_raise et non lat_pulldown');
+
+  // G. Aucune catégorie générique default_weights non qualifiée
+  let unclassifiedCount = 0;
+  for (const ex of allExercises) {
+    const cat = detectExerciseCategory(ex.id, ex.target_muscle);
+    if (cat === 'default_weights') unclassifiedCount++;
+  }
+  assert(unclassifiedCount === 0, `Aucun exercice ne doit rester dans la catégorie générique par défaut (trouvé: ${unclassifiedCount})`);
+
+  // H. Tous les 134 exercices sont cartographiés dans les sous-muscles précis
+  const registeredMuscleIds = new Set();
+  Object.values(MUSCLE_GROUPS_INFO).forEach((group) => {
+    if (group.preciseMuscles) {
+      group.preciseMuscles.forEach((pm) => {
+        if (pm.exerciseIds) {
+          pm.exerciseIds.forEach((id) => registeredMuscleIds.add(id));
+        }
+      });
+    }
+  });
+  for (const ex of allExercises) {
+    assert(registeredMuscleIds.has(ex.id), `L'exercice ${ex.id} doit être cartographié dans un sous-muscle précis de muscles.ts`);
+  }
+
+  names.push('exerciseIntegrityAndExecutionPrecision: vérification stricte anti-doublons, 100% guides biomécaniques et classification cinématique');
 
   return { passed: names.length, names };
 }
