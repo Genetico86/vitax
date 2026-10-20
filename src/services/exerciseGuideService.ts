@@ -138,6 +138,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Évitez une inclinaison trop forte (>45°) qui transforme le mouvement en développé militaire.',
       'Ne poussez pas les épaules vers l’avant en fin de montée.',
+          'Descendez la barre sous contrôle au niveau des clavicules sans rebond.',
     ],
   },
   ex_incline_dumbbells: {
@@ -157,6 +158,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Gardez le poignet rigide dans l’axe de l’avant-bras.',
       'Ne laissez pas les haltères basculer vers l’arrière au sommet.',
+          'Contrôlez la descente sur 2 à 3 secondes en ouvrant bien la cage thoracique.',
     ],
   },
   ex_pushups: {
@@ -196,6 +198,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne descendez pas trop bas si vous manquez de souplesse scapulaire (risque pour la capsule de l’épaule).',
       'Ne haussez pas les épaules vers les oreilles : gardez les épaules basses et actives.',
+          'Verrouillez la ceinture abdominale pour éviter tout balancement des jambes.',
     ],
   },
   ex_cable_fly: {
@@ -215,6 +218,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne modifiez pas l’angle des coudes pendant le mouvement (ce n’est pas un développé).',
       'Ne donnez pas d’élan avec le tronc.',
+          'Contrôlez l’étirement en position arrière sans surcharger l’articulation antérieure de l’épaule.',
     ],
   },
 
@@ -256,6 +260,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Évitez le kipping (coups de genoux ou balancement du bassin).',
       'Ne cherchez pas à tricher en tendant le cou vers le haut.',
+          'Démarrez chaque répétition par une dépression et adduction des omoplates.',
     ],
   },
   ex_barbell_row: {
@@ -275,6 +280,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne donnez pas d’à-coups de buste de haut en bas pour faire monter la charge.',
       'Ne laissez pas le dos s’arrondir en fin de série.',
+          'Conservez les genoux légèrement fléchis et le bassin stable pour protéger les vertèbres lombaires.',
     ],
   },
   ex_lat_pulldown: {
@@ -294,6 +300,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne tirez pas la barre derrière la nuque (risque de conflit pour les épaules et les cervicales).',
       'Ne relâchez pas brutalement la barre en haut.',
+          'Amenez la barre vers le haut des pectoraux en bombant la poitrine vers le haut.',
     ],
   },
   ex_seated_cable_row: {
@@ -313,6 +320,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne courbez pas les épaules vers l’avant lors du retour.',
       'Ne balancez pas le torse pour arracher la charge.',
+          'Maintenez la cambrure lombaire naturelle et gardez les coudes serrés près du buste.',
     ],
   },
 
@@ -334,6 +342,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne cambrez pas le dos en arrière pour transformer l’exercice en développé couché debout.',
       'Ne fléchissez pas les genoux pour donner une impulsion (sinon c’est un Push Press).',
+          'Verrouillez les fessiers et les abdominaux pour former un bloc rigide du sol à la barre.',
     ],
   },
   ex_lateral_raise: {
@@ -373,6 +382,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas les coudes tomber vers le bas pendant le tirage.',
       'Ne compensez pas en avançant la tête vers la corde.',
+          'Effectuez une rotation externe en fin de course pour amener les pouces vers l’arrière.',
     ],
   },
 
@@ -394,6 +404,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne balancez pas le dos pour faire décoller la barre.',
       'Gardez les coudes fixes : ils ne doivent pas avancer vers l’avant.',
+          'Contrôlez la phase négative sans relâcher brusquement la tension au bas du mouvement.',
     ],
   },
   ex_skull_crushers: {
@@ -413,6 +424,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Gardez les coudes resserrés : ne les laissez pas s’écarter vers l’extérieur.',
       'Contrôlez scrupuleusement la descente pour la sécurité du front.',
+          'Inclinez légèrement les bras vers l’arrière de la verticale pour maintenir une tension continue au sommet.',
     ],
   },
   ex_tricep_pushdown: {
@@ -432,6 +444,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas les coudes monter et descendre.',
       'Ne vous affaissez pas sur la barre avec le poids du corps.',
+          'Marquez une seconde de contraction isométrique complète bras tendus avant de freiner la remontée.',
     ],
   },
 
@@ -473,6 +486,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'NE JAMAIS verrouiller les genoux en extension complète sous charge lourde.',
       'Ne décollez jamais le bas du dos du dossier en bas de mouvement.',
+          'Gardez les pieds bien à plat sur le plateau avec une pression dominante sur les talons.',
     ],
   },
   ex_walking_lunges: {
@@ -492,6 +506,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas le genou avant s’affaisser vers l’intérieur.',
       'Le genou avant ne doit pas dépasser exagérément la pointe du pied.',
+          'Conservez le buste droit et aligné avec le bassin pour un travail harmonieux des quadriceps et fessiers.',
     ],
   },
   ex_romanian_deadlift: {
@@ -511,6 +526,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne pliez pas davantage les genoux pendant la descente (ce n’est pas un squat).',
       'Ne courbez pas le bas du dos pour chercher à aller toucher le sol.',
+          'Gardez la barre en contact permanent avec les tibias et les cuisses tout au long de la descente.',
     ],
   },
 
@@ -532,6 +548,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas le bassin s’affaisser vers le sol (douleurs lombaires).',
       'Ne levez pas les fesses en l’air pour réduire l’effort.',
+          'Maintenez la nuque dans le prolongement de la colonne en fixant le sol entre vos avant-bras.',
     ],
   },
   ex_cable_crunch: {
@@ -551,6 +568,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne fléchissez pas au niveau des hanches : c’est la colonne qui s’enroule, pas le bassin qui recule.',
       'Ne tirez pas avec les bras.',
+          'Expirez la totalité de votre air en enroulant la cage thoracique vers le pubis.',
     ],
   },
 
@@ -572,6 +590,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne courez pas trop près de la console avant ni trop près de l’arrière.',
       'Respirez avec régularité (cycle 2-2 ou 3-3).',
+          'Attaquez le sol avec le médio-pied et évitez l’impact violent sur les talons.',
     ],
   },
   ex_running_outdoor: {
@@ -611,6 +630,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne décollez pas les talons des pédales pour éviter les tensions sur les mollets.',
       'Maintenez une résistance suffisante pour garder le contrôle du pédalage.',
+          'Gardez le torse droit sans vous appuyer de tout votre poids sur les poignées.',
     ],
   },
   ex_rower: {
@@ -630,6 +650,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne pliez pas les genoux avant que la poignée n’ait dépassé les genoux au retour.',
       'Ne tirez pas uniquement avec le dos : la puissance vient des jambes.',
+          'Poussez puissamment avec les jambes avant d’engager le recul du buste puis la traction des bras.',
     ],
   },
   ex_burpees: {
@@ -649,6 +670,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas le bassin s’effondrer au sol lors de la descente en planche.',
       'Amortissez la réception du saut sur l’avant des pieds.',
+          'Conservez un rythme régulier et respirez de façon continue pour gérer l’élévation cardiovasculaire.',
     ],
   },
   // --- NOUVEAUX EXERCICES POULIE HAUTE & CÂBLES ---
@@ -729,6 +751,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Abaissez les trapèzes supérieurs : tirez avec les coudes, pas avec le cou.',
       'Gardez les poignets droits dans le prolongement des avant-bras.',
+          'Resserrez activement les omoplates au sommet du tirage.',
     ],
   },
   ex_cable_scapular_pulldown: {
@@ -748,6 +771,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne fléchissez pas les coudes, même de 5 cm.',
       'Concentrez toute l’intention sur la descente des omoplates le long de la cage thoracique.',
+          'Marquez une pause de 2 secondes au point bas pour enregistrer la contraction des trapèzes inférieurs.',
     ],
   },
   ex_cable_rope_pullover: {
@@ -767,6 +791,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne pliez pas les bras en cours de route : ce n’est pas un pushdown triceps.',
       'Conservez le buste stable sans faire de vague avec le dos.',
+          'Ouvrez la poitrine et contractez le grand dorsal à l’approche des cuisses.',
     ],
   },
   ex_cable_crossover_high_to_low: {
@@ -786,6 +811,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas les coudes partir en arrière des épaules au-delà du confort articulaire.',
       'Gardez les coudes rigides à angle constant sans pousser comme un développé.',
+          'Croisez légèrement les mains au bas du geste pour un pic de contraction accru.',
     ],
   },
   ex_cable_rear_delt_cross_pulldown: {
@@ -805,6 +831,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne serrez pas excessivement les omoplates : l’objectif est d’isoler l’arrière d’épaule, pas les rhomboïdes.',
       'Utilisez un tempo de 3 secondes sur la phase de retour.',
+          'Gardez les poignets fermes sans casser les mains.',
     ],
   },
   ex_cable_y_raise: {
@@ -824,6 +851,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas les épaules monter aux oreilles.',
       'Gardez le bassin verrouillé sans cambrer le bas du dos.',
+          'Contrôlez l’abaissement des bras sans laisser le torse osciller.',
     ],
   },
   ex_cable_face_pull_rotation: {
@@ -843,6 +871,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Assurez-vous que les mains terminent plus haut que les coudes en fin de geste.',
       'Ne reculez pas le buste pour tricher.',
+          'Maintenez la nuque allongée et fixez un repère visuel droit devant.',
     ],
   },
   ex_cable_rope_triceps_pushdown: {
@@ -862,6 +891,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Les coudes doivent rester fixés le long des flancs tout au long du mouvement.',
       'Freinez la remontée des mains jusqu’à hauteur de poitrine sans bouger les bras.',
+          'Écartez les extrémités de la corde au bas du mouvement pour accentuer le recrutement du vaste latéral.',
     ],
   },
   ex_cable_katana_extension: {
@@ -881,6 +911,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Gardez les coudes orientés vers l’avant, ne les laissez pas s’évaser excessivement.',
       'Contrôlez l’étirement au niveau de la nuque sans heurter la tête.',
+          'Gardez le tronc compact et gainé sans cambrer le dos.',
     ],
   },
   ex_cable_reverse_single_arm_triceps: {
@@ -900,6 +931,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne balancez pas l’épaule pour aider à la poussée.',
       'Gardez le poignet rigide sans flexion palmaire.',
+          'Privilégiez la précision de contraction à la charge pour cibler le vaste médial.',
     ],
   },
   ex_cable_hercules_curl: {
@@ -919,6 +951,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas les coudes descendre vers le bas ni avancer vers l’avant.',
       'Ne tirez pas avec le torse.',
+          'Serrez volontairement les biceps au pic de contraction en amenant les poignées vers les oreilles.',
     ],
   },
   ex_cable_lying_high_curl: {
@@ -938,6 +971,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne laissez pas les coudes voyager vers le torse.',
       'Contrôlez impérativement la trajectoire de la barre pour la sécurité faciale.',
+          'Maintenez le dos entièrement plaqué au sol tout au long de la série.',
     ],
   },
   ex_cable_standing_crunch: {
@@ -957,6 +991,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne vous pliez pas au niveau des hanches comme pour un salut.',
       'Gardez les fessiers contractés pour stabiliser le bassin.',
+          'Enroulez la colonne vertébrale sans plier les genoux.',
     ],
   },
   ex_cable_kneeling_oblique_crunch: {
@@ -976,6 +1011,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne tirez pas avec le bras : le bras n’est qu’un point de transmission du câble.',
       'Gardez le bassin bien ancré au sol sans pivoter les cuisses.',
+          'Concentrez la flexion latérale sur les obliques sans à-coups de hanche.',
     ],
   },
   ex_cable_crossover_low_to_high: {
@@ -995,6 +1031,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Gardez les coudes semi-fléchis à angle constant.',
       'Ne balancez pas le torse pour lancer la charge.',
+          'Convergez les mains à hauteur du menton en serrant le haut des pectoraux.',
     ],
   },
   ex_cable_behind_back_lateral_raise: {
@@ -1014,6 +1051,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Menez le mouvement par le coude et non par la main.',
       'Ne haussez pas le trapèze.',
+          'Inclinez légèrement le buste vers l’avant pour aligner le câble avec le faisceau latéral.',
     ],
   },
   ex_cable_seated_single_arm_row: {
@@ -1033,6 +1071,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne tirez pas en tournant tout le buste de côté.',
       'Gardez le coude bien serré contre les côtes.',
+          'Laissez l’omoplate s’étirer vers l’avant en fin de phase excentrique.',
     ],
   },
   ex_cable_pallof_press: {
@@ -1052,6 +1091,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Résistez totalement à la torsion : le corps ne doit pas bouger d’un millimètre.',
       'Respirez calmement sans faire d’apnée.',
+          'Verrouillez les fessiers et le bassin pour neutraliser toute compensation rotatoire.',
     ],
   },
   ex_cable_ez_bar_curl: {
@@ -1071,6 +1111,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne reculez pas les coudes en arrière lors de la montée.',
       'Ne donnez pas d’élan avec les jambes ou le bassin.',
+          'Freinez la descente sur 2 à 3 secondes pour maximiser la tension mécanique.',
     ],
   },
   ex_cable_pull_through: {
@@ -1090,6 +1131,7 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne faites pas un squat : les tibias restent quasi verticaux.',
       'Ne cambrez pas le dos en arrière au sommet.',
+          'Poussez les hanches en avant de manière dynamique et serrez les fessiers au sommet.',
     ],
   },
   ex_cable_donkey_kickback: {
@@ -1109,8 +1151,1713 @@ export const EXERCISE_GUIDES_DATABASE: Record<string, Partial<ExerciseGuide>> = 
     pointsAttention: [
       'Ne cambrez pas les lombaires pour monter plus haut.',
       'Gardez la hanche alignée sans l’ouvrir sur le côté.',
+          'Poussez la plante du pied directement vers le haut en isolant le grand fessier.',
     ],
   },
+  // =========================================================================
+  // --- GUIDES TECHNIQUES COMPLETS DE TOUS LES EXERCICES VITAX ---
+  // =========================================================================
+  ex_straight_arm_pulldown: {
+    objectif:
+      "Isolation pure du grand dorsal et du grand rond sans sollicitation des fléchisseurs du coude (biceps), avec recrutement stabilisateur du chef long du triceps et de la sangle abdominale.",
+    chargeAdaptee:
+      "Charge modérée permettant 10 à 15 répétitions contrôlées (RIR 1-2). Privilégiez une trajectoire fluide et une tension continue plutôt que la charge brute.",
+    position:
+      "Debout face à la poulie haute, pieds écartés largeur du bassin. Saisissez la barre droite en pronation, mains espacées de la largeur des épaules, bras quasi-tendus (légère flexion de 10-15° aux coudes verrouillée). Reculez d'un pas et inclinez le buste à 30-45°.",
+    posture:
+      "Dos parfaitement plat, cambrure lombaire physiologique neutre, omoplates engagées en dépression. Verrouillez les abdos pour éviter toute cambrure excessive du bas du dos lors de la remontée.",
+    completude:
+      "Abaissez la barre en arc de cercle dynamique jusqu'à ce qu'elle touche le haut des cuisses en contractant violemment les grands dorsaux. Maintenez la contraction 1 seconde, puis freinez la remontée sur 3 secondes jusqu'à ressentir un étirement dorsal complet au-dessus de la tête.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Risque d'hyperextension lombaire réflexe si le buste se balance ou si la charge est excessive. Risque minime sur les coudes si la flexion reste fixe.",
+    pointsAttention: [
+      "Ne pliez pas les bras pendant le mouvement (ce n'est pas un tirage coudes fléchis ni une extension triceps).",
+      "Ne balancez pas le tronc d'avant en arrière pour amorcer le mouvement.",
+      "Gardez la cage thoracique sortie et les épaules basses.",
+    ],
+  },
+
+  ex_dumbbell_row: {
+    objectif:
+      "Développement de l'épaisseur et de la largeur du grand dorsal, des rhomboïdes, du trapèze moyen/inférieur et du deltoïde postérieur, avec un travail unilatéral corrigeant les asymétries de force.",
+    chargeAdaptee:
+      "Charge modérée à lourde (8 à 12 répétitions, RIR 1-2). Maintenez la trajectoire du coude sans rotation compensatoire du buste.",
+    position:
+      "Un genou et une main en appui sur un banc plat, l'autre pied ancré au sol vers l'arrière pour une base tripode stable. L'haltère est tenu dans la main libre, bras vertical sous l'épaule.",
+    posture:
+      "Buste parallèle au sol, colonne vertébrale alignée des cervicales au sacrum. Ceinture abdominale gainée, épaule de travail engagée sans s'effondrer.",
+    completude:
+      "Laissez l'haltère descendre pour étirer l'omoplate vers le bas, puis tractez le coude vers la hanche en trajectoire curviligne (j-curve) en resserrant l'omoplate. Marquez 1 seconde de contraction maximale au sommet avant de freiner la descente sur 2-3 secondes.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de torsion lombaire si le tronc pivote pour soulever la charge avec élan. Risque de contrainte sur la coiffe des rotateurs si le coude monte trop haut au-delà du plan du dos.",
+    pointsAttention: [
+      "Tirez avec le coude et non avec la main ou le biceps.",
+      "Ne tournez pas les épaules ou le torse en fin de traction pour monter plus haut.",
+      "Gardez la nuque neutre sans casser les cervicales vers le haut.",
+    ],
+  },
+
+  ex_chinups: {
+    objectif:
+      "Développement puissant du grand dorsal, du grand rond et recrutement accentué du biceps brachial et du brachial antérieur grâce à la prise en supination.",
+    chargeAdaptee:
+      "Poids du corps (éventuellement délesté avec bande élastique ou lesté avec ceinture si plus de 12 répétitions maîtrisées). Séries de 6 à 10 répétitions.",
+    position:
+      "Suspendu à la barre fixe, paumes tournées vers vous (supination), mains écartées à la largeur des épaules ou légèrement plus serrées. Bras complètement allongés au départ.",
+    posture:
+      "Rétractez et abaissez activement les omoplates avant de fléchir les coudes. Cage thoracique bombée vers le haut, jambes immobiles légèrement fléchies ou tendues, sangle abdominale verrouillée.",
+    completude:
+      "Tractez le torse verticalement en amenant la poitrine vers la barre jusqu'à ce que le menton dépasse nettement la barre. Marquez un temps d'arrêt, puis contrôlez la descente sur 2 à 3 secondes jusqu'au déploiement complet des bras sans relâcher la tension scapulaire.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de tendinopathie bicipitale ou d'irritation de l'épitrochlée au coude si l'angle de supination force l'articulation ou en cas de descente relâchée brutale.",
+    pointsAttention: [
+      "Ne balancez pas les jambes et ne donnez pas d'à-coups de hanche (pas de kipping).",
+      "Ne laissez pas les épaules remonter vers les oreilles au bas du mouvement.",
+      "Ne raccourcissez pas l'amplitude : menton au-dessus de la barre en haut, bras dépliés en bas.",
+    ],
+  },
+
+  ex_tbar_row: {
+    objectif:
+      "Épaississement massif du milieu du dos (rhomboïdes, trapèzes moyen et inférieur), recrutement lourd du grand dorsal et des érecteurs du rachis.",
+    chargeAdaptee:
+      "Charge lourde à modérée (6 à 10 répétitions, RIR 1-2). La charge ne doit jamais compromettre la cambrure neutre du bas du dos.",
+    position:
+      "Pieds de part et d'autre de la barre en T, genoux fléchis, buste incliné à environ 45°. Saisissez la poignée double en prise neutre ou pronation.",
+    posture:
+      "Poitrine fière, omoplates abaissées, cambrure lombaire rigoureusement verrouillée par un gainage abdominal maximal. Nuque alignée dans l'axe de la colonne.",
+    completude:
+      "Tirez la poignée vers le bas de la poitrine ou le haut du ventre en resserrant puissamment les omoplates. Maintenez 1 seconde en contraction isométrique, puis contrôlez la redescente sans arrondir le haut ni le bas du dos.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Fort bras de levier et contrainte de cisaillement sur les disques intervertébraux lombaires (L4-L5/L5-S1) en cas de flexion du dos sous la charge.",
+    pointsAttention: [
+      "Ne courbez jamais le bas du dos pour démarrer la répétition.",
+      "Ne redressez pas le buste à la verticale à chaque répétition pour utiliser l'élan.",
+      "Gardez les talons fermement plaqués au sol.",
+    ],
+  },
+
+  ex_shrugs_barbell: {
+    objectif:
+      "Hypertrophie ciblée du faisceau supérieur des trapèzes (faisceau descendant) et de l'élévateur de la scapula.",
+    chargeAdaptee:
+      "Charge modérée à lourde permettant 10 à 15 répétitions avec temps d'arrêt marqué au sommet (RIR 1-2).",
+    position:
+      "Debout, pieds écartés largeur d'épaules. Barre tenue en pronation devant les cuisses, mains légèrement plus larges que les hanches, bras tendus.",
+    posture:
+      "Buste droit, épaules légèrement en arrière, sangle abdominale verrouillée. Regard fixé droit devant pour maintenir la nuque neutre.",
+    completude:
+      "Haussez les épaules verticalement vers les oreilles le plus haut possible sans plier les bras. Maintenez la contraction maximale pendant 1 à 2 secondes au sommet, puis redescendez lentement jusqu'à l'étirement complet des trapèzes.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque d'usure cervicale et de conflit sous-acromial en cas de roulement circulaire des épaules sous charge lourde.",
+    pointsAttention: [
+      "Ne roulez JAMAIS les épaules d'avant en arrière (mouvement strictement vertical haut/bas).",
+      "Ne pliez pas les coudes pour tricher sur la hauteur de la barre.",
+      "Ne projetez pas la tête vers l'avant lors de l'effort.",
+    ],
+  },
+
+  ex_hyperextensions: {
+    objectif:
+      "Renforcement et endurance des érecteurs du rachis (lombaires), des grands fessiers et des ischio-jambiers.",
+    chargeAdaptee:
+      "Poids du corps pour commencer (séries de 12 à 20 répétitions), puis éventuelle charge additionnelle (disque contre la poitrine) en conservant une fluidité parfaite.",
+    position:
+      "Installé sur le banc à lombaires (à 45° ou horizontal), coussinets réglés juste sous les crêtes iliaques (pour permettre la flexion de hanche), talons calés sous les boudins.",
+    posture:
+      "Mains croisées sur la poitrine ou derrière la tête. Dos conservant son alignement physiologique sans hyperextension en haut.",
+    completude:
+      "Fléchissez au niveau des hanches pour descendre le buste de manière contrôlée jusqu'à environ 90°. Remontez par la contraction des fessiers et ischio-jambiers jusqu'à l'alignement parfait tronc-jambes. Marquez 1 seconde sans dépasser l'axe neutre.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de compression facettaire lombaire sévère en cas d'hyperextension excessive (cambrure forcée au sommet).",
+    pointsAttention: [
+      "Ne cambrez pas exagérément le dos au sommet : arrêtez-vous dès l'alignement.",
+      "Ne montez pas par à-coups ou saccades.",
+      "Réglez correctement la hauteur du coussin pour ne pas bloquer les hanches.",
+    ],
+  },
+
+  ex_superman: {
+    objectif:
+      "Renforcement postural de l'ensemble de la chaîne postérieure (érecteurs du rachis, multifides, fessiers, deltoïdes postérieurs) et amélioration de la stabilité lombo-pelvienne.",
+    chargeAdaptee:
+      "Poids du corps. Répétitions maintenues 2 à 3 secondes au sommet (12 à 15 reps) ou maintien isométrique de 20 à 45 secondes.",
+    position:
+      "Allongé à plat ventre sur un tapis de sol, jambes tendues et bras allongés devant la tête dans le prolongement du corps.",
+    posture:
+      "Regard vers le sol pour ne pas casser la nuque. Abdos légèrement contractés pour soutenir le plancher pelvien.",
+    completude:
+      "Décollez simultanément et de manière synchronisée la poitrine, les bras et les cuisses du sol de quelques centimètres en contractant les fessiers et le dos. Maintenez la position haute 2 secondes, puis redescendez avec contrôle sans heurter le sol.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Très faible risque biomécanique. Veillez à ne pas forcer l'amplitude en cas de lombalgie aiguë.",
+    pointsAttention: [
+      "Ne levez pas la tête vers le plafond : gardez la nuque parfaitement neutre.",
+      "Ne cherchez pas une hauteur extrême mais plutôt un allongement maximal du corps.",
+      "Respirez calmement sans bloquer votre cage thoracique.",
+    ],
+  },
+
+  ex_cable_standing_row: {
+    objectif:
+      "Renforcement des rhomboïdes, du trapèze moyen, des érecteurs du tronc et du grand dorsal avec une composante fonctionnelle de gainage debout contre la résistance du câble.",
+    chargeAdaptee:
+      "Charge modérée permettant 10 à 12 répétitions propres avec arrêt au pic de contraction (RIR 1-2).",
+    position:
+      "Debout face à la poulie basse, pieds largeur d'épaules, genoux légèrement fléchis. Saisissez la barre ou poignée double à deux mains.",
+    posture:
+      "Buste penché vers l'avant à 30-45°, dos plat rigoureusement gainé, omoplates rétractées, poids du corps centré sur le milieu du pied.",
+    completude:
+      "Tirez le câble vers le bas de la cage thoracique en ramenant les coudes vers l'arrière et en serrant les omoplates. Maintenez 1 seconde, puis allongez les bras en freinant le retour du câble sans laisser le haut du dos s'arrondir.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de perte d'équilibre ou de flexion lombaire si la charge tire le corps vers l'avant.",
+    pointsAttention: [
+      "Gardez les genoux souples et le bassin stable.",
+      "Ne donnez pas d'élan avec les reins pour initier le tirage.",
+      "Serrez les omoplates l'une contre l'autre en fin de course.",
+    ],
+  },
+
+  ex_cable_single_arm_row: {
+    objectif:
+      "Recrutement ciblé et unilatéral du grand dorsal en position debout fonctionnelle, avec travail renforcé des stabilisateurs de hanche et des obliques contre la torsion.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions par côté, RIR 1-2). Privilégiez l'isolation du grand dorsal et la maîtrise anti-rotationnelle.",
+    position:
+      "Debout face à la poulie basse en position de fente légère (pied opposé au bras qui tire devant pour contrer le vecteur de force). Saisissez la poignée simple à un bras.",
+    posture:
+      "Buste stable, épaules au même niveau, sangle abdominale verrouillée pour résister à la rotation imposée par le câble.",
+    completude:
+      "Tirez le coude vers la hanche en trajectoire basse tout en amorçant une légère supination du poignet pour maximiser le raccourcissement du grand dorsal. Marquez un temps d'arrêt au pic de contraction, puis laissez le câble repartir vers l'avant en contrôlant l'étirement dorsal.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Faible contrainte lombaire grâce à la position de fente et au travail unilatéral.",
+    pointsAttention: [
+      "Ne tournez pas le torse vers l'extérieur pendant le tirage.",
+      "Gardez l'épaule basse tout au long du mouvement.",
+      "Concentrez l'effort sur le tirage du coude et non de la main.",
+    ],
+  },
+
+  ex_cable_chest_supported_row: {
+    objectif:
+      "Isolation complète du dos (rhomboïdes, trapèzes moyen et grand dorsal) en supprimant totalement toute contrainte axiale sur les vertèbres lombaires grâce au support du banc.",
+    chargeAdaptee:
+      "Charge modérée à lourde (8 à 12 répétitions, RIR 1-2). Vous pouvez aller proche de l'échec technique en toute sécurité lombaire.",
+    position:
+      "Banc réglé à 30-45° face à la poulie basse. Poitrine en appui stable sur le dossier, pieds calés au sol de part et d'autre. Saisissez les poignées de câble.",
+    posture:
+      "Torse fermement maintenu contre le dossier du début à la fin de la série, cage ouverte, nuque neutre.",
+    completude:
+      "Tirez les coudes vers l'arrière en resserrant les omoplates le plus fort possible. Marquez 1 seconde de contraction isométrique complète, puis contrôlez la phase excentrique sur 2-3 secondes en laissant les omoplates s'étirer vers l'avant.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice exceptionnellement sûr pour le rachis grâce à la neutralisation de la charge axiale.",
+    pointsAttention: [
+      "Ne décollez jamais le torse du banc pour générer de l'élan.",
+      "Ne haussez pas les épaules vers le cou lors de la traction.",
+      "Concentrez-vous sur le rapprochement des omoplates au sommet.",
+    ],
+  },
+
+  ex_rack_pull: {
+    objectif:
+      "Développement de la force brute de verrouillage de la chaîne postérieure, hypertrophie massive des trapèzes, du haut du dos et des érecteurs spinaux.",
+    chargeAdaptee:
+      "Charge lourde (80-90% du 1RM sur amplitude partielle, 5 à 8 répétitions, RIR 1-2). Échauffement progressif obligatoire.",
+    position:
+      "Barre posée sur les crans de sécurité du rack de musculation, réglée juste au niveau ou légèrement sous les rotules. Pieds largeur de hanches, prise ferme en pronation ou mixte.",
+    posture:
+      "Tibias verticaux contre la barre, fessiers poussés vers l'arrière, poitrine bombée, dos parfaitement verrouillé en extension neutre.",
+    completude:
+      "Tirez la barre en étendant puissamment les hanches et les genoux jusqu'au redressement complet du tronc. Serrez les fessiers au sommet sans cambrer en arrière. Reposez la barre sur les sécurités avec contrôle (pause de 1 seconde à chaque rep).",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Très fortes charges manipulées pouvant surcharger les disques intervertébraux lombaires en cas de relâchement du gainage.",
+    pointsAttention: [
+      "Ne rebondissez pas violemment sur les barres de sécurité du rack.",
+      "Ne penchez pas le buste en arrière au sommet (hyperextension interdite).",
+      "Gardez la barre au contact direct des cuisses tout au long de la montée.",
+    ],
+  },
+
+  ex_neutral_grip_pullups: {
+    objectif:
+      "Recrutement équilibré et ergonomique du grand dorsal, du brachial antérieur et du brachio-radial en préservant les articulations des épaules et des poignets.",
+    chargeAdaptee:
+      "Poids du corps (éventuellement bande élastique d'assistance ou lest progressif si plus de 12 reps maîtrisées). Séries de 6 à 10 répétitions.",
+    position:
+      "Suspendu aux poignées parallèles de la cage de traction (paumes face à face), bras complètement tendus en position basse.",
+    posture:
+      "Activez les dorsaux en abaissant les omoplates, regard orienté vers le haut, jambes stables et abdominaux gainés.",
+    completude:
+      "Tractez le corps verticalement jusqu'à amener le haut des pectoraux à hauteur des poignées. Marquez un arrêt au pic de contraction, puis descendez lentement sur 2-3 secondes jusqu'à l'extension complète des bras.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Prise la plus ergonomique et sécuritaire pour les épaules parmi toutes les variantes de traction.",
+    pointsAttention: [
+      "Ne balancez pas le bas du corps.",
+      "Ne relâchez pas brusquement au bas du mouvement (gardez la musculature active).",
+      "Montez la poitrine vers les poignées plutôt que d'enrouler la tête en avant.",
+    ],
+  },
+
+  ex_incline_dumbbell_row: {
+    objectif:
+      "Développement de l'épaisseur du haut du dos (trapèzes moyens/inférieurs, rhomboïdes, deltoïdes postérieurs) avec support thoracique strict.",
+    chargeAdaptee:
+      "Charge modérée (8 à 12 répétitions, RIR 1-2). Privilégiez la contraction scapulaire maximale.",
+    position:
+      "Allongé ventre contre un banc incliné à 30-45°, un haltère dans chaque main en prise neutre ou pronation, bras pendants sous les épaules.",
+    posture:
+      "Poitrine plaquée au banc, colonne neutre, tête dans l'alignement sans regarder vers le plafond.",
+    completude:
+      "Tirez les haltères vers l'arrière en montant les coudes et en serrant fortement les omoplates. Maintenez 1 seconde en contraction complète, puis descendez lentement en sentant l'étirement des dorsaux.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Sécurité lombaire optimale grâce au support constant du banc.",
+    pointsAttention: [
+      "Ne décollez pas les pectoraux du banc pendant la phase d'effort.",
+      "Ne haussez pas les épaules vers les oreilles.",
+      "Contrôlez la descente sur 2 à 3 secondes.",
+    ],
+  },
+
+  ex_band_row: {
+    objectif:
+      "Activation et renforcement d'endurance posturale des rhomboïdes, des trapèzes et du grand dorsal avec résistance élastique progressive.",
+    chargeAdaptee:
+      "Élastique de résistance adaptée permettant 12 à 15 répétitions contrôlées avec pic de contraction marqué.",
+    position:
+      "Assis au sol jambes tendues ou debout buste incliné, bande élastique passée sous la plante des pieds ou fixée à un point d'ancrage bas.",
+    posture:
+      "Dos parfaitement droit, poitrine ouverte, épaules basses et ceinture abdominale gainée.",
+    completude:
+      "Tirez les extrémités de l'élastique vers les côtes en resserrant les omoplates. Bloquez la position 1 à 2 secondes contre la tension élastique maximale, puis relâchez lentement.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice très sûr, idéal en échauffement, travail postural ou réathlétisation.",
+    pointsAttention: [
+      "Ne laissez pas l'élastique vous tirer brusquement vers l'avant.",
+      "Conservez les coudes près du corps.",
+      "Ne courbez pas la région lombaire.",
+    ],
+  },
+
+  ex_cable_lateral_raise: {
+    objectif:
+      "Isolation maximale du deltoïde latéral (faisceau acromial) avec profil de résistance continu dès le début de l'abduction, contrairement aux haltères.",
+    chargeAdaptee:
+      "Charge légère à modérée (12 à 15 répétitions, RIR 1-2). Mouvement d'isolation pure qui ne tolère aucun élan du buste.",
+    position:
+      "Debout de profil par rapport à la poulie basse, câble passant devant ou derrière le corps. Saisissez la poignée avec la main la plus éloignée de la colonne.",
+    posture:
+      "Buste légèrement incliné vers l'extérieur pour optimiser l'angle de recrutement, épaule abaissée, bras quasi tendu avec coude très légèrement déverrouillé.",
+    completude:
+      "Montez le bras sur le côté dans le plan de la scapula (environ 30° vers l'avant) jusqu'à hauteur de l'épaule. Marquez une pause en haut, puis redescendez sous tension contrôlée sur 2 à 3 secondes.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Attention à ne pas monter au-delà de l'horizontale pour éviter tout conflit sous-acromial avec l'acromion.",
+    pointsAttention: [
+      "Ne levez pas l'épaule vers l'oreille (trapèze supérieur relâché).",
+      "Gardez le coude au même niveau que le poignet (ne levez pas la main plus haut que le coude).",
+      "Ne donnez pas d'impulsion avec les genoux ou le dos.",
+    ],
+  },
+
+  ex_seated_dumbbell_press: {
+    objectif:
+      "Développement de la masse et de la force des deltoïdes antérieurs et latéraux, avec soutien dorsal isolant le haut du corps.",
+    chargeAdaptee:
+      "Charge modérée à lourde (8 à 10 répétitions, RIR 1-2). Sécurité accrue par rapport à la version debout.",
+    position:
+      "Assis sur un banc réglé à 75-80° (légèrement en retrait de la verticale pour préserver la mobilité d'épaule), pieds à plat au sol, haltères tenus au niveau des épaules.",
+    posture:
+      "Dos et tête plaqués contre le dossier, omoplates serrées et abaissées, coudes placés légèrement vers l'avant dans le plan scapulaire (environ 30-45°).",
+    completude:
+      "Poussez les haltères verticalement en trajectoire légèrement convergente sans les faire s'entrechoquer. Arrêtez-vous juste avant le verrouillage complet des coudes, puis descendez lentement jusqu'à hauteur des oreilles.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de conflit d'épaule si les coudes sont complètement ouverts à 90° sur les côtés.",
+    pointsAttention: [
+      "Ne faites pas s'entrechoquer les haltères en haut.",
+      "Ne cambrez pas exagérément les lombaires en décollant le bas du dos du dossier.",
+      "Gardez les poignets alignés au-dessus des avant-bras.",
+    ],
+  },
+
+  ex_front_raise: {
+    objectif:
+      "Isolation du deltoïde antérieur (faisceau claviculaire) et travail de stabilité de la sangle scapulaire.",
+    chargeAdaptee:
+      "Charge légère à modérée (12 à 15 répétitions, RIR 1-2). Privilégiez un contrôle absolu.",
+    position:
+      "Debout, pieds écartés largeur d'épaules, un haltère dans chaque main reposant sur le haut des cuisses en prise pronation ou neutre.",
+    posture:
+      "Buste droit, épaules basses, abdos et fessiers gainés pour verrouiller le bassin.",
+    completude:
+      "Élevez les haltères devant vous bras quasi-tendus jusqu'à l'horizontale (hauteur des yeux). Marquez un arrêt de 1 seconde, puis descendez en freinant la gravité sur 2-3 secondes.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Faible risque si le mouvement reste sous contrôle ; évitez la cambrure lombaire réflexe.",
+    pointsAttention: [
+      "Ne balancez pas le tronc d'avant en arrière pour soulever la charge.",
+      "Ne dépassez pas l'axe horizontal des épaules.",
+      "Conservez une légère flexion fixe aux coudes.",
+    ],
+  },
+
+  ex_rear_delt_fly: {
+    objectif:
+      "Isolation du deltoïde postérieur, des rhomboïdes et du trapèze moyen, améliorant l'équilibre postural et protégeant l'articulation gléno-humérale.",
+    chargeAdaptee:
+      "Charge légère (12 à 15 répétitions, RIR 1-2). Ce muscle d'endurance posturale répond remarquablement aux tempos stricts.",
+    position:
+      "Debout buste penché vers l'avant à 45-60° ou assis au bord d'un banc, buste reposant sur les cuisses. Haltères tenus sous les jambes.",
+    posture:
+      "Dos plat, genoux déverrouillés, nuque allongée regardant le sol pour éviter toute tension cervicale.",
+    completude:
+      "Écartez les bras vers le haut et l'extérieur en arc de cercle en guidant le mouvement par les coudes. Arrêtez-vous lorsque les bras sont parallèles au sol, marquez 1 seconde au sommet puis freinez la redescente.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Mouvement très sûr ; veillez simplement à maintenir la neutralité lombaire en position buste penché.",
+    pointsAttention: [
+      "Ne redressez pas le buste pour aider la montée des bras.",
+      "Ne pliez pas excessivement les coudes pour transformer l'exercice en rowing.",
+      "Gardez les poignets fermes sans flexion parasite.",
+    ],
+  },
+
+  ex_cable_front_raise: {
+    objectif:
+      "Isolation continue du deltoïde antérieur grâce à la tension constante de la poulie basse sur toute l'amplitude.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 15 répétitions, RIR 1-2).",
+    position:
+      "Debout dos ou face à la poulie basse, câble passant entre les jambes ou sur le côté, poignée simple ou barre courte en pronation.",
+    posture:
+      "Poste bien ancré, torse immobile, abdominaux fermes, épaules fixées vers le bas.",
+    completude:
+      "Montez la poignée devant vous jusqu'à la hauteur des épaules en guidant la trajectoire avec les coudes. Pause isométrique de 1 seconde, puis retour contrôlé.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Tension douce et progressive, très tolérante pour la capsule articulaire antérieure.",
+    pointsAttention: [
+      "Ne reculez pas les épaules pour compenser.",
+      "Ne haussez pas les trapèzes au sommet.",
+      "Ne relâchez pas la tension du câble au bas du mouvement.",
+    ],
+  },
+
+  ex_cable_rear_delt_fly: {
+    objectif:
+      "Isolation continue du deltoïde postérieur à la poulie basse, garantissant une tension maximale même au point de départ.",
+    chargeAdaptee:
+      "Charge légère (12 à 15 répétitions propres, RIR 1-2).",
+    position:
+      "Debout buste penché à 60° face à la poulie basse (ou poulies croisées), saisissez le câble opposé sans poignée ou avec poignée simple.",
+    posture:
+      "Dos droit, genoux fléchis, tête neutre, gainage abdominal rigoureux.",
+    completude:
+      "Écartez le bras vers le côté et le haut en demi-cercle sans faire pivoter le tronc. Contractez l'arrière de l'épaule 1 seconde au sommet, puis freinez le retour.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Excellent exercice de renforcement correctif pour les épaules enroulées vers l'avant.",
+    pointsAttention: [
+      "Ne tirez pas avec le dos : isolez l'arrière de l'épaule.",
+      "Gardez les coudes légèrement fléchis à angle fixe.",
+      "Ne balancez pas le tronc.",
+    ],
+  },
+
+  ex_cable_incline_rear_delt: {
+    objectif:
+      "Ciblage ultra-précis du faisceau postérieur du deltoïde en supprimant tout risque de tricherie grâce au maintien ventral sur le banc incliné.",
+    chargeAdaptee:
+      "Charge légère (12 à 15 répétitions, RIR 1-2).",
+    position:
+      "Banc incliné à 30-45° au centre des poulies basses. Allongé face au dossier, saisissez les câbles croisés.",
+    posture:
+      "Poitrine ancrée contre le banc, coudes orientés vers l'extérieur, épaules basses.",
+    completude:
+      "Écartez les bras horizontalement vers l'extérieur jusqu'à alignement avec le torse. Pause marquée au pic de contraction, retour freiné sur 2-3 secondes.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Très faible contrainte sur la colonne vertébrale, isolation pure et protectrice de la coiffe des rotateurs.",
+    pointsAttention: [
+      "Gardez le torse collé au banc.",
+      "Ne tirez pas les coudes vers le bas (maintenez-les écartés).",
+      "Évitez de contracter excessivement les trapèzes supérieurs.",
+    ],
+  },
+
+  ex_seated_barbell_overhead_press: {
+    objectif:
+      "Développement de la force brute des épaules (deltoïdes antérieurs et moyens) et des triceps en éliminant l'assistance des jambes.",
+    chargeAdaptee:
+      "Charge modérée à lourde (6 à 10 répétitions, RIR 1-2). Conservez toujours une marge technique de sécurité.",
+    position:
+      "Assis sur un banc vertical avec dossier ou dans le rack à squat, pieds fermement ancrés. Barre décrochée à hauteur des clavicules, prise légèrement plus large que les épaules.",
+    posture:
+      "Poitrine sortie, omoplates serrées et abaissées, dos fermement appuyé contre le support sans cambrure lombaire forcée.",
+    completude:
+      "Développez la barre verticalement vers le haut en inclinant très légèrement la tête en arrière pour laisser passer la barre, puis ramenez la tête dans l'axe une fois la barre au-dessus du crâne. Descendez sous contrôle jusqu'au haut de la poitrine.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque pour la coiffe des rotateurs et la colonne en cas de cambrure lombaire excessive pour compenser le manque de mobilité d'épaule.",
+    pointsAttention: [
+      "Ne poussez pas la barre en avant : trajectoire quasi verticale.",
+      "Ne décollez pas les lombaires du banc.",
+      "Conservez les avant-bras bien verticaux sous la barre.",
+    ],
+  },
+
+  ex_behind_neck_press: {
+    objectif:
+      "Recrutement accentué des deltoïdes moyens et des faisceaux supérieurs du trapèze en rotation externe complète.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 12 répétitions, RIR 2-3). Exige une excellente mobilité scapulo-humérale.",
+    position:
+      "Assis sur banc avec dossier, barre prise en pronation modérément large, descendue derrière la tête.",
+    posture:
+      "Colonne parfaitement droite, tête maintenue neutre sans la pencher vers l'avant.",
+    completude:
+      "Poussez la barre vers le haut jusqu'à l'extension quasi-complète des bras, puis redescendez doucement sans descendre plus bas que le niveau du haut des oreilles.",
+    niveauRisque: "Très Élevé",
+    mentionRisque:
+      "Risque majeur de conflit sous-acromial, d'étirement capsulaire antérieur excessif et de micro-traumatismes cervicaux en cas de descente trop basse.",
+    pointsAttention: [
+      "Ne descendez JAMAIS la barre plus bas que le niveau des oreilles.",
+      "Ne penchez pas la tête en avant pour faire passer la barre.",
+      "Arrêtez immédiatement si vous ressentez une gêne ou douleur articulaire.",
+    ],
+  },
+
+  ex_chest_supported_rear_delt_fly: {
+    objectif:
+      "Isolation stricte du deltoïde postérieur aux haltères sans fatigue parasitaire des lombaires ou des ischio-jambiers.",
+    chargeAdaptee:
+      "Charge légère (12 à 15 répétitions, RIR 1-2). Le contrôle et la sensation priment sur le poids des haltères.",
+    position:
+      "Allongé à plat ventre sur banc incliné à 30-45°, pieds au sol. Un haltère dans chaque main, bras pendants sous la poitrine.",
+    posture:
+      "Buste plaqué au dossier, tête dans l'axe, épaules maintenues basses loin des oreilles.",
+    completude:
+      "Écartez les bras vers les côtés avec les coudes légèrement fléchis jusqu'à ce que les bras soient parallèles au sol. Contractez l'arrière de l'épaule 1 seconde, puis redescendez lentement.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice exceptionnellement sûr et hautement recommandé pour rééquilibrer les épaules.",
+    pointsAttention: [
+      "Ne décollez pas le torse du banc pour vous aider.",
+      "Ne transformez pas l'exercice en rowing en tirant les coudes trop près du corps.",
+      "Gardez les poignets neutres.",
+    ],
+  },
+
+  ex_band_pull_apart: {
+    objectif:
+      "Renforcement des rotateurs externes de l'épaule, des deltoïdes postérieurs et des fixateurs de la scapula (rhomboïdes).",
+    chargeAdaptee:
+      "Élastique de résistance légère à modérée (15 à 20 répétitions propres, tempo lent).",
+    position:
+      "Debout, pieds largeur de hanches. Saisissez la bande élastique à deux mains devant vous à hauteur de poitrine, bras tendus.",
+    posture:
+      "Poste fier, poitrine ouverte, abdominaux verrouillés, épaules abaissées.",
+    completude:
+      "Écartez les bras latéralement vers l'extérieur jusqu'à amener l'élastique en contact avec la poitrine tout en resserrant les omoplates. Maintenez 2 secondes au pic de contraction, puis revenez sous tension continue.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice de santé articulaire et de prévention des blessures de l'épaule sans aucun impact négatif.",
+    pointsAttention: [
+      "Ne levez pas les épaules vers les oreilles.",
+      "Ne cambrez pas le dos en écartant les bras.",
+      "Conservez les bras tendus sans fléchir les coudes.",
+    ],
+  },
+
+  ex_cable_bicep_curl: {
+    objectif:
+      "Hypertrophie du biceps brachial (chef long et chef court) et du brachial antérieur avec tension mécanique continue à la barre droite sur poulie basse.",
+    chargeAdaptee:
+      "Charge modérée permettant 10 à 12 répétitions contrôlées (RIR 1-2). Maintien strict de la trajectoire.",
+    position:
+      "Debout face à la poulie basse, pieds écartés largeur d'épaules. Saisissez la barre droite en supination complète, mains espacées de la largeur des épaules.",
+    posture:
+      "Coudes verrouillés le long des flancs, buste droit, épaules basses et légèrement en arrière, sangle abdominale gainée.",
+    completude:
+      "Fléchissez les avant-bras vers le haut jusqu'à contraction maximale des biceps sans décoller les coudes des côtes. Marquez 1 seconde en haut, puis descendez lentement sur 2 à 3 secondes jusqu'à l'extension quasi-complète des bras.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Attention aux poignets : la prise sur barre droite impose une supination stricte qui peut gêner les personnes avec un angle de valgus prononcé.",
+    pointsAttention: [
+      "Ne projetez pas les coudes vers l'avant au sommet pour faire reposer la barre sur les épaules.",
+      "Ne balancez pas le tronc d'avant en arrière pour soulever la charge.",
+      "Conservez les poignets fermes sans flexion excessive vers l'intérieur.",
+    ],
+  },
+
+  ex_incline_curl: {
+    objectif:
+      "Étirement maximal et recrutement prioritaire du chef long du biceps grâce à la rétroversion du bras imposée par le banc incliné.",
+    chargeAdaptee:
+      "Charge légère à modérée (8 à 12 répétitions, RIR 1-2). Ne sacrifiez jamais l'étirement sous tension.",
+    position:
+      "Assis sur un banc incliné à 45-60°, dos et tête en appui sur le dossier. Un haltère dans chaque main, bras pendants verticalement vers l'arrière.",
+    posture:
+      "Épaules plaquées contre le dossier, coudes maintenus en arrière de la ligne du torse, gainage abdominal actif.",
+    completude:
+      "Fléchissez les avant-bras tout en amorçant une supination puissante du poignet. Maintenez les coudes strictement immobiles en arrière. Marquez 1 seconde en haut, puis freinez la descente sur 3 secondes jusqu'à ressentir un profond étirement du biceps.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque d'étirement excessif du tendon distal du biceps en position basse si la descente est brutale ou si la charge est trop lourde.",
+    pointsAttention: [
+      "Ne décollez jamais les coudes vers l'avant pour soulager l'étirement.",
+      "Ne décollez pas les épaules du dossier du banc.",
+      "Contrôlez impérativement la fin de la phase excentrique sans à-coups.",
+    ],
+  },
+
+  ex_hammer_curl: {
+    objectif:
+      "Développement de l'épaisseur du bras en ciblant le brachial antérieur et le brachio-radial (long supinateur) grâce à la prise neutre.",
+    chargeAdaptee:
+      "Charge modérée à lourde (8 à 12 répétitions, RIR 1-2). La prise neutre offre un avantage mécanique permettant de charger plus lourd qu'en supination.",
+    position:
+      "Debout ou assis, pieds bien calés. Un haltère dans chaque main, paumes orientées l'une vers l'autre (prise marteau neutre).",
+    posture:
+      "Buste droit, épaules basses, coudes collés aux flancs, ceinture abdominale verrouillée.",
+    completude:
+      "Fléchissez les avant-bras vers le haut en conservant la prise neutre jusqu'à la contraction complète. Marquez une seconde au sommet, puis redescendez avec contrôle sur 2-3 secondes.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Excellente tolérance articulaire pour les poignets et les coudes grâce à la position neutre naturelle de l'avant-bras.",
+    pointsAttention: [
+      "Ne tournez pas les poignets en supination pendant le mouvement.",
+      "Ne balancez pas les épaules.",
+      "Gardez les coudes fixés au niveau des hanches.",
+    ],
+  },
+
+  ex_preacher_curl: {
+    objectif:
+      "Isolation stricte du chef court du biceps et du brachial antérieur avec suppression complète de tout élan grâce au pupitre Larry Scott.",
+    chargeAdaptee:
+      "Charge modérée (8 à 12 répétitions, RIR 2). Évitez l'échec brutal en position étirée basse.",
+    position:
+      "Assis ou debout devant le pupitre Scott, bras reposant sur le coussin incliné avec les aisselles bien calées en haut du support. Barre EZ saisie en supination sur la cambrure intérieure.",
+    posture:
+      "Torse fermement calé contre le bord du pupitre, épaules stables, nuque alignée.",
+    completude:
+      "Fléchissez les avant-bras pour monter la barre vers le visage. Arrêtez-vous avant la perte de tension mécanique verticale. Redescendez avec une extrême lenteur (3 secondes) en vous arrêtant juste avant le verrouillage complet des coudes (conservez 5-10° de flexion de sécurité).",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque critique de déchirure du tendon du biceps en cas d'hyperextension complète et brutale sous charge lourde au bas du pupitre.",
+    pointsAttention: [
+      "Ne tendez JAMAIS les bras à 100% au bas du mouvement (gardez une légère flexion protectrice).",
+      "Ne décollez pas les aisselles ou les coudes du pupitre.",
+      "Contrôlez rigoureusement la vitesse de descente.",
+    ],
+  },
+
+  ex_concentration_curl: {
+    objectif:
+      "Isolation pure du biceps avec pic de contraction maximal, supprimant toute intervention du deltoïde antérieur.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 15 répétitions, RIR 1-2). Privilégiez la qualité de la contraction volontaire au sommet.",
+    position:
+      "Assis sur le bord d'un banc, jambes écartées. Le coude du bras qui travaille est calé contre la face interne de la cuisse correspondante, bras tendu vers le sol.",
+    posture:
+      "Buste penché vers l'avant, main libre en appui sur l'autre cuisse pour stabiliser le tronc.",
+    completude:
+      "Fléchissez l'avant-bras en amenant l'haltère vers l'épaule avec une rotation accentuée du poignet en supination au sommet. Marquez 1 à 2 secondes de contraction maximale, puis descendez lentement jusqu'à l'allongement du bras.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice très sûr grâce au point d'appui fixe sur la cuisse qui neutralise les compensations articulaires.",
+    pointsAttention: [
+      "Ne faites pas bouger le coude sur la cuisse.",
+      "Ne levez pas l'épaule pour aider à faire monter l'haltère.",
+      "Insistez sur la supination en fin de course pour comprimer le pic du biceps.",
+    ],
+  },
+
+  ex_cable_rope_hammer_curl: {
+    objectif:
+      "Développement du brachial antérieur, du brachio-radial et de l'épaisseur du bras avec tension continue du câble et écartement optimal des poignets.",
+    chargeAdaptee:
+      "Charge modérée (10 à 15 répétitions, RIR 1-2).",
+    position:
+      "Debout face à la poulie basse, saisissez les extrémités de la corde en prise neutre (pouces vers le haut).",
+    posture:
+      "Buste droit, épaules basses, coudes verrouillés le long des flancs, pieds ancrés au sol.",
+    completude:
+      "Fléchissez les avant-bras vers le haut tout en écartant légèrement les extrémités de la corde au sommet pour maximiser la contraction. Pause de 1 seconde, redescente contrôlée.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Très faible contrainte articulaire, excellente ergonomie pour les poignets et les tendons.",
+    pointsAttention: [
+      "Ne laissez pas les coudes partir vers l'avant.",
+      "Écartez bien la corde au sommet du mouvement.",
+      "Contrôlez la descente sans laisser la pile de poids claquer.",
+    ],
+  },
+
+  ex_cable_single_arm_curl: {
+    objectif:
+      "Isolation unilatérale du biceps à la poulie basse, permettant un alignement biomécanique parfait avec le câble et la correction des déséquilibres.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions par bras, RIR 1-2).",
+    position:
+      "Debout face ou légèrement de trois-quarts par rapport à la poulie basse, poignée simple en main en supination.",
+    posture:
+      "Buste droit et gainé, coude fixe contre le flanc, épaule relâchée vers le bas.",
+    completude:
+      "Fléchissez l'avant-bras de manière fluide jusqu'au pic de contraction. Maintenez 1 seconde, puis freinez le retour du câble.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Tension douce et régulière sur l'ensemble de l'arc articulaire.",
+    pointsAttention: [
+      "Ne balancez pas le tronc d'un côté à l'autre.",
+      "Gardez le poignet rigide dans l'axe de l'avant-bras.",
+      "Ne décollez pas le coude en fin de répétition.",
+    ],
+  },
+
+  ex_cable_incline_curl: {
+    objectif:
+      "Recrutement maximal du chef long du biceps sous étirement continu en associant l'inclinaison du banc à la tension constante du câble.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 12 répétitions, RIR 1-2).",
+    position:
+      "Banc réglé à 45-60° dos aux poulies basses. Allongé sur le dossier, saisissez les poignées de câble derrière vous.",
+    posture:
+      "Tête et dos fermement calés, coudes maintenus en arrière du buste.",
+    completude:
+      "Fléchissez les avant-bras en conservant les coudes en arrière jusqu'à la contraction complète. Redescendez très lentement sur 3 secondes pour exploiter l'étirement sous tension continue.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Forte tension sur le tendon du biceps en position étirée basse ; requiert un contrôle excentrique sans à-coups.",
+    pointsAttention: [
+      "Ne laissez pas les câbles tirer brutalement vos bras en arrière.",
+      "Gardez les épaules collées au banc.",
+      "Ne déplacez pas les coudes vers l'avant.",
+    ],
+  },
+
+  ex_cable_concentration_curl: {
+    objectif:
+      "Isolation chirurgicale du pic du biceps avec tension continue du câble même en fin de flexion.",
+    chargeAdaptee:
+      "Charge légère (12 à 15 répétitions, RIR 1-2).",
+    position:
+      "Assis face à la poulie basse, coude calé contre l'intérieur de la cuisse, poignée simple tenue en supination.",
+    posture:
+      "Buste penché et stable, épaule fixe.",
+    completude:
+      "Fléchissez l'avant-bras vers l'épaule en serrant au sommet. Pause isométrique de 1 à 2 secondes, descente freinée.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Mouvement d'une grande sécurité anatomique.",
+    pointsAttention: [
+      "Ne déplacez pas le point d'appui du coude.",
+      "Focalisez-vous sur la sensation de contraction maximale.",
+      "Respirez de manière fluide.",
+    ],
+  },
+
+  ex_band_bicep_curl: {
+    objectif:
+      "Renforcement et activation du biceps avec tension progressive et élastique, idéal en voyage, échauffement ou superset.",
+    chargeAdaptee:
+      "Bande élastique adaptée permettant 12 à 15 répétitions propres avec arrêt en haut.",
+    position:
+      "Debout, pieds au milieu de la bande élastique pour la caler au sol, extrémités saisies en supination.",
+    posture:
+      "Buste droit, omoplates serrées, coudes verrouillés au corps.",
+    completude:
+      "Fléchissez les avant-bras vers le haut contre la résistance grandissante de l'élastique. Marquez 1 seconde en haut, puis revenez sous contrôle.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Zéro risque articulaire, charge douce pour les tendons.",
+    pointsAttention: [
+      "Ne laissez pas l'élastique relâcher d'un coup.",
+      "Gardez les coudes fixés au buste.",
+      "Ne courbez pas le dos.",
+    ],
+  },
+
+  ex_overhead_cable_triceps: {
+    objectif:
+      "Étirement profond et hypertrophie de la longue portion du triceps brachial grâce au travail au-dessus de la tête sous tension continue.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions, RIR 1-2). Privilégiez l'amplitude complète et l'étirement sans déstabilisation du tronc.",
+    position:
+      "Dos à la poulie réglée à mi-hauteur ou haute, corde tenue derrière la nuque à deux mains. Avancez d'un pas en position de fente stable, buste penché vers l'avant à 45°.",
+    posture:
+      "Buste gainé, cambrure neutre protégée, coudes maintenus près de la tête et pointés vers l'avant sans s'écarter excessivement.",
+    completude:
+      "Développez les avant-bras vers l'avant et le haut jusqu'à l'extension complète des coudes en écartant légèrement les extrémités de la corde. Maintenez 1 seconde en contraction complète, puis fléchissez lentement les coudes en freinant la charge jusqu'à un étirement profond des triceps.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque d'hyperextension lombaire compensatoire si le gainage abdominal se relâche ou si la charge tire le buste en arrière.",
+    pointsAttention: [
+      "Ne laissez pas les coudes s'ouvrir sur les côtés comme des ailes de papillon.",
+      "Gardez la position de fente bien stable avec le poids centré.",
+      "Ne donnez pas d'à-coups de hanche pour aider à pousser.",
+    ],
+  },
+
+  ex_close_grip_bench: {
+    objectif:
+      "Développement de la force brute et de la masse des triceps (vaste latéral et médial) et des pectoraux avec un exercice polyarticulaire lourd.",
+    chargeAdaptee:
+      "Charge modérée à lourde (6 à 10 répétitions, RIR 1-2). Progression de charge linéaire sécurisée.",
+    position:
+      "Allongé sur le banc plat sous la barre, pieds ancrés au sol. Saisissez la barre avec un écartement égal à la largeur des épaules (environ 30 à 40 cm). Ne resserrez pas trop pour protéger les poignets.",
+    posture:
+      "Omoplates serrées et abaissées, fessiers sur le banc, coudes orientés le long du corps (environ 30-45° du buste) lors de la descente.",
+    completude:
+      "Descendez la barre de manière contrôlée jusqu'au bas du sternum en gardant les avant-bras bien verticaux. Poussez puissamment jusqu'à l'extension quasi-complète des coudes sans claquer l'articulation.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque de compression violente du carpe et de tendinite du poignet si la prise est trop étroite (mains collées à proscrire). Risque d'écrasement en cas d'échec sans pareur.",
+    pointsAttention: [
+      "N'espacez pas les mains de moins de la largeur des épaules (prise ultra-serrée proscrite pour les poignets).",
+      "Gardez les coudes serrés près du torse pendant la descente.",
+      "Ne rebondissez pas sur le bas de la poitrine.",
+    ],
+  },
+
+  ex_tricep_kickback: {
+    objectif:
+      "Isolation du triceps brachial avec pic de contraction maximal du vaste latéral et médial en position de raccourcissement complet.",
+    chargeAdaptee:
+      "Charge légère (12 à 15 répétitions, RIR 1-2). L'exercice ne pardonne aucune charge excessive.",
+    position:
+      "Un genou et une main en appui sur un banc plat, buste horizontal parallèle au sol. L'autre main tient un haltère, coude relevé et collé le long du flanc.",
+    posture:
+      "Dos plat, coude de travail fixé au-dessus de la ligne du dos et rigoureusement immobile pendant toute la série.",
+    completude:
+      "Étendez l'avant-bras vers l'arrière jusqu'à ce que le bras soit parfaitement tendu et parallèle au sol. Bloquez la contraction maximale pendant 1 à 2 secondes, puis ramenez l'avant-bras à 90° sans laisser descendre le coude.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice très sûr pour les articulations sous réserve de ne pas balancer le bras avec élan.",
+    pointsAttention: [
+      "Ne laissez JAMAIS votre coude redescendre vers le sol entre chaque répétition.",
+      "Ne balancez pas l'haltère comme un pendule.",
+      "Marquez impérativement l'arrêt isométrique en extension complète.",
+    ],
+  },
+
+  ex_cable_single_arm_triceps: {
+    objectif:
+      "Isolation unilatérale du triceps à la poulie, garantissant une égalisation de force entre le bras gauche et le bras droit sans compensation.",
+    chargeAdaptee:
+      "Charge modérée (10 à 15 répétitions par bras, RIR 1-2).",
+    position:
+      "Debout face à la poulie haute, poignée simple en main en pronation ou prise neutre, coude collé au corps.",
+    posture:
+      "Buste droit, épaules basses, tronc gainé et immobile.",
+    completude:
+      "Poussez la poignée vers le bas jusqu'à l'extension complète du coude. Marquez 1 seconde de contraction, puis contrôlez la remontée de l'avant-bras jusqu'à l'horizontale.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Idéal pour soulager les tensions aux coudes par rapport aux barres rigides.",
+    pointsAttention: [
+      "Gardez le coude parfaitement immobile le long du corps.",
+      "Ne vous penchez pas sur la poignée pour utiliser votre poids de corps.",
+      "Contrôlez la remontée sur 2 secondes.",
+    ],
+  },
+
+  ex_cable_seated_overhead_triceps: {
+    objectif:
+      "Isolation de la longue portion des triceps sous étirement maximal avec un dossier inclinant le buste et éliminant tout stress lombaire.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions, RIR 1-2).",
+    position:
+      "Assis sur banc incliné à 60-75° dos à la poulie haute, corde tenue à deux mains derrière la nuque.",
+    posture:
+      "Dos plaqué au banc, coudes maintenus serrés vers le haut et l'avant, cage ouverte.",
+    completude:
+      "Développez la corde au-dessus de la tête jusqu'à l'extension complète des bras en écartant les extrémités au sommet. Freinez la descente derrière la nuque jusqu'à l'étirement maximal.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Le soutien du banc neutralise le risque de cambrure lombaire présente dans la version debout.",
+    pointsAttention: [
+      "Ne laissez pas les coudes s'écarter excessivement vers l'extérieur.",
+      "Gardez le bas du dos fermement appuyé contre le dossier.",
+      "Contrôlez l'étirement sans descendre trop bas avec violence.",
+    ],
+  },
+
+  ex_cable_lying_triceps_extension: {
+    objectif:
+      "Variante poulie du French Press (barre au front), offrant une tension constante dès le début du mouvement et une sécurité supérieure pour les coudes.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions, RIR 1-2).",
+    position:
+      "Allongé sur un banc plat la tête orientée vers la poulie basse, saisissez la barre droite ou la corde à deux mains, bras inclinés à environ 60-75° vers l'arrière.",
+    posture:
+      "Pieds à plat au sol, fessiers et haut du dos collés au banc, coudes orientés vers le plafond et légèrement vers l'arrière.",
+    completude:
+      "Fléchissez les coudes pour descendre la charge vers le sommet du crâne ou derrière la tête. Étendez puissamment les avant-bras jusqu'au verrouillage sans déplacer la position des coudes.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Garder les coudes inclinés vers l'arrière (et non verticaux) réduit considérablement la contrainte sur le tendon tricipital.",
+    pointsAttention: [
+      "Ne laissez pas les coudes s'écarter pendant la poussée.",
+      "Ne transformez pas le mouvement en développé couché.",
+      "Freinez la descente sur 2 à 3 secondes.",
+    ],
+  },
+
+  ex_bench_dips: {
+    objectif:
+      "Renforcement au poids du corps des triceps, des deltoïdes antérieurs et des pectoraux inférieurs avec appui sur un banc.",
+    chargeAdaptee:
+      "Poids du corps (pieds au sol genoux fléchis pour débuter, jambes tendues au sol ou pieds surélevés sur un second banc pour intensifier). 10 à 15 reps.",
+    position:
+      "Mains posées sur le bord du banc juste à côté des hanches, doigts vers l'avant. Fessiers décollés du banc, pieds ancrés devant.",
+    posture:
+      "Épaules tirées en arrière et vers le bas, poitrine sortie, dos rasant le bord du banc lors de la descente.",
+    completude:
+      "Fléchissez les coudes pour descendre le bassin vers le sol jusqu'à ce que les bras forment un angle de 90°. Repoussez énergiquement jusqu'à l'extension complète des triceps.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque important de conflit gléno-huméral et de mise en tension excessive de la capsule antérieure de l'épaule si le bassin s'éloigne du banc ou si la descente dépasse 90°.",
+    pointsAttention: [
+      "Gardez impérativement le dos très proche du bord du banc (ne laissez pas le bassin partir vers l'avant).",
+      "Ne descendez JAMAIS les épaules en dessous du niveau des coudes (arrêt strict à 90°).",
+      "Ne laissez pas les épaules s'enrouler vers l'avant.",
+    ],
+  },
+
+  ex_calf_raise: {
+    objectif:
+      "Hypertrophie et endurance des mollets (gastrocnémiens et soléaires) avec étirement complet sous le niveau du sol.",
+    chargeAdaptee:
+      "Poids du corps (séries de 15 à 25 répétitions avec temps d'arrêt marqué en bas et en haut). Progression possible sur une jambe (unilatéral).",
+    position:
+      "Debout, avant-pieds calés sur le rebord d'une marche ou d'un step, talons libres dans le vide. Main en appui léger sur un mur pour l'équilibre.",
+    posture:
+      "Corps droit, genoux quasi-tendus (très légère flexion fixe de 5° pour protéger l'articulation), sangle abdominale verrouillée.",
+    completude:
+      "Descendez les talons le plus bas possible sous l'horizontale pour ressentir un étirement maximal du mollet et du tendon d'Achille (pause de 1-2 secondes). Montez de manière explosive sur la pointe des pieds le plus haut possible et contractez violemment pendant 1 seconde au sommet.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice très sûr ; évitez simplement les rebonds élastiques brutaux au point bas qui surchargent le tendon calcanéen (tendon d'Achille).",
+    pointsAttention: [
+      "Ne rebondissez pas au fond de l'étirement : marquez une pause isométrique complète.",
+      "Montez bien sur le gros orteil sans laisser la cheville partir vers l'extérieur.",
+      "Ne pliez pas les genoux pour vous donner de l'élan.",
+    ],
+  },
+
+  ex_front_squat: {
+    objectif:
+      "Recrutement maximal des quadriceps et renforcement puissant du gainage du haut du dos (érecteurs thoraciques) grâce au centre de gravité antérieur.",
+    chargeAdaptee:
+      "Charge modérée à lourde (6 à 10 répétitions, RIR 1-2). Charge inférieure de 15 à 25% par rapport au back squat classique.",
+    position:
+      "Barre posée sur les deltoïdes antérieurs et les clavicules, coudes pointés haut vers l'avant (prise en crochet deux doigts ou bras croisés). Pieds écartés largeur d'épaules, pointes légèrement ouvertes.",
+    posture:
+      "Buste rigoureusement vertical, coudes maintenus hauts en permanence, cage thoracique ouverte, gainage abdominal maximal.",
+    completude:
+      "Descendez en fléchissant simultanément hanches et genoux jusqu'à ce que les cuisses soient au moins parallèles au sol (ou sous la parallèle). Remontez de manière explosive en poussant à travers le milieu du pied tout en maintenant les coudes pointés vers le haut.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque d'effondrement des coudes entraînant un enroulement dorsal et une perte de la barre vers l'avant. Contrainte patello-fémorale accrue sur les genoux.",
+    pointsAttention: [
+      "Ne laissez JAMAIS vos coudes pointer vers le sol pendant la descente.",
+      "Conservez le buste le plus vertical possible.",
+      "Les genoux doivent suivre rigoureusement la direction des pointes de pieds.",
+    ],
+  },
+
+  ex_bulgarian_split_squat: {
+    objectif:
+      "Hypertrophie massive des quadriceps et du grand fessier, renforcement des stabilisateurs de hanche et correction complète des asymétries unilatérales.",
+    chargeAdaptee:
+      "Charge modérée aux haltères (8 à 12 répétitions par jambe, RIR 1-2). Mouvement très exigeant sur le plan cardio-musculaire.",
+    position:
+      "Debout devant un banc, un pied posé en arrière sur le banc (sur le coup-de-pied ou les orteils). Pied avant avancé d'environ 90 cm, haltères tenus dans chaque main le long du corps.",
+    posture:
+      "Buste légèrement incliné vers l'avant (pour engager les fessiers) ou droit (pour cibler les quadriceps), regard fixe droit devant, gainage actif.",
+    completude:
+      "Descendez le genou arrière vers le sol de manière contrôlée jusqu'à ce qu'il effleure presque le tapis (cuisse avant parallèle au sol). Poussez à travers tout le pied avant pour remonter sans verrouiller brutalement le genou.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de perte d'équilibre ou de valgus du genou avant (genou qui s'effondre vers l'intérieur). Étirement prononcé du psoas de la jambe arrière.",
+    pointsAttention: [
+      "Alignez en permanence le genou avant avec le deuxième orteil.",
+      "Ne laissez pas tout le poids reposer sur la jambe arrière (85% du poids sur le pied avant).",
+      "Contrôlez la descente sur 2 à 3 secondes.",
+    ],
+  },
+
+  ex_hip_thrust: {
+    objectif:
+      "Isolation et développement maximal de la force et de l'hypertrophie des fessiers (grand et moyen fessiers) avec pic de tension mécanique au sommet.",
+    chargeAdaptee:
+      "Charge lourde à modérée (8 à 12 répétitions, RIR 1-2). Utilisez impérativement un manchon de protection en mousse sur la barre.",
+    position:
+      "Haut du dos (bas des omoplates) en appui sur un banc stable (hauteur environ 40 cm). Barre placée sur le pli de l'aine protégée par un manchon. Pieds à plat au sol écartés largeur d'épaules, tibias parfaitement verticaux au sommet du geste.",
+    posture:
+      "Menton rentré vers la poitrine (regard vers l'avant, jamais vers le plafond), bassin en rétroversion au sommet, cage thoracique basse et abdos contractés.",
+    completude:
+      "Poussez à travers les talons pour élever le bassin jusqu'à l'alignement parfait genoux-hanches-épaules. Bloquez 1 à 2 secondes au sommet en écrasant les fessiers le plus fort possible, puis redescendez sous contrôle sans cambrer le bas du dos.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque d'hyperextension lombaire sévère si le bassin monte trop haut par cambrure du dos au lieu d'une rétroversion fessière.",
+    pointsAttention: [
+      "Gardez le menton rentré vers la poitrine et regardez devant vous (ne regardez pas le plafond).",
+      "Vérifiez que les tibias sont bien verticaux au sommet (pieds ni trop proches ni trop éloignés du banc).",
+      "Contractez volontairement les fessiers au point culminant sans cambrer les reins.",
+    ],
+  },
+
+  ex_leg_extension: {
+    objectif:
+      "Isolation exclusive des quatre chefs du quadriceps (notamment le droit fémoral) avec tension maximale en position de contraction complète.",
+    chargeAdaptee:
+      "Charge modérée (10 à 15 répétitions, RIR 1-2). Privilégiez un arrêt isométrique d'une seconde au sommet plutôt qu'une charge écrasante.",
+    position:
+      "Assis sur la machine, dos plaqué au dossier. Axe de rotation de la machine aligné exactement avec l'articulation des genoux. Boudin calé sur le bas des tibias (juste au-dessus des chevilles).",
+    posture:
+      "Mains tenant fermement les poignées latérales pour maintenir les fessiers collés au siège, tête droite.",
+    completude:
+      "Étendez les jambes vers le haut jusqu'à l'alignement complet sans à-coup. Marquez une seconde de contraction isométrique intense des quadriceps, puis freinez la descente sur 3 secondes jusqu'au point de départ sans faire reposer les poids.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Forces de cisaillement antérieures sur le ligament croisé antérieur (LCA) et pression fémoro-patellaire accrue au niveau de la rotule sous charge lourde.",
+    pointsAttention: [
+      "Ne décollez pas les fessiers du siège pendant l'effort.",
+      "Ne lancez pas la charge avec élan.",
+      "Réglez rigoureusement l'axe de la machine sur la rotule.",
+    ],
+  },
+
+  ex_leg_curl: {
+    objectif:
+      "Isolation et renforcement des ischio-jambiers (biceps fémoral, semi-tendineux, semi-membraneux) par flexion directe du genou.",
+    chargeAdaptee:
+      "Charge modérée permettant 10 à 15 répétitions propres avec phase excentrique ralentie (RIR 1-2).",
+    position:
+      "Allongé à plat ventre sur la machine, rotules légèrement au-delà du bord du banc, boudin calé à l'arrière des chevilles (juste sous les mollets). Saisissez les poignées.",
+    posture:
+      "Bassin fermement plaqué contre le banc, sangle abdominale gainée pour éviter que le bas du dos ne se creuse lors de la flexion.",
+    completude:
+      "Fléchissez les jambes de manière puissante en amenant les talons vers les fessiers. Marquez 1 seconde en contraction complète, puis redescendez très lentement sur 3 secondes en retenant la charge jusqu'à l'extension quasi-complète des genoux.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Risque d'hyperextension lombaire compensatoire si le bassin se soulève du banc sous l'effort.",
+    pointsAttention: [
+      "Ne laissez pas les hanches se décoller du banc lorsque vous fléchissez les jambes.",
+      "Contrôlez impérativement la phase d'allongement (la descente).",
+      "Gardez les pointes de pieds en flexion dorsale neutre.",
+    ],
+  },
+
+  ex_bodyweight_squat: {
+    objectif:
+      "Apprentissage moteur fondamental du squat, échauffement articulaire et renforcement fonctionnel des quadriceps, fessiers et adducteurs au poids du corps.",
+    chargeAdaptee:
+      "Poids du corps (15 à 25 répétitions avec amplitude complète et tempo contrôlé 3-1-1).",
+    position:
+      "Debout, pieds écartés largeur d'épaules ou légèrement plus, pointes de pieds ouvertes d'environ 15 à 30° vers l'extérieur. Bras tendus devant vous pour l'équilibre.",
+    posture:
+      "Poitrine fière, regard droit devant, colonne vertébrale neutre, poids réparti uniformément sur les trois points d'appui du pied (talon, base du gros orteil, base du petit orteil).",
+    completude:
+      "Descendez en fléchissant simultanément hanches et genoux comme pour vous asseoir sur une chaise basse, jusqu'à ce que les cuisses soient sous l'horizontale. Poussez à travers le sol pour remonter sans verrouiller brusquement les genoux.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice universellement sûr et fondamental ; veillez à maintenir les genoux ouverts dans l'axe des orteils.",
+    pointsAttention: [
+      "Ne laissez pas les talons se décoller du sol lors de la descente.",
+      "Ne laissez pas les genoux rentrer vers l'intérieur (valgus).",
+      "Conservez le dos plat sans l'arrondir en position basse.",
+    ],
+  },
+
+  ex_cable_glute_kickback: {
+    objectif:
+      "Isolation unilatérale du grand fessier avec levier de jambe tendue, assurant une tension mécanique continue dès le départ.",
+    chargeAdaptee:
+      "Charge légère à modérée (12 à 15 répétitions par jambe, RIR 1-2).",
+    position:
+      "Sangle de cheville fixée à la poulie basse. Face à la machine, mains en appui sur les montants du rack, buste incliné à 45°.",
+    posture:
+      "Colonne neutre, abdominaux contractés pour verrouiller le bassin, jambe d'appui légèrement fléchie.",
+    completude:
+      "Poussez la jambe de travail vers l'arrière jambe quasi-tendue jusqu'à ressentir une forte contraction du fessier. Marquez 1 seconde en haut sans cambrer les reins, puis revenez lentement sans toucher le sol.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Risque de cambrure lombaire réflexe si la jambe monte trop haut au-delà de la capacité d'extension de hanche.",
+    pointsAttention: [
+      "Le mouvement doit provenir exclusivement de la hanche, jamais des lombaires.",
+      "Ne tournez pas le bassin sur le côté.",
+      "Conservez une vitesse régulière sans balancer la jambe.",
+    ],
+  },
+
+  ex_cable_hip_abduction: {
+    objectif:
+      "Ciblage isolé du moyen et petit fessiers, essentiels pour la stabilité du bassin, la prévention du valgus du genou et le galbe des hanches.",
+    chargeAdaptee:
+      "Charge légère à modérée (15 à 20 répétitions par jambe, RIR 1-2).",
+    position:
+      "Debout de profil par rapport à la poulie basse, sangle fixée à la cheville de la jambe extérieure. Main intérieure en appui sur la machine.",
+    posture:
+      "Buste vertical et gainé, bassin horizontal sans bascule latérale.",
+    completude:
+      "Écartez la jambe vers l'extérieur dans le plan latéral en gardant la pointe de pied droite ou très légèrement tournée vers l'intérieur. Marquez un arrêt au sommet, puis freinez le retour.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice très protecteur pour la stabilité de la hanche et du genou.",
+    pointsAttention: [
+      "Ne penchez pas le buste du côté opposé pour tricher.",
+      "Ne tournez pas la pointe du pied vers l'extérieur (cela recruterait les fléchisseurs de hanche).",
+      "Contrôlez le retour sans laisser le câble tirer violemment.",
+    ],
+  },
+
+  ex_cable_hip_adduction: {
+    objectif:
+      "Renforcement des adducteurs (grand, long et court adducteurs, gracile) pour l'équilibre pelvien et la force de stabilisation des cuisses.",
+    chargeAdaptee:
+      "Charge légère à modérée (12 à 15 répétitions par jambe, RIR 1-2).",
+    position:
+      "Debout de profil par rapport à la poulie basse, sangle fixée à la cheville de la jambe intérieure (la plus proche de la poulie).",
+    posture:
+      "Buste droit et gainé, mains sur les hanches ou en appui sur le montant.",
+    completude:
+      "Tractez la jambe vers l'intérieur en la faisant passer devant la jambe d'appui. Contractez puissamment les adducteurs au croisement, puis revenez sous tension lente.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Exercice de renforcement de l'entrejambe très progressif et sécuritaire.",
+    pointsAttention: [
+      "Gardez le tronc rigoureusement fixe.",
+      "Ne donnez pas d'élan avec le bassin.",
+      "Faites passer la jambe de travail de manière fluide devant l'autre.",
+    ],
+  },
+
+  ex_cable_standing_leg_curl: {
+    objectif:
+      "Isolation unilatérale des ischio-jambiers en position debout à la poulie basse, offrant une liberté de mouvement ergonomique.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 12 répétitions par jambe, RIR 1-2).",
+    position:
+      "Face à la poulie basse, sangle à la cheville. Mains en appui stable sur les montants, genou de travail légèrement en arrière du genou d'appui.",
+    posture:
+      "Buste droit ou légèrement penché, bassin fixé sans rotation, sangle abdominale verrouillée.",
+    completude:
+      "Fléchissez le genou pour amener le talon vers la fesse. Contractez les ischio-jambiers 1 seconde au sommet, puis redescendez très lentement sans reposer le pied.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Excellente variante pour les personnes incommodées par la position allongée sur banc.",
+    pointsAttention: [
+      "Ne laissez pas la cuisse avancer vers l'avant pendant la flexion.",
+      "Gardez la cuisse alignée avec le buste.",
+      "Contrôlez la descente sans à-coups.",
+    ],
+  },
+
+  ex_cable_belt_squat: {
+    objectif:
+      "Surcharge lourde des quadriceps et fessiers sans AUCUNE charge axiale sur la colonne vertébrale grâce à la ceinture de traction fixée à la taille.",
+    chargeAdaptee:
+      "Charge modérée à lourde (10 à 15 répétitions, RIR 1-2). Idéal pour s'entraîner dur en cas de douleurs dorsales.",
+    position:
+      "Debout sur deux steps ou plateformes de part et d'autre de la poulie basse. Ceinture de lest fixée au mousqueton de la poulie entre les pieds.",
+    posture:
+      "Buste naturellement vertical, mains libres ou tenant légèrement les montants pour l'équilibre, poids centré sur les pieds.",
+    completude:
+      "Descendez en squat profond jusqu'à la parallèle ou plus bas en ouvrant les genoux. Poussez à travers le sol pour remonter de manière explosive.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Suppression totale de la compression vertébrale ; l'un des squats les plus sûrs au monde pour le dos.",
+    pointsAttention: [
+      "Assurez-vous que les steps sont parfaitement stables.",
+      "Descendez à amplitude complète en gardant les talons au sol.",
+      "Ne tirez pas sur les mains si vous vous tenez aux montants.",
+    ],
+  },
+
+  ex_barbell_bulgarian_split_squat: {
+    objectif:
+      "Développement lourd de la force unilatérale des quadriceps et fessiers avec barre sur les trapèzes.",
+    chargeAdaptee:
+      "Charge modérée (6 à 10 répétitions par jambe, RIR 1-2). Requiert une excellente stabilité préalable aux haltères.",
+    position:
+      "Barre chargée sur les trapèzes (comme en squat classique). Pied arrière surélevé sur un banc stable, pied avant solidement ancré au sol.",
+    posture:
+      "Buste droit, omoplates serrées sous la barre, regard droit devant, gainage abdominal maximal pour stabiliser le tronc.",
+    completude:
+      "Descendez le genou arrière vers le sol jusqu'à ce que la cuisse avant soit parallèle au sol. Remontez puissamment en poussant sur le pied avant.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque de déséquilibre avec barre libre sur le dos ; installez impérativement des barres de sécurité dans la cage.",
+    pointsAttention: [
+      "Maîtrisez parfaitement la version aux haltères avant d'utiliser la barre.",
+      "Ne laissez pas le genou avant rentrer vers l'intérieur.",
+      "Fixez un point visuel devant vous pour préserver l'équilibre.",
+    ],
+  },
+
+  ex_box_squat: {
+    objectif:
+      "Apprentissage de l'engagement des hanches vers l'arrière, élimination du réflexe myotatique et renforcement de la force explosive de démarrage de la chaîne postérieure.",
+    chargeAdaptee:
+      "Charge modérée à lourde (5 à 8 répétitions, RIR 1-2). Travail de force dynamique.",
+    position:
+      "Barre sur les trapèzes dans le rack. Une boîte ou un banc placé derrière vous réglé à hauteur de parallèle. Pieds largeur d'épaules.",
+    posture:
+      "Gainage abdominal sous pression (manœuvre de Valsalva), coudes sous la barre, dos parfaitement compact et verrouillé.",
+    completude:
+      "Poussez les hanches vers l'arrière et asseyez-vous sur la boîte avec contrôle sans vous écraser. Marquez une pause d'une seconde sur la boîte en maintenant toute la tension corporelle (sans relâcher le dos), puis explosez vers le haut.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque de tassement vertébral si l'athlète se laisse tomber brutalement sur la boîte au lieu de contrôler la descente.",
+    pointsAttention: [
+      "Ne rebondissez JAMAIS sur la boîte.",
+      "Ne relâchez pas le gainage abdominal une fois assis sur la boîte.",
+      "Poussez les genoux vers l'extérieur à la montée.",
+    ],
+  },
+
+  ex_barbell_lunges: {
+    objectif:
+      "Renforcement des cuisses et fessiers en fente stationnaire ou marchée avec charge axiale à la barre.",
+    chargeAdaptee:
+      "Charge modérée (8 à 10 répétitions par jambe, RIR 1-2).",
+    position:
+      "Barre posée sur les trapèzes, pieds joints au départ. Faites un grand pas vers l'avant.",
+    posture:
+      "Buste fier et vertical, coudes rentrés, regard à l'horizontale.",
+    completude:
+      "Fléchissez les deux genoux jusqu'à ce que le genou arrière effleure le sol et que le genou avant soit à 90°. Repoussez sur le talon avant pour revenir au point de départ.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Exige une grande proprioception ; risque de perte d'équilibre latéral sous la barre.",
+    pointsAttention: [
+      "Faites des pas suffisamment longs pour ne pas surcharger la rotule avant.",
+      "Gardez le genou avant dans l'axe du pied.",
+      "Ne laissez pas le buste pencher excessivement en avant.",
+    ],
+  },
+
+  ex_good_morning: {
+    objectif:
+      "Renforcement massif de la charnière de hanche, des ischio-jambiers, des grands fessiers et des érecteurs du rachis.",
+    chargeAdaptee:
+      "Charge légère à modérée (8 à 12 répétitions, RIR 2-3). Jamais d'échec postural.",
+    position:
+      "Barre placée sur les trapèzes (position basse de préférence). Pieds largeur d'épaules, genoux légèrement déverrouillés (15° de flexion fixe).",
+    posture:
+      "Omoplates fermement rétractées, cambrure lombaire physiologique rigoureusement verrouillée du début à la fin.",
+    completude:
+      "Basculez le bassin vers l'arrière en fléchissant au niveau des hanches, buste s'inclinant vers l'avant jusqu'à être proche de l'horizontale (étirement maximal des ischio-jambiers). Redressez-vous par la contraction puissante des fessiers et ischios.",
+    niveauRisque: "Très Élevé",
+    mentionRisque:
+      "Bras de levier maximal sur la région lombaire : risque de blessure discale sévère si le dos s'arrondit le moindrement sous la charge.",
+    pointsAttention: [
+      "Ne courbez JAMAIS la colonne vertébrale pendant la bascule.",
+      "Poussez les fesses vers l'arrière au lieu de simplement vous pencher en avant.",
+      "Commencez toujours avec une charge très légère pour assimiler le geste.",
+    ],
+  },
+
+  ex_barbell_calf_raise: {
+    objectif:
+      "Surcharge lourde des mollets (triceps sural) avec barre libre pour stimuler la puissance et l'hypertrophie des fibres à contraction rapide.",
+    chargeAdaptee:
+      "Charge modérée à lourde (10 à 15 répétitions, RIR 1-2).",
+    position:
+      "Barre sur les trapèzes dans le rack de squat. Avant-pieds posés sur une cale stable de 5 à 10 cm, talons dans le vide.",
+    posture:
+      "Corps droit et rigoureusement gainé, genoux quasi-tendus (verrouillage doux), regard droit devant.",
+    completude:
+      "Descendez les talons sous la cale pour un étirement complet, marquez 1 seconde d'arrêt, puis hissez-vous sur la pointe des pieds le plus haut possible contre la charge.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de perte d'équilibre avec la barre sur le dos ; travaillez impérativement dans un rack sécurisé.",
+    pointsAttention: [
+      "Ne trichez pas en fléchissant les genoux.",
+      "Marquez la pause en position basse pour dissiper l'élan du tendon.",
+      "Montez bien jusqu'au sommet de l'extension de cheville.",
+    ],
+  },
+
+  ex_hanging_leg_raise: {
+    objectif:
+      "Renforcement intense du grand droit de l'abdomen (notamment la région sous-ombilicale) et des fléchisseurs profonds de la hanche (psoas-iliaque).",
+    chargeAdaptee:
+      "Poids du corps (séries de 10 à 15 répétitions contrôlées sans balancement). Possibilité de fléchir les genoux pour réduire le bras de levier si nécessaire.",
+    position:
+      "Suspendu à la barre fixe en prise pronation, bras tendus, corps complètement immobile sans osciller d'avant en arrière.",
+    posture:
+      "Épaules actives (légère dépression scapulaire), sangle abdominale pré-engagée, jambes jointes.",
+    completude:
+      "Relevez les jambes tendues (ou genoux fléchis vers la poitrine) en enroulant activement le bassin vers le haut (rétroversion) pour engager les abdos au-delà de 90°. Marquez 1 seconde en haut, puis redescendez très lentement sans laisser le corps partir en arrière.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Risque d'hyperextension lombaire et de pincement sacro-iliaque si les jambes redescendent trop vite en cambrant le dos.",
+    pointsAttention: [
+      "N'utilisez aucun balancement d'élan (pas de kipping).",
+      "Pensez à enrouler le bassin vers le nez pour contracter les abdominaux (pas seulement lever les cuisses).",
+      "Contrôlez la redescente pour éliminer toute oscillation.",
+    ],
+  },
+
+  ex_floor_crunch: {
+    objectif:
+      "Isolation directe et sécuritaire de la portion haute du grand droit de l'abdomen avec flexion du rachis thoracique.",
+    chargeAdaptee:
+      "Poids du corps (séries de 15 à 25 répétitions avec expiration complète et contraction volontaire maximale de 2 secondes au sommet).",
+    position:
+      "Allongé sur le dos sur un tapis, genoux fléchis à 90°, pieds à plat au sol. Mains posées sur les tempes ou croisées sur la poitrine.",
+    posture:
+      "Bas du dos (lombaires) fermement plaqué au sol tout au long du mouvement, menton décollé de la poitrine (imaginez tenir une pomme sous le menton).",
+    completude:
+      "Enroulez la colonne vertébrale vers l'avant en décollant uniquement les omoplates du sol de quelques centimètres tout en expirant la totalité de votre air. Écrasez les abdos pendant 1 seconde, puis redescendez lentement sans reposer la tête.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Très faible contrainte lombaire car le bas du dos reste en contact avec le sol. Veillez à ne pas tirer sur la nuque avec les mains.",
+    pointsAttention: [
+      "Ne tirez JAMAIS sur la tête avec les mains (gardez les coudes ouverts).",
+      "Ne cherchez pas à vous asseoir : décollez uniquement les omoplates.",
+      "Expirez tout votre air lors de la montée pour vider les poumons et maximiser la contraction.",
+    ],
+  },
+
+  ex_ab_wheel: {
+    objectif:
+      "Travail anti-extension d'élite renforçant l'ensemble de la sangle abdominale (grand droit, transverse, obliques) sous étirement maximal.",
+    chargeAdaptee:
+      "Poids du corps à genoux (8 à 12 répétitions parfaites). Progression vers la version debout réservée aux athlètes avancés.",
+    position:
+      "À genoux sur un tapis confortable, mains tenant fermement les poignées de la roue abdominale posée au sol sous les épaules.",
+    posture:
+      "Bassin en rétroversion, dos légèrement arrondi (posture du chat), fessiers et abdominaux ultra-contractés avant même de commencer.",
+    completude:
+      "Faites rouler la roue vers l'avant de manière fluide et contrôlée jusqu'à ce que votre corps soit proche du sol en conservant le bassin verrouillé. Tirez sur les abdominaux et les grands dorsaux pour ramener la roue sous les épaules sans relâcher la tension.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque d'hyperextension brutale de la colonne lombaire (cambrure réflexe) sous le poids du corps si la sangle abdominale cède au point bas.",
+    pointsAttention: [
+      "Ne laissez JAMAIS votre bas du dos se creuser vers le sol.",
+      "Ne descendez pas plus loin que ce que votre force de gainage vous permet de contrôler.",
+      "Gardez les fessiers serrés pendant tout le trajet.",
+    ],
+  },
+
+  ex_russian_twist: {
+    objectif:
+      "Renforcement dynamique et fonctionnel des obliques internes et externes, du transverse et amélioration de la force rotationnelle du tronc.",
+    chargeAdaptee:
+      "Poids du corps (20 à 30 rotations au total), puis disque ou haltère léger tenu à deux mains si le mouvement est parfaitement stabilisé.",
+    position:
+      "Assis au sol, genoux fléchis, pieds décollés du sol de quelques centimètres (ou posés au sol pour faciliter l'exercice). Buste incliné à 45° vers l'arrière.",
+    posture:
+      "Dos droit sans s'avachir, poitrine fière, ceinture abdominale verrouillée pour former un 'V' stable avec les cuisses.",
+    completude:
+      "Tournez le torse et les épaules de gauche à droite de manière contrôlée, en amenant les mains toucher le sol de chaque côté. Marquez une fraction de seconde à chaque rotation.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Risque de contrainte sur les disques lombaires si la rotation est effectuée de manière balistique avec le bas du dos courbé.",
+    pointsAttention: [
+      "Tournez l'ensemble des épaules et de la cage thoracique, pas seulement les bras.",
+      "Gardez le buste gainé sans arrondir les lombaires.",
+      "Ne balancez pas frénétiquement les jambes d'un côté à l'autre.",
+    ],
+  },
+
+  ex_mountain_climbers: {
+    objectif:
+      "Conditionnement métabolique cardio-vasculaire et renforcement dynamique des abdominaux et fléchisseurs de hanche en gainage actif.",
+    chargeAdaptee:
+      "Poids du corps au tempo (séries de 30 à 45 secondes ou 20 à 30 répétitions dynamiques).",
+    position:
+      "Position haute de pompe (planche sur les mains), mains sous les épaules, corps en ligne droite parfaite de la tête aux talons.",
+    posture:
+      "Abdominaux et fessiers contractés, bassin neutre sans monter vers le plafond ni s'affaisser vers le sol.",
+    completude:
+      "Amenez alternativement et de façon rythmée un genou vers la poitrine sans toucher le sol avec ce pied, puis replacez-le en arrière tout en avançant l'autre genou.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Attention à la fatigue qui peut amener le bassin à s'effondrer et cambrer le dos.",
+    pointsAttention: [
+      "Ne levez pas les fesses en l'air au fil des répétitions.",
+      "Gardez les épaules bien au-dessus des mains.",
+      "Maintenez un rythme régulier et un gainage constant.",
+    ],
+  },
+
+  ex_cable_woodchopper: {
+    objectif:
+      "Développement de la puissance rotationnelle et oblique du tronc avec tension constante du câble sur toute la diagonale.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions par côté, RIR 1-2).",
+    position:
+      "Debout de profil par rapport à la poulie réglée en haut (pour un mouvement haut vers le bas) ou en bas. Pieds plus larges que les épaules.",
+    posture:
+      "Bras quasi-tendus, genoux souples, gainage abdominal compact.",
+    completude:
+      "Pivotez le torse et les hanches en tirant le câble diagonalement à travers le corps vers la hanche opposée. Pivotez sur la pointe du pied arrière pour accompagner la rotation de hanche. Retour sous contrôle.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Excellente préparation pour les sports de lancer, de frappe et de rotation sans stress lombaire excessif.",
+    pointsAttention: [
+      "Initiez le mouvement avec les hanches et le tronc, pas avec les bras.",
+      "Pivotez sur le pied arrière pour protéger le genou.",
+      "Ne donnez pas d'à-coups saccadés.",
+    ],
+  },
+
+  ex_decline_bench_leg_raise: {
+    objectif:
+      "Surcharge de la partie basse du grand droit de l'abdomen grâce à la pente déclinée du banc augmentant la résistance gravitationnelle.",
+    chargeAdaptee:
+      "Poids du corps (10 à 15 répétitions contrôlées).",
+    position:
+      "Allongé sur un banc décliné, tête positionnée vers le haut du banc tenant les poignées de maintien, jambes orientées vers le bas.",
+    posture:
+      "Lombaires maintenues plaquées contre le banc lors de la descente.",
+    completude:
+      "Relevez les jambes puis décollez le bassin du banc en enroulant les hanches vers le haut. Marquez 1 seconde, puis redescendez très lentement sans cambrer le bas du dos.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "La pente accentue la tentation de cambrer en fin de descente ; arrêtez la descente dès que les lombaires menacent de se décoller.",
+    pointsAttention: [
+      "Décollez le bassin du banc en haut pour une contraction complète.",
+      "Freinez la descente sur 2 à 3 secondes.",
+      "Ne lancez pas les jambes avec élan.",
+    ],
+  },
+
+  ex_decline_bench_crunch: {
+    objectif:
+      "Amplification du travail du grand droit de l'abdomen avec une course articulaire accrue sur banc décliné.",
+    chargeAdaptee:
+      "Poids du corps (12 à 15 répétitions avec contraction marquée), éventuel disque léger sur la poitrine.",
+    position:
+      "Assis sur le banc décliné, jambes fermement calées sous les boudins en mousse.",
+    posture:
+      "Mains sur les tempes ou sur la poitrine, dos arrondi lors de l'enroulement.",
+    completude:
+      "Enroulez le buste vers l'avant en contractant puissamment les abdominaux. Arrêtez-vous avant la verticale, puis descendez lentement en freinant jusqu'à effleurer le banc.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Ne descendez pas en hyperextension complète en arrière si vous êtes sujet aux douleurs lombaires.",
+    pointsAttention: [
+      "Enroulez la colonne vertébrale au lieu de simplement plier aux hanches.",
+      "Ne tirez pas sur la nuque avec les mains.",
+      "Expirez profondément lors de la montée.",
+    ],
+  },
+
+  ex_walking_active: {
+    objectif:
+      "Endurance cardiovasculaire fondamentale à faible impact articulaire, oxydation lipidique et entretien de la mobilité quotidienne.",
+    chargeAdaptee:
+      "Poids du corps. Durée de 20 à 60 minutes à vitesse soutenue (5.5 à 6.8 km/h).",
+    position:
+      "Debout, posture élancée, bras relâchés et mobiles le long du corps.",
+    posture:
+      "Regard horizontal, épaules détendues et basses, sangle abdominale légèrement engagée.",
+    completude:
+      "Déroulement complet du pied (attaque du talon, propulsion sur le gros orteil), balancement synchronisé et dynamique des bras.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Impact articulaire quasi nul, praticable par tous les profils sportifs et en récupération active.",
+    pointsAttention: [
+      "Ne marchez pas les épaules voûtées.",
+      "Maintenez une cadence dynamique sans traîner les pieds.",
+      "Hydratez-vous régulièrement.",
+    ],
+  },
+
+  ex_walking_incline: {
+    objectif:
+      "Augmentation de la dépense calorique et recrutement renforcé des fessiers et mollets sans impact traumatisant grâce à la pente du tapis.",
+    chargeAdaptee:
+      "Vitesse de 4.5 à 5.8 km/h avec inclinaison de 8% à 15%. Durée de 15 à 45 minutes.",
+    position:
+      "Sur le tapis de course incliné, corps naturellement penché vers l'avant pour s'aligner avec la pente.",
+    posture:
+      "Colonne alignée, bras oscillant librement sans vous cramponner aux poignées du tapis.",
+    completude:
+      "Pas réguliers, attaque ferme du milieu du pied, propulsion énergique des fessiers et des mollets.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Excellente alternative à la course pour préserver les ménisques et les disques lombaires.",
+    pointsAttention: [
+      "Ne vous tenez PAS aux poignées du tapis (cela annule le bénéfice de la pente et réduit la dépense calorique de 30%).",
+      "Ne vous cambrez pas en arrière.",
+      "Respirez avec régularité.",
+    ],
+  },
+
+  ex_farmers_walk: {
+    objectif:
+      "Développement de la force de préhension (grip), des trapèzes, de la stabilité du tronc et de l'endurance de portage fonctionnelle.",
+    chargeAdaptee:
+      "Charge lourde dans chaque main (30 à 50% du poids du corps par main, séries de 30 à 60 secondes de marche ou 20 à 40 mètres).",
+    position:
+      "Debout entre deux haltères lourds ou barres de portage. Ramassez les poids en squat ou soulevé de terre impeccable.",
+    posture:
+      "Épaules tirées en arrière et vers le bas, poitrine sortie, cage thoracique verrouillée, regard droit devant.",
+    completude:
+      "Marchez à petits pas rapides et contrôlés en évitant toute oscillation latérale des poids ou du buste.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Attention au ramassage et à la dépose des poids au sol : gardez le dos rigoureusement droit pour éviter toute lésion lombaire.",
+    pointsAttention: [
+      "Ne laissez pas les épaules s'effondrer vers l'avant.",
+      "Ne balancez pas les poids d'avant en arrière.",
+      "Prenez de petits pas rapides pour préserver la stabilité pelvienne.",
+    ],
+  },
+
+  ex_jump_rope: {
+    objectif:
+      "Développement de la coordination neuromusculaire, de l'élasticité tendineuse des mollets et de la puissance cardiovasculaire aérobie/anaérobie.",
+    chargeAdaptee:
+      "Corde à sauter adaptée à votre taille. Séries par intervalles (ex: 30s effort / 15s repos, 5 à 15 rounds).",
+    position:
+      "Debout, pieds serrés ou légèrement décalés, coudes près du corps, avant-bras horizontaux.",
+    posture:
+      "Buste droit, épaules relâchées, rebond souple sur la pointe des pieds sans toucher le sol avec les talons.",
+    completude:
+      "La rotation de la corde doit être initiée par les poignets et non par les bras entiers. Saut minimaliste d'environ 2 à 3 cm au-dessus du sol.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Impacts répétés pouvant irriter les périostes tibiaux ou les tendons calcanéens en cas de chaussures inadaptées ou de surface trop dure.",
+    pointsAttention: [
+      "Sautez uniquement sur la plante des pieds (talons ne touchent jamais le sol).",
+      "Ne sautez pas trop haut : quelques centimètres suffisent pour passer la corde.",
+      "Tournez avec les poignets, gardez les bras stables.",
+    ],
+  },
+
+  ex_decline_bench_press: {
+    objectif:
+      "Développement prioritaire du faisceau abdominal et inférieur du grand pectoral avec une réduction naturelle du stress sur la coiffe des rotateurs.",
+    chargeAdaptee:
+      "Charge modérée à lourde (6 à 10 répétitions, RIR 1-2). Vous pouvez généralement manipuler une charge légèrement supérieure au couché à plat.",
+    position:
+      "Allongé sur le banc décliné (15 à 30° de déclinaison), jambes fermement calées sous les boudins de rétention. Barre saisie en pronation à largeur légèrement supérieure aux épaules.",
+    posture:
+      "Omoplates fermement rétractées et abaissées contre le dossier, poitrine bombée.",
+    completude:
+      "Descendez la barre de manière contrôlée vers le bas des pectoraux (ligne sous-mammaire). Repoussez puissamment selon une trajectoire légèrement inclinée vers le rack sans décoller les épaules.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Afflux sanguin crânien sous l'effet de la déclinaison ; remettez-vous en position assise avec précaution après la série.",
+    pointsAttention: [
+      "Ne laissez pas la barre descendre trop haut sur la poitrine (descendez bien sur le bas des pectoraux).",
+      "Vérifiez que vos chevilles sont bien calées dans les manchons avant de décrocher la barre.",
+      "Ne déverrouillez pas violemment les coudes en haut.",
+    ],
+  },
+
+  ex_dumbbell_fly: {
+    objectif:
+      "Étirement maximal et isolation du grand pectoral (faisceau sternocostal) avec élimination de l'assistance des triceps.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 15 répétitions, RIR 1-2). Privilégiez l'ouverture thoracique contrôlée.",
+    position:
+      "Allongé sur banc plat, pieds au sol. Deux haltères tenus au-dessus de la poitrine en prise neutre (paumes face à face). Coudes légèrement fléchis (angle fixe de 15 à 20°).",
+    posture:
+      "Omoplates serrées et abaissées, cage thoracique largement ouverte, cambrure lombaire naturelle stable.",
+    completude:
+      "Écartez les bras latéralement en arc de cercle en conservant la flexion fixe des coudes, jusqu'à ressentir un étirement net des pectoraux (haltères à hauteur de poitrine). Ramenez les haltères au-dessus de la poitrine en imaginant enlacer un gros arbre.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque d'étirement excessif et de déchirure du tendon pectoral ou de la capsule antérieure de l'épaule si la descente est trop profonde sous charge lourde.",
+    pointsAttention: [
+      "Ne descendez pas les coudes plus bas que le niveau du banc.",
+      "Ne tendez pas complètement les bras (gardez les coudes souples et fixes).",
+      "Ne faites pas s'entrechoquer les haltères au sommet.",
+    ],
+  },
+
+  ex_diamond_pushups: {
+    objectif:
+      "Recrutement accentué des triceps et de la partie médiale des pectoraux au poids du corps avec prise rapprochée.",
+    chargeAdaptee:
+      "Poids du corps (8 à 15 répétitions propres). Possibilité de poser les genoux au sol pour adapter la résistance.",
+    position:
+      "En appui facial sur les mains et les pointes de pieds. Les mains sont rapprochées sous le centre de la poitrine, pouces et index joints formant un losange (diamant).",
+    posture:
+      "Corps en ligne droite parfaite de la tête aux talons, fessiers serrés, abdos verrouillés en rétroversion.",
+    completude:
+      "Descendez le centre de la poitrine vers le diamant en pliant les coudes le long du corps (coudes rentrés à 30-45°). Effleurez vos mains puis repoussez énergiquement jusqu'à l'extension complète des coudes.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Forte pression sur les poignets et les coudes en raison de la prise rapprochée ; espacez légèrement les mains si vous ressentez une gêne au carpe.",
+    pointsAttention: [
+      "Ne laissez pas le bassin s'affaisser vers le sol.",
+      "Gardez les coudes serrés vers l'arrière sans les écarter à 90°.",
+      "Si vos poignets sont sensibles, écartez légèrement les pouces sans former un diamant parfait.",
+    ],
+  },
+
+  ex_cable_flat_bench_press: {
+    objectif:
+      "Développement des pectoraux avec tension continue et convergence naturelle des câbles de poulie basse sur banc plat.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions, RIR 1-2).",
+    position:
+      "Banc plat placé au centre des poulies basses. Allongé sur le banc, poignées de câble en main au niveau des aisselles.",
+    posture:
+      "Omoplates serrées et abaissées contre le banc, pieds à plat au sol, cage sortie.",
+    completude:
+      "Poussez les poignées vers le haut en convergeant au centre au-dessus de la poitrine sans entrechoquer les mains. Redescendez lentement jusqu'à l'étirement des pectoraux.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Trajectoire libre et fluide, très protectrice pour les épaules.",
+    pointsAttention: [
+      "Maintenez les poignets alignés sur les avant-bras.",
+      "Ne décollez pas les épaules du banc.",
+      "Contrôlez la phase descendante sur 2 à 3 secondes.",
+    ],
+  },
+
+  ex_cable_incline_bench_press: {
+    objectif:
+      "Ciblage prioritaire du faisceau claviculaire (haut des pectoraux) avec tension continue à la poulie basse sur banc incliné.",
+    chargeAdaptee:
+      "Charge modérée (10 à 12 répétitions, RIR 1-2).",
+    position:
+      "Banc incliné à 30-45° au centre des poulies basses. Saisissez les poignées et allongez-vous.",
+    posture:
+      "Dos plaqué, omoplates serrées, coudes légèrement rentrés à 45°.",
+    completude:
+      "Développez les poignées vers le haut et l'intérieur en convergeant au niveau des clavicules. Marquez 1 seconde en contraction complète, retour freiné.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Tension sans à-coups, particulièrement bénéfique pour les deltoïdes antérieurs.",
+    pointsAttention: [
+      "Ne cambrez pas exagérément le dos pour transformer le banc en banc plat.",
+      "Poussez en direction du haut des pectoraux.",
+      "Contrôlez la descente sans relâcher la tension.",
+    ],
+  },
+
+  ex_cable_incline_fly: {
+    objectif:
+      "Isolation du haut des pectoraux (faisceau claviculaire) par écarté sur banc avec tension constante sous étirement maximal.",
+    chargeAdaptee:
+      "Charge légère à modérée (12 à 15 répétitions, RIR 1-2).",
+    position:
+      "Banc incliné à 30° placé entre les poulies basses. Allongé, poignées en main, bras quasi-tendus avec coudes légèrement fléchis.",
+    posture:
+      "Omoplates calées dans le dossier, poitrine haute, pieds stables au sol.",
+    completude:
+      "Rapprochez les mains en arc de cercle au-dessus de la poitrine jusqu'à ce qu'elles se rejoignent à hauteur du menton. Marquez une pause de contraction, puis ouvrez les bras lentement en sentant l'étirement supérieur des pectoraux.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Bien plus sûr pour l'épaule que l'écarté haltères grâce à la résistance linéaire du câble.",
+    pointsAttention: [
+      "Gardez l'angle des coudes rigoureusement fixe.",
+      "Ne descendez pas les coudes en dessous de la ligne du banc.",
+      "Pensez à serrer le haut des pectoraux en fin de course.",
+    ],
+  },
+
+  ex_pin_press: {
+    objectif:
+      "Développement de la force de démarrage concentrique pure et élimination du réflexe myotatique sur le développé couché.",
+    chargeAdaptee:
+      "Charge lourde à modérée (5 à 8 répétitions, RIR 1-2). Travail de force pure dans le rack de musculation.",
+    position:
+      "Allongé sur le banc dans le rack. Barres de sécurité réglées à 5-10 cm au-dessus de la poitrine. La barre repose complètement sur les pins entre chaque répétition.",
+    posture:
+      "Placement sous la barre avec rétraction scapulaire maximale, pieds fermement ancrés au sol.",
+    completude:
+      "Poussez la barre depuis une immobilité totale (départ arrêté sur les barres de sécurité) jusqu'au verrouillage en haut. Redescendez et reposez la barre complètement sur les pins pendant 1 à 2 secondes avant la répétition suivante.",
+    niveauRisque: "Modéré",
+    mentionRisque:
+      "Les pins de sécurité éliminent tout risque d'écrasement, mais requièrent un gainage parfait dès l'amorce concentrique.",
+    pointsAttention: [
+      "Ne rebondissez JAMAIS sur les pins de sécurité.",
+      "Placez-vous sous tension maximale avant même que la barre ne décolle des pins.",
+      "Poussez de manière explosive et symétrique.",
+    ],
+  },
+
+  ex_decline_pushups: {
+    objectif:
+      "Surcharge du haut des pectoraux (faisceau claviculaire) et des deltoïdes antérieurs en surélevant les pieds sur un banc.",
+    chargeAdaptee:
+      "Poids du corps (environ 75-80% du poids corporel en appui). Séries de 10 à 15 répétitions.",
+    position:
+      "Pieds posés sur un banc ou un support stable, mains au sol à largeur d'épaules.",
+    posture:
+      "Corps rigoureusement droit et gainé en diagonale, nuque neutre, fessiers contractés.",
+    completude:
+      "Descendez la poitrine vers le sol de manière contrôlée jusqu'à effleurer le sol, puis repoussez de façon dynamique jusqu'à l'extension complète des bras.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Surveillance de la sangle abdominale pour éviter l'affaissement lombaire sous l'angle de pente.",
+    pointsAttention: [
+      "Ne laissez pas le bassin se creuser vers le bas.",
+      "Gardez les coudes orientés à 45° vers l'arrière.",
+      "Descendez bien jusqu'à effleurer le sol.",
+    ],
+  },
+
+  ex_incline_pushups: {
+    objectif:
+      "Renforcement des pectoraux inférieurs et triceps avec réduction de la charge corporelle, idéal en échauffement, réathlétisation ou finisseur.",
+    chargeAdaptee:
+      "Poids du corps (environ 45-55% du poids corporel). Séries de 15 à 20 répétitions propres.",
+    position:
+      "Mains posées sur le bord d'un banc, pieds au sol en arrière, corps aligné.",
+    posture:
+      "Corps en ligne droite parfaite, sangle abdominale verrouillée, épaules basses.",
+    completude:
+      "Descendez le bas de la poitrine jusqu'au contact du banc en fléchissant les coudes. Repoussez énergiquement jusqu'à l'extension complète.",
+    niveauRisque: "Faible",
+    mentionRisque:
+      "Très faible contrainte mécanique, extrêmement tolérant pour les articulations.",
+    pointsAttention: [
+      "Ne cambrez pas les lombaires.",
+      "Touchez le banc avec le bas de la poitrine sans rebondir.",
+      "Conservez les poignets alignés.",
+    ],
+  },
+
+  ex_dumbbell_pullover: {
+    objectif:
+      "Expansion thoracique, étirement et recrutement combiné du faisceau sterno-costal des pectoraux, du grand dorsal et du chef long du triceps.",
+    chargeAdaptee:
+      "Charge légère à modérée (10 à 12 répétitions, RIR 1-2). Mouvement d'ouverture où la souplesse et le contrôle priment sur la charge.",
+    position:
+      "Allongé en travers d'un banc plat, seul le haut du dos et les épaules reposent sur le banc, tête dans le vide, pieds fermement ancrés au sol, bassin maintenu légèrement sous le niveau du banc.",
+    posture:
+      "Haltère tenu à deux mains en coupe sous le plateau supérieur, bras quasi tendus au-dessus de la poitrine (légère flexion de 10-15° aux coudes fixe).",
+    completude:
+      "Abaissez l'haltère en arc de cercle contrôlé derrière la tête tout en inspirant profondément pour ouvrir la cage thoracique. Descendez jusqu'à ressentir un étirement pectoral complet (sans forcer sur les épaules), puis remontez l'haltère au-dessus de la poitrine en expirant.",
+    niveauRisque: "Élevé",
+    mentionRisque:
+      "Risque d'instabilité antérieure de l'épaule et d'étirement excessif de la capsule gléno-humérale en fin de course basse si la charge est trop lourde.",
+    pointsAttention: [
+      "Ne pliez pas les bras pendant le mouvement (ce n'est pas une barre au front).",
+      "Ne laissez pas le bassin monter vers le haut pendant la descente (gardez le bassin stable pour maximiser l'étirement).",
+      "Contrôlez rigoureusement la fin de la descente derrière la tête.",
+    ],
+  },
+
 };
 
 /**
