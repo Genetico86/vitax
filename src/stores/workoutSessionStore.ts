@@ -17,6 +17,8 @@ import { saveWorkoutSession } from '../database/workoutRepository';
 import { useSettingsStore } from './settingsStore';
 import { computeSetXp, claimDailyWorkoutBonus } from '../services/exerciseWeightingService';
 import { getExerciseUnitInfo } from '../utils/exerciseUnits';
+import { calculateWorkoutCalories } from '../utils/workoutCalorieUtils';
+import { getLatestWeightLog } from '../database/weightRepository';
 import {
   STORAGE_KEY_ACTIVE_WORKOUT_DRAFT,
   syncActiveWorkoutDraftToCloud,
@@ -64,6 +66,7 @@ interface WorkoutSessionState {
   ) => Promise<void>;
   cancelWorkout: () => void;
   finishWorkout: () => Promise<{ session: WorkoutSession; sets: WorkoutSet[] } | null>;
+  getEstimatedCaloriesBurned: () => number;
 
   // Gestion des exercices
   addExerciseToWorkout: (
@@ -729,6 +732,32 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       ? Math.max(state.elapsedSeconds, Math.floor((Date.now() - state.startTime) / 1000))
       : state.elapsedSeconds;
 
+    // Estimation précise et réaliste des calories brûlées
+    let athleteWeightKg = 75;
+    try {
+      const latestWeight = await getLatestWeightLog();
+      if (latestWeight?.weight && latestWeight.weight > 30) {
+        athleteWeightKg = latestWeight.weight;
+      }
+    } catch {}
+
+    const calorieInput = state.exercises.map((exItem) => ({
+      name: exItem.exercise.name,
+      targetMuscle: exItem.exercise.target_muscle,
+      equipment: exItem.exercise.equipment_needed,
+      sets: exItem.sets.map((s) => ({
+        weight: s.weight,
+        reps: s.reps,
+        completed: Boolean(s.completed),
+      })),
+    }));
+
+    const calorieRes = calculateWorkoutCalories({
+      exercises: calorieInput,
+      durationSeconds: finalElapsedSeconds,
+      userWeightKg: athleteWeightKg,
+    });
+
     const session: WorkoutSession = {
       id: state.sessionId,
       program_id: state.programId,
@@ -739,6 +768,7 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
       total_volume: Math.round(totalVol),
       total_sets: completedCount,
       completed: 1,
+      calories: calorieRes.totalCalories,
     };
 
     // Sauvegarde immédiate dans SQLite + synchronisation temps réel vers Supabase
@@ -803,6 +833,27 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     });
 
     return { session, sets: allSets };
+  },
+
+  getEstimatedCaloriesBurned: () => {
+    const state = get();
+    const currentElapsed = state.startTime
+      ? Math.max(state.elapsedSeconds, Math.floor((Date.now() - state.startTime) / 1000))
+      : state.elapsedSeconds;
+    const mapped = state.exercises.map((exItem) => ({
+      name: exItem.exercise.name,
+      targetMuscle: exItem.exercise.target_muscle,
+      equipment: exItem.exercise.equipment_needed,
+      sets: exItem.sets.map((s) => ({
+        weight: s.weight,
+        reps: s.reps,
+        completed: Boolean(s.completed),
+      })),
+    }));
+    return calculateWorkoutCalories({
+      exercises: mapped,
+      durationSeconds: currentElapsed,
+    }).totalCalories;
   },
 }));
 

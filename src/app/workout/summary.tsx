@@ -30,6 +30,7 @@ import {
 import { getExerciseUnitInfo, formatWeightWithUnit } from '../../utils/exerciseUnits';
 import { ExerciseRatingModal } from '../../components/workout/ExerciseRatingModal';
 import { getAllRatingsSummaries } from '../../services/exerciseRatingService';
+import { calculateWorkoutCalories } from '../../utils/workoutCalorieUtils';
 
 export default function WorkoutSummaryScreen() {
   const lastSession = useWorkoutSessionStore((state) => state.lastCompletedSession);
@@ -48,6 +49,41 @@ export default function WorkoutSummaryScreen() {
   const xpSummary = lastSession?.session
     ? calculateSessionXp(lastSession.session, sessionDetails?.sets || lastSession.sets)
     : null;
+
+  const calorieReport = React.useMemo(() => {
+    const rawSets = sessionDetails?.sets || lastSession?.sets || [];
+    const durSec = sessionDetails?.duration_seconds || lastSession?.session.duration_seconds || 1800;
+    if (rawSets.length === 0) return null;
+
+    const map = new Map<string, { name: string; targetMuscle?: string; sets: { weight: number; reps: number; completed: boolean }[] }>();
+    rawSets.forEach((s) => {
+      let item = map.get(s.exercise_id);
+      if (!item) {
+        item = {
+          name: (s as WorkoutSetDetail).exercise_name || 'Exercice',
+          targetMuscle: (s as WorkoutSetDetail).target_muscle,
+          sets: [],
+        };
+        map.set(s.exercise_id, item);
+      }
+      item.sets.push({
+        weight: s.weight,
+        reps: s.reps,
+        completed: Boolean(s.completed),
+      });
+    });
+
+    return calculateWorkoutCalories({
+      exercises: Array.from(map.values()),
+      durationSeconds: durSec,
+    });
+  }, [sessionDetails, lastSession]);
+
+  const displayCalories =
+    sessionDetails?.calories ??
+    lastSession?.session.calories ??
+    calorieReport?.totalCalories ??
+    0;
 
   useEffect(() => {
     async function loadFullDetails() {
@@ -219,6 +255,13 @@ export default function WorkoutSummaryScreen() {
             </View>
 
             <View style={styles.metricItem}>
+              <Text style={styles.metricLabel}>Dépense Énergétique</Text>
+              <Text style={[styles.metricValue, { color: '#F87171', fontWeight: '900' }]}>
+                🔥 ~{Math.round(displayCalories)} kcal
+              </Text>
+            </View>
+
+            <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>XP d’Entraînement</Text>
               <Text style={[styles.metricValue, { color: Colors.primary, fontWeight: '900' }]}>
                 +{xpSummary?.totalXp ?? 100} XP
@@ -278,6 +321,13 @@ export default function WorkoutSummaryScreen() {
                         {ex.sets.length} série{ex.sets.length > 1 ? 's' : ''}
                       </Text>
                     </View>
+                    {calorieReport?.breakdown.find((b) => b.exerciseName === ex.name)?.calories ? (
+                      <View style={styles.exerciseCaloriesCountBadge}>
+                        <Text style={styles.exerciseCaloriesCountText}>
+                          🔥 ~{calorieReport.breakdown.find((b) => b.exerciseName === ex.name)?.calories} kcal
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -560,6 +610,19 @@ const styles = StyleSheet.create({
   },
   exerciseSetsCountText: {
     color: Colors.primary,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  exerciseCaloriesCountBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  exerciseCaloriesCountText: {
+    color: '#F87171',
     fontSize: 10,
     fontWeight: '900',
   },

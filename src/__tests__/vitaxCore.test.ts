@@ -666,6 +666,184 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('passwordRecoveryModule: masquage email, code OTP 15min & Clé de secours Code Ami');
 
+  // 17. Calcul et suivi calorique biomécanique des entraînements
+  const {
+    getExerciseActiveMet,
+    calculateExerciseCalories,
+    calculateWorkoutCalories,
+    formatWorkoutCalories,
+  } = await import('../utils/workoutCalorieUtils');
+
+  // A. Étalonnage des METs selon la nature de l'exercice
+  assert(getExerciseActiveMet('Squat Barre', 'Quadriceps') === 8.0, 'Squat doit avoir un MET élevé de 8.0');
+  assert(getExerciseActiveMet('Soulevé de terre', 'Dos') === 8.0, 'Deadlift doit avoir un MET élevé de 8.0');
+  assert(getExerciseActiveMet('Développé couché barre', 'Pectoraux') === 6.5, 'Bench press doit avoir un MET de 6.5');
+  assert(getExerciseActiveMet('Curl Biceps Haltères', 'Biceps') === 3.8, 'Isolation bras doit avoir un MET modéré de 3.8');
+  assert(getExerciseActiveMet('Burpees', 'Cardio') === 9.5, 'Conditionnement cardio doit avoir un MET de 9.5');
+
+  // B. Dépense d'un exercice spécifique
+  const exSingleRes = calculateExerciseCalories({
+    name: 'Squat Barre',
+    targetMuscle: 'Quadriceps',
+    sets: [
+      { weight: 100, reps: 8, completed: true },
+      { weight: 100, reps: 8, completed: true },
+      { weight: 100, reps: 8, completed: true },
+    ],
+  }, 80);
+  assert(exSingleRes.completedSets === 3, '3 séries complétées attendues');
+  assert(exSingleRes.volumeKg === 2400, 'Volume de 2400 kg attendu');
+  assert(exSingleRes.calories >= 25 && exSingleRes.calories <= 80, `Calories squat attendues ~25-80 (obtenu: ${exSingleRes.calories})`);
+
+  // C. Séance complète Jambes lourdes 50 min (Squats + Presse + Fentes) pour 80kg
+  const heavyLegWorkout = calculateWorkoutCalories({
+    exercises: [
+      {
+        name: 'Squat Barre',
+        targetMuscle: 'Quadriceps',
+        sets: [
+          { weight: 110, reps: 6, completed: true },
+          { weight: 110, reps: 6, completed: true },
+          { weight: 110, reps: 6, completed: true },
+          { weight: 110, reps: 6, completed: true },
+        ],
+      },
+      {
+        name: 'Presse à cuisses',
+        targetMuscle: 'Quadriceps',
+        sets: [
+          { weight: 180, reps: 10, completed: true },
+          { weight: 180, reps: 10, completed: true },
+          { weight: 180, reps: 10, completed: true },
+        ],
+      },
+      {
+        name: 'Fentes marchées haltères',
+        targetMuscle: 'Jambes',
+        sets: [
+          { weight: 20, reps: 12, completed: true },
+          { weight: 20, reps: 12, completed: true },
+          { weight: 20, reps: 12, completed: true },
+        ],
+      },
+    ],
+    durationSeconds: 3000, // 50 min
+    userWeightKg: 80,
+  });
+  assert(heavyLegWorkout.totalCalories >= 280 && heavyLegWorkout.totalCalories <= 520, `Séance jambes 50min attendue ~280-520 kcal (obtenu: ${heavyLegWorkout.totalCalories})`);
+  assert(heavyLegWorkout.breakdown.length === 3, '3 exercices dans le bilan détaillé');
+
+  // D. Séance légère Bras 30 min pour 70kg
+  const lightArmWorkout = calculateWorkoutCalories({
+    exercises: [
+      {
+        name: 'Curl Biceps Haltères',
+        targetMuscle: 'Biceps',
+        sets: [
+          { weight: 12, reps: 10, completed: true },
+          { weight: 12, reps: 10, completed: true },
+          { weight: 12, reps: 10, completed: true },
+        ],
+      },
+      {
+        name: 'Extension Triceps Poulie',
+        targetMuscle: 'Triceps',
+        sets: [
+          { weight: 25, reps: 12, completed: true },
+          { weight: 25, reps: 12, completed: true },
+          { weight: 25, reps: 12, completed: true },
+        ],
+      },
+    ],
+    durationSeconds: 1800, // 30 min
+    userWeightKg: 70,
+  });
+  assert(lightArmWorkout.totalCalories >= 100 && lightArmWorkout.totalCalories <= 240, `Séance bras 30min attendue ~100-240 kcal (obtenu: ${lightArmWorkout.totalCalories})`);
+  assert(heavyLegWorkout.totalCalories > lightArmWorkout.totalCalories, 'Une séance jambes lourdes doit dépenser nettement plus qu’une séance isolation bras');
+
+  // E. Facteur corporel : un athlète de 95kg dépense plus qu’un athlète de 65kg sur la même séance
+  const armHeavyLifter = calculateWorkoutCalories({
+    exercises: lightArmWorkout.breakdown.map((b) => ({
+      name: b.exerciseName,
+      sets: Array(b.completedSets).fill({ weight: 15, reps: 10, completed: true }),
+    })),
+    durationSeconds: 1800,
+    userWeightKg: 95,
+  });
+  assert(armHeavyLifter.totalCalories > lightArmWorkout.totalCalories, 'Le poids de l’athlète doit accroître la dépense calorique');
+  assert(formatWorkoutCalories(350) === '~350 kcal', 'Formatage calorique standard');
+  assert(formatWorkoutCalories(null) === '-- kcal', 'Formatage null');
+
+  names.push('workoutCalorieUtils: estimation biomécanique des kcal selon exercices, tonnage, durée et poids');
+
+  // 18. Cohérence du module de suivi poids & analyse scientifique des variations
+  const {
+    parseWeightGoalTitle,
+    formatWeightGoalTitle,
+    analyzeWeightProgression,
+  } = await import('../utils/physiologyUtils');
+
+  // A. Parsing et formatage des objectifs de poids
+  const bulkGoalTitle = formatWeightGoalTitle(84, 'bulk');
+  assert(bulkGoalTitle.includes('[prise_masse]'), 'Formatage de titre prise de masse attendu');
+  const parsedBulk = parseWeightGoalTitle(bulkGoalTitle);
+  assert(parsedBulk.goalType === 'bulk' && parsedBulk.targetWeight === 84, 'Parsing conforme de l’objectif prise de masse');
+
+  const cutGoalTitle = formatWeightGoalTitle(74.5, 'loss');
+  const parsedCut = parseWeightGoalTitle(cutGoalTitle);
+  assert(parsedCut.goalType === 'loss' && parsedCut.targetWeight === 74.5, 'Parsing conforme de l’objectif sèche');
+
+  // B. Prise de poids en période de sèche : l'application NE félicite PAS arbitrairement d'avoir gagné du muscle
+  const weightGainInCut = analyzeWeightProgression({
+    currentWeight: 81.2,
+    startingWeight: 82.0,
+    targetWeight: 75.0,
+    previousWeight: 80.5, // Hausse de +0.7 kg
+    explicitGoalType: 'loss',
+  });
+  assert(weightGainInCut.isAlignedWithGoal === false, 'Une prise de poids en sèche n’est pas alignée avec l’objectif');
+  assert(weightGainInCut.deltaDirection === 'up', 'Direction haussière détectée');
+  assert(weightGainInCut.deltaColor === '#F59E0B', 'Alerte ambre constructive');
+  assert(!weightGainInCut.feedbackAdvice.toLowerCase().includes('bravo'), 'Ne doit pas féliciter');
+  assert(!weightGainInCut.feedbackAdvice.toLowerCase().includes('gagné du muscle'), 'Ne doit JAMAIS affirmer arbitrairement que la hausse est du muscle');
+  assert(weightGainInCut.feedbackAdvice.includes('rétention d’eau') || weightGainInCut.feedbackAdvice.includes('transit') || weightGainInCut.feedbackAdvice.includes('glycogène'), 'Doit expliquer les fluctuations physiologiques réelles');
+
+  // C. Prise de poids contrôlée en prise de masse : progression alignée
+  const weightGainInBulk = analyzeWeightProgression({
+    currentWeight: 78.4,
+    startingWeight: 77.0,
+    targetWeight: 82.0,
+    previousWeight: 78.1, // +0.3 kg (rythme idéal)
+    explicitGoalType: 'bulk',
+  });
+  assert(weightGainInBulk.isAlignedWithGoal === true, 'Gain modéré en prise de masse est aligné');
+  assert(weightGainInBulk.deltaColor === '#22C55E', 'Vert de progression');
+  assert(weightGainInBulk.progressPercent > 0, 'Progression positive');
+
+  // D. Prise de masse trop brutale (>1.2kg en une pesée) : alerte de modération du surplus
+  const rapidGainInBulk = analyzeWeightProgression({
+    currentWeight: 80.5,
+    startingWeight: 77.0,
+    targetWeight: 82.0,
+    previousWeight: 78.8, // +1.7 kg rapide
+    explicitGoalType: 'bulk',
+  });
+  assert(rapidGainInBulk.feedbackAdvice.includes('stockage adipeux') || rapidGainInBulk.feedbackAdvice.includes('lentement'), 'Alerte sur la prise adipeuse excessive si prise de poids trop rapide');
+
+  // E. Analyse de composition corporelle avec % MG : distinction masse maigre / masse grasse
+  const fatLossSuccess = analyzeWeightProgression({
+    currentWeight: 78.0,
+    previousWeight: 79.0,
+    startingWeight: 82.0,
+    targetWeight: 75.0,
+    currentBodyFat: 13.0,
+    previousBodyFat: 14.5,
+    explicitGoalType: 'loss',
+  });
+  assert(Boolean(fatLossSuccess.compositionInsight && fatLossSuccess.compositionInsight.includes('masse grasse')), 'Doit expliciter la perte de masse grasse réelle');
+
+  names.push('weightProgressionCoherence: analyse scientifique des variations, objectifs sèche/masse/maintien sans félicitations arbitraires');
+
   return { passed: names.length, names };
 }
 

@@ -5,6 +5,7 @@ import { Colors } from '../../constants/colors';
 import { BodyWeightLog, FitnessGoal } from '../../types';
 import { getLatestWeightLog } from '../../database/weightRepository';
 import { getTargetWeightGoal } from '../../database/goalRepository';
+import { parseWeightGoalTitle } from '../../utils/physiologyUtils';
 
 interface WeightHomeWidgetProps {
   onPress?: () => void;
@@ -49,18 +50,56 @@ export const WeightHomeWidget: React.FC<WeightHomeWidgetProps> = ({ onPress, ref
     }
   };
 
+  const goalInfo = weightGoal ? parseWeightGoalTitle(weightGoal.title) : null;
+
   const progressPercent = (() => {
     if (!latestLog || !weightGoal) return null;
     const start = weightGoal.starting_value;
     const target = weightGoal.target_value;
     const current = latestLog.weight;
+    const type = goalInfo?.goalType || (start > target ? 'loss' : 'bulk');
 
-    const isLosing = start > target;
-    const totalDiff = Math.abs(start - target);
-    const currentDiff = isLosing ? start - current : current - start;
+    if (type === 'maintain') {
+      const diff = Math.abs(current - target);
+      return diff <= 1.5 ? 100 : Math.max(0, Math.min(100, Math.round(100 - diff * 20)));
+    }
 
-    let p = totalDiff > 0 ? (currentDiff / totalDiff) * 100 : 0;
-    return Math.max(0, Math.min(100, Math.round(p)));
+    if (type === 'bulk') {
+      const totalDiff = Math.max(0.5, target - start);
+      const gain = current - start;
+      return Math.max(0, Math.min(100, Math.round((gain / totalDiff) * 100)));
+    }
+
+    // loss
+    const totalDiff = Math.max(0.5, start - target);
+    const loss = start - current;
+    return Math.max(0, Math.min(100, Math.round((loss / totalDiff) * 100)));
+  })();
+
+  const goalTypeLabel = (() => {
+    if (!goalInfo) return '';
+    switch (goalInfo.goalType) {
+      case 'bulk':
+        return 'Prise de masse';
+      case 'maintain':
+        return 'Maintien';
+      case 'loss':
+      default:
+        return 'Sèche';
+    }
+  })();
+
+  const widgetIcon = (() => {
+    if (!goalInfo) return '⚖️';
+    switch (goalInfo.goalType) {
+      case 'bulk':
+        return '📈';
+      case 'maintain':
+        return '⚖️';
+      case 'loss':
+      default:
+        return '📉';
+    }
   })();
 
   return (
@@ -70,7 +109,7 @@ export const WeightHomeWidget: React.FC<WeightHomeWidgetProps> = ({ onPress, ref
       activeOpacity={0.85}
     >
       <View style={styles.iconBox}>
-        <Text style={styles.iconEmoji}>⚖️</Text>
+        <Text style={styles.iconEmoji}>{widgetIcon}</Text>
       </View>
 
       <View style={{ flex: 1 }}>
@@ -86,7 +125,7 @@ export const WeightHomeWidget: React.FC<WeightHomeWidgetProps> = ({ onPress, ref
         <Text style={styles.subtitle} numberOfLines={1}>
           {latestLog
             ? `Poids : ${latestLog.weight} kg${
-                weightGoal ? ` ➔ Cible : ${weightGoal.target_value} kg` : ''
+                weightGoal ? ` • ${goalTypeLabel} (${weightGoal.target_value} kg)` : ''
               }`
             : 'Enregistrez votre première pesée et vos objectifs'}
         </Text>

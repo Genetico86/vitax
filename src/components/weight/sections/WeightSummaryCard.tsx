@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { Card } from '../../common/Card';
 import { WeightProgressStats } from '../../../types';
-import { analyzeBmi } from '../../../utils/physiologyUtils';
+import { analyzeBmi, WeightGoalType } from '../../../utils/physiologyUtils';
 
 interface WeightSummaryCardProps {
   stats: WeightProgressStats | null;
   weightUnit: string;
   userHeightCm?: number;
+  goalType?: WeightGoalType;
   onAddLogPress: () => void;
   onSetHeightPress?: () => void;
 }
@@ -17,6 +18,7 @@ export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
   stats,
   weightUnit,
   userHeightCm,
+  goalType,
   onAddLogPress,
   onSetHeightPress,
 }) => {
@@ -24,6 +26,32 @@ export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
     stats?.currentWeight && userHeightCm
       ? analyzeBmi(stats.currentWeight, userHeightCm)
       : null;
+
+  // Calcul intelligent des couleurs de delta selon l'objectif de l'athlète
+  const getDeltaColor = (delta: number) => {
+    if (delta === 0) return '#38BDF8';
+
+    if (goalType === 'bulk') {
+      // En prise de masse, un gain modéré est vert, une perte est ambre
+      return delta > 0 ? '#4ADE80' : '#F59E0B';
+    }
+
+    if (goalType === 'maintain') {
+      // En maintien, une variation faible (<= 0.8 kg) est verte
+      return Math.abs(delta) <= 0.8 ? '#4ADE80' : '#F59E0B';
+    }
+
+    if (goalType === 'loss') {
+      // En sèche, une perte est verte, un gain est ambre
+      return delta < 0 ? '#4ADE80' : '#F59E0B';
+    }
+
+    // Sans objectif explicite, affichage informatif neutre
+    return '#38BDF8';
+  };
+
+  const deltaTotalColor = stats ? getDeltaColor(stats.deltaTotal) : '#94A3B8';
+  const delta7DaysColor = stats ? getDeltaColor(stats.delta7Days) : '#94A3B8';
 
   return (
     <Card style={styles.summaryCard}>
@@ -52,13 +80,7 @@ export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
       <View style={styles.metricsRow}>
         <View style={styles.metricItem}>
           <Text style={styles.metricItemLabel}>Évolution totale</Text>
-          <Text
-            style={[
-              styles.metricItemValue,
-              stats && stats.deltaTotal > 0 && styles.deltaPositive,
-              stats && stats.deltaTotal < 0 && styles.deltaNegative,
-            ]}
-          >
+          <Text style={[styles.metricItemValue, { color: deltaTotalColor }]}>
             {stats && stats.currentWeight !== null
               ? `${stats.deltaTotal > 0 ? '+' : ''}${stats.deltaTotal} kg`
               : '--'}
@@ -67,13 +89,7 @@ export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
 
         <View style={styles.metricItem}>
           <Text style={styles.metricItemLabel}>Sur 7 jours</Text>
-          <Text
-            style={[
-              styles.metricItemValue,
-              stats && stats.delta7Days > 0 && styles.deltaPositive,
-              stats && stats.delta7Days < 0 && styles.deltaNegative,
-            ]}
-          >
+          <Text style={[styles.metricItemValue, { color: delta7DaysColor }]}>
             {stats && stats.delta7Days !== 0
               ? `${stats.delta7Days > 0 ? '+' : ''}${stats.delta7Days} kg`
               : 'Stable'}
@@ -113,6 +129,19 @@ export const WeightSummaryCard: React.FC<WeightSummaryCardProps> = ({
           <Text style={styles.metricItemValue}>{stats?.logsCount ?? 0}</Text>
         </View>
       </View>
+
+      {/* Mini bandeau d'orientation selon l'objectif */}
+      {goalType && stats?.currentWeight && (
+        <View style={styles.goalHintRow}>
+          <Text style={styles.goalHintText}>
+            {goalType === 'bulk'
+              ? '📈 Suivi calé sur votre Prise de masse (les gains pondérés sont comptés positivement).'
+              : goalType === 'maintain'
+              ? '⚖️ Suivi calé sur votre Maintien / Recomposition (zone de stabilité ±0,8 kg).'
+              : '📉 Suivi calé sur votre Sèche / Perte de poids progressive.'}
+          </Text>
+        </View>
+      )}
     </Card>
   );
 };
@@ -191,16 +220,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  deltaPositive: {
-    color: '#F87171',
-  },
-  deltaNegative: {
-    color: '#4ADE80',
-  },
   bmiCategorySubtitle: {
     fontSize: 9,
     fontWeight: '700',
     color: Colors.textMuted,
     marginTop: 1,
+  },
+  goalHintRow: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#172233',
+  },
+  goalHintText: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
   },
 });

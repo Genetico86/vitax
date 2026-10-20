@@ -55,6 +55,7 @@ export default function HistoryScreen() {
     totalVolumeKg: 0,
     totalSets: 0,
     totalDurationMinutes: 0,
+    totalCaloriesBurned: 0,
   });
   const [gamificationStats, setGamificationStats] = useState<
     Awaited<ReturnType<typeof getUserGamificationStats>> | null
@@ -398,7 +399,7 @@ export default function HistoryScreen() {
                       </Text>
                     </View>
                     <Text style={styles.todayShareSub}>
-                      {formatWeightWithUnit(todaySummary.totalVolumeKg, weightUnit, true)} soulevés • {todaySummary.totalSets} séries • {todaySummary.exercises.length} exercices
+                      {formatWeightWithUnit(todaySummary.totalVolumeKg, weightUnit, true)} soulevés • {todaySummary.totalSets} séries{todaySummary.totalCalories && todaySummary.totalCalories > 0 ? ` • 🔥 ~${todaySummary.totalCalories} kcal` : ''} • {todaySummary.exercises.length} exercices
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -478,6 +479,14 @@ export default function HistoryScreen() {
                             {s.total_sets} séries
                           </Text>
                         </View>
+                        {s.calories !== undefined && s.calories !== null && s.calories > 0 && (
+                          <View style={styles.metricItem}>
+                            <Text style={styles.metricIcon}>🔥</Text>
+                            <Text style={[styles.metricText, { color: '#F87171', fontWeight: '800' }]}>
+                              ~{s.calories} kcal
+                            </Text>
+                          </View>
+                        )}
                       </View>
 
                       {s.notes && (

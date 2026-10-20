@@ -5,14 +5,18 @@ import { Card } from '../../common/Card';
 import { Button } from '../../common/Button';
 import { Badge } from '../../common/Badge';
 import { FitnessGoal } from '../../../types';
+import { WeightProgressionFeedback } from '../../../utils/physiologyUtils';
 
 interface WeightGoalCardProps {
   weightGoal: FitnessGoal | null;
   weightGoalProgress: {
     percent: number;
     isLosing: boolean;
+    goalType?: 'loss' | 'bulk' | 'maintain';
+    goalLabel?: string;
     remainingKg: number;
     achieved: boolean;
+    feedback?: WeightProgressionFeedback | null;
   } | null;
   currentWeight?: number | null;
   onSetOrEditGoalPress: () => void;
@@ -24,6 +28,33 @@ export const WeightGoalCard: React.FC<WeightGoalCardProps> = ({
   currentWeight,
   onSetOrEditGoalPress,
 }) => {
+  const feedback = weightGoalProgress?.feedback;
+  const goalType = weightGoalProgress?.goalType || (weightGoalProgress?.isLosing ? 'loss' : 'bulk');
+
+  const badgeConfig = (() => {
+    switch (goalType) {
+      case 'bulk':
+        return {
+          label: '📈 Prise de masse',
+          bgColor: 'rgba(56, 189, 248, 0.18)',
+          textColor: '#38BDF8',
+        };
+      case 'maintain':
+        return {
+          label: '⚖️ Maintien / Recomposition',
+          bgColor: 'rgba(168, 85, 247, 0.18)',
+          textColor: '#C084FC',
+        };
+      case 'loss':
+      default:
+        return {
+          label: '📉 Sèche / Perte de poids',
+          bgColor: 'rgba(59, 130, 246, 0.18)',
+          textColor: '#60A5FA',
+        };
+    }
+  })();
+
   return (
     <View>
       <View style={styles.sectionHeaderRow}>
@@ -43,15 +74,15 @@ export const WeightGoalCard: React.FC<WeightGoalCardProps> = ({
           <View style={styles.goalCardHeader}>
             <View style={styles.goalIconCircle}>
               <Text style={{ fontSize: 20 }}>
-                {weightGoalProgress?.achieved ? '🏆' : '⚖️'}
+                {weightGoalProgress?.achieved ? '🏆' : goalType === 'bulk' ? '📈' : goalType === 'maintain' ? '⚖️' : '📉'}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.goalBadgeRow}>
                 <Badge
-                  label={weightGoalProgress?.isLosing ? 'Sèche / Perte' : 'Prise de masse'}
-                  color="rgba(59, 130, 246, 0.2)"
-                  textColor="#60A5FA"
+                  label={badgeConfig.label}
+                  color={badgeConfig.bgColor}
+                  textColor={badgeConfig.textColor}
                 />
                 {weightGoalProgress?.achieved && (
                   <Badge
@@ -88,10 +119,38 @@ export const WeightGoalCard: React.FC<WeightGoalCardProps> = ({
             </Text>
           </View>
 
-          {!weightGoalProgress?.achieved && (
+          {!weightGoalProgress?.achieved ? (
             <Text style={styles.goalRemainingText}>
-              Encore {weightGoalProgress?.remainingKg} kg pour valider votre objectif !
+              {goalType === 'maintain'
+                ? `Écart actuel : ${weightGoalProgress?.remainingKg} kg par rapport à la cible.`
+                : `Encore ${weightGoalProgress?.remainingKg} kg pour valider votre objectif.`}
             </Text>
+          ) : (
+            <Text style={[styles.goalRemainingText, { color: '#4ADE80' }]}>
+              {goalType === 'maintain'
+                ? '✓ Poids parfaitement stabilisé dans la zone cible !'
+                : '✓ Objectif de poids validé avec rigueur !'}
+            </Text>
+          )}
+
+          {/* Diagnostic d'évolution & coaching scientifique */}
+          {feedback && (
+            <View style={styles.feedbackCard}>
+              <View style={styles.feedbackHeaderRow}>
+                <Text style={styles.feedbackTitle}>{feedback.feedbackTitle}</Text>
+                <Badge
+                  label={feedback.badgeLabel}
+                  color={`${feedback.deltaColor}20`}
+                  textColor={feedback.deltaColor}
+                />
+              </View>
+              <Text style={styles.feedbackAdviceText}>{feedback.feedbackAdvice}</Text>
+              {feedback.compositionInsight && (
+                <Text style={styles.compositionInsightText}>
+                  {feedback.compositionInsight}
+                </Text>
+              )}
+            </View>
           )}
         </Card>
       ) : (
@@ -99,7 +158,7 @@ export const WeightGoalCard: React.FC<WeightGoalCardProps> = ({
           <Text style={{ fontSize: 26, marginBottom: 6 }}>🎯</Text>
           <Text style={styles.emptyGoalTitle}>Aucun objectif de poids fixé</Text>
           <Text style={styles.emptyGoalSub}>
-            Définissez un poids cible pour suivre votre progression pas à pas.
+            Définissez un poids cible vers lequel orienter vos efforts d’entraînement et de nutrition.
           </Text>
           <Button
             title="+ Définir un poids cible"
@@ -195,17 +254,50 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 6,
   },
+  feedbackCard: {
+    backgroundColor: '#0E1624',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#1E2D44',
+  },
+  feedbackHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  feedbackTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    flex: 1,
+    marginRight: 8,
+  },
+  feedbackAdviceText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  compositionInsightText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
   emptyGoalCard: {
     padding: 18,
     alignItems: 'center',
-    marginBottom: 12,
     backgroundColor: '#111824',
+    marginBottom: 12,
   },
   emptyGoalTitle: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   emptyGoalSub: {
     color: Colors.textMuted,

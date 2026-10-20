@@ -161,6 +161,7 @@ export async function syncWorkoutSessionToCloud(
       total_volume: session.total_volume || 0,
       total_sets: session.total_sets || 0,
       completed: session.completed !== undefined ? session.completed : 1,
+      calories: session.calories !== undefined ? session.calories : null,
       updated_at: new Date().toISOString(),
     });
 
@@ -240,6 +241,7 @@ export async function fetchWorkoutSessionsFromCloud(): Promise<WorkoutSession[]>
       total_volume: row.total_volume,
       total_sets: row.total_sets,
       completed: 1,
+      calories: row.calories ?? null,
     }));
   } catch (err) {
     console.warn('Erreur fetch cloud workout_sessions:', err);
