@@ -292,6 +292,20 @@ CREATE TABLE IF NOT EXISTS public.friend_challenges (
 CREATE INDEX IF NOT EXISTS idx_friend_challenges_target ON public.friend_challenges(target_friend_code, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_friend_challenges_creator ON public.friend_challenges(creator_id);
 
+-- 15. TABLE DES DEMANDES DE RÉINITIALISATION DE MOT DE PASSE (OTP)
+CREATE TABLE IF NOT EXISTS public.password_resets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  reset_code TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON public.password_resets(user_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_password_resets_code ON public.password_resets(reset_code);
+
+
 -- =========================================================================
 -- FONCTIONS D'AUTHENTIFICATION SÉCURISÉE & CONTEXTE UTILISATEUR RLS
 -- =========================================================================
@@ -525,7 +539,113 @@ BEGIN
 
   RETURN TRUE;
 END;
-$$;
+$;
+
+-- Demande de réinitialisation sécurisée
+CREATE OR REPLACE FUNCTION public.request_password_reset_secure(
+  p_identifier TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  v_user RECORD;
+  v_code TEXT;
+  v_masked TEXT;
+BEGIN
+  SELECT id, username, email, friend_code
+  INTO v_user
+  FROM public.profiles
+  WHERE LOWER(TRIM(username)) = LOWER(TRIM(p_identifier))
+     OR (email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM(p_identifier)))
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('found', false);
+  END IF;
+
+  IF v_user.email IS NULL OR v_user.email = '' THEN
+    RETURN jsonb_build_object(
+      'found', true,
+      'has_email', false,
+      'user_id', v_user.id,
+      'username', v_user.username
+    );
+  END IF;
+
+  v_code := LPAD((FLOOR(RANDOM() * 900000) + 100000)::TEXT, 6, '0');
+  v_masked := CONCAT(SUBSTRING(v_user.email FROM 1 FOR 1), '***@', SPLIT_PART(v_user.email, '@', 2));
+
+  INSERT INTO public.password_resets (
+    user_id,
+    reset_code,
+    expires_at,
+    used
+  ) VALUES (
+    v_user.id,
+    v_code,
+    NOW() + INTERVAL '15 minutes',
+    FALSE
+  );
+
+  RETURN jsonb_build_object(
+    'found', true,
+    'has_email', true,
+    'masked_email', v_masked,
+    'user_id', v_user.id,
+    'username', v_user.username,
+    'code', v_code
+  );
+END;
+$;
+
+-- Réinitialisation via Clé de secours (Code Ami Athlète)
+CREATE OR REPLACE FUNCTION public.reset_password_with_rescue_secure(
+  p_username TEXT,
+  p_friend_code TEXT,
+  p_new_password_hash TEXT,
+  p_email TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  v_user RECORD;
+BEGIN
+  SELECT id, username, email, friend_code
+  INTO v_user
+  FROM public.profiles
+  WHERE LOWER(TRIM(username)) = LOWER(TRIM(p_username))
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'USER_NOT_FOUND';
+  END IF;
+
+  IF v_user.friend_code <> TRIM(p_friend_code) THEN
+    RAISE EXCEPTION 'INVALID_FRIEND_CODE';
+  END IF;
+
+  IF v_user.email IS NOT NULL AND p_email IS NOT NULL AND LOWER(TRIM(v_user.email)) <> LOWER(TRIM(p_email)) THEN
+    RAISE EXCEPTION 'EMAIL_MISMATCH';
+  END IF;
+
+  UPDATE public.profiles
+  SET
+    password_hash = crypt(p_new_password_hash, gen_salt('bf')),
+    password = NULL,
+    email = COALESCE(NULLIF(TRIM(p_email), ''), email),
+    updated_at = NOW()
+  WHERE id = v_user.id;
+
+  RETURN TRUE;
+END;
+$;
+
 
 -- =========================================================================
 -- SÉCURITÉ ROW LEVEL SECURITY (RLS) & CONTRÔLE D'ACCÈS GRANULAIRE

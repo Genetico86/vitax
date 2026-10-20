@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { useAuthStore } from '../../stores/authStore';
+import { ForgotPasswordModal } from './ForgotPasswordModal';
 
 export const MandatoryAuthScreen: React.FC = () => {
   const [isRegisterMode, setIsRegisterMode] = useState(true);
@@ -20,6 +21,7 @@ export const MandatoryAuthScreen: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isForgotPasswordVisible, setIsForgotPasswordVisible] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { register, login, isLoading, error: storeError, setError } = useAuthStore();
@@ -201,6 +203,17 @@ export const MandatoryAuthScreen: React.FC = () => {
               </Text>
             </View>
 
+            {/* Lien Mot de passe oublié (en mode connexion) */}
+            {!isRegisterMode && (
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={() => setIsForgotPasswordVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.forgotPasswordText}>🔑 Mot de passe oublié ?</Text>
+              </TouchableOpacity>
+            )}
+
                         {/* Confirm Password (only in registration mode) */}
             {isRegisterMode && (
               <View style={styles.inputGroup}>
@@ -330,6 +343,12 @@ export const MandatoryAuthScreen: React.FC = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Modal de récupération de mot de passe */}
+      <ForgotPasswordModal
+        visible={isForgotPasswordVisible}
+        onClose={() => setIsForgotPasswordVisible(false)}
+      />
     </View>
   );
 };
@@ -519,6 +538,17 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginTop: 5,
     marginLeft: 2,
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginTop: -4,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  forgotPasswordText: {
+    color: '#38BDF8',
+    fontSize: 12.5,
+    fontWeight: '600',
   },
   submitButton: {
     backgroundColor: Colors.primary,

@@ -1161,3 +1161,451 @@ export async function updateTrainerPassword(
     return { success: false, error: err?.message || 'Erreur lors du changement de mot de passe.' };
   }
 }
+
+const STORAGE_KEY_RESET_CODES = '@vitax_active_reset_codes';
+
+interface ResetCodeRecord {
+  userId: string;
+  username: string;
+  code: string;
+  expiresAt: number;
+}
+
+/**
+ * Masque une adresse email pour protéger la vie privée lors de la récupération (ex: a***e@vitax.app)
+ */
+export function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return email;
+  const [local, domain] = email.split('@');
+  if (local.length <= 2) {
+    return `${local[0]}***@${domain}`;
+  }
+  return `${local[0]}***${local[local.length - 1]}@${domain}`;
+}
+
+/**
+ * Demande de réinitialisation de mot de passe par pseudo ou e-mail
+ */
+export async function requestPasswordReset(
+  identifier: string
+): Promise<{ success: boolean; hasEmail?: boolean; maskedEmail?: string; code?: string; error?: string }> {
+  try {
+    const clean = identifier.trim().toLowerCase();
+    if (!clean) {
+      return { success: false, error: 'Veuillez saisir votre pseudo ou votre adresse e-mail.' };
+    }
+
+    let userRecord: any = null;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        // Tenter d'abord la RPC sécurisée côté serveur
+        try {
+          const { data: rpcData, error: rpcErr } = await supabase.rpc('request_password_reset_secure', {
+            p_identifier: clean,
+          });
+          if (!rpcErr && rpcData && rpcData.found) {
+            userRecord = rpcData;
+          }
+        } catch {}
+
+        // Repli direct par requête
+        if (!userRecord) {
+          const { data: rows } = await supabase
+            .from('profiles')
+            .select('id, username, email, friend_code')
+            .or(`username.ilike.${clean},email.ilike.${clean}`)
+            .limit(1);
+
+          if (rows && rows.length > 0) {
+            userRecord = rows[0];
+          }
+        }
+      }
+    }
+
+    // Repli local
+    if (!userRecord) {
+      const rawCreds = await AsyncStorage.getItem(STORAGE_KEY_CREDENTIALS);
+      const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+      const creds = rawCreds ? JSON.parse(rawCreds) : null;
+      const prof = rawProf ? JSON.parse(rawProf) : null;
+
+      if (
+        (creds?.username && creds.username.toLowerCase() === clean) ||
+        (prof?.username && prof.username.toLowerCase() === clean) ||
+        (prof?.email && prof.email.toLowerCase() === clean)
+      ) {
+        userRecord = {
+          id: prof?.id || `vtx_${sanitizeUsername(clean)}`,
+          username: prof?.username || creds?.username || clean,
+          email: prof?.email || null,
+          friend_code: prof?.friendCode || null,
+        };
+      }
+    }
+
+    if (!userRecord) {
+      return { success: false, error: 'Aucun compte athlète ne correspond à cet identifiant.' };
+    }
+
+    const hasEmail = Boolean(userRecord.email && userRecord.email.trim().length > 0);
+    if (!hasEmail) {
+      return {
+        success: true,
+        hasEmail: false,
+        error: 'Ce compte n’a pas encore d’adresse e-mail de récupération. Utilisez la Clé de secours.',
+      };
+    }
+
+    const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    // 1. Stockage en base de données Supabase si possible
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          await supabase.from('password_resets').insert({
+            user_id: userRecord.id,
+            reset_code: generatedCode,
+            expires_at: new Date(expiresAt).toISOString(),
+            used: false,
+          });
+        } catch {}
+
+        // Envoi Supabase Auth pour délivrer le lien d'authentification s'il est configuré
+        try {
+          if (typeof window !== 'undefined' && window.location?.origin) {
+            await supabase.auth.resetPasswordForEmail(userRecord.email, {
+              redirectTo: `${window.location.origin}/#reset-password`,
+            });
+          }
+        } catch {}
+      }
+    }
+
+    // 2. Stockage local de sécurité (permet de valider même en réseau intermittent)
+    try {
+      const rawExisting = await AsyncStorage.getItem(STORAGE_KEY_RESET_CODES);
+      const list: ResetCodeRecord[] = rawExisting ? JSON.parse(rawExisting) : [];
+      list.push({
+        userId: userRecord.id,
+        username: userRecord.username,
+        code: generatedCode,
+        expiresAt,
+      });
+      await AsyncStorage.setItem(STORAGE_KEY_RESET_CODES, JSON.stringify(list.slice(-5)));
+    } catch {}
+
+    return {
+      success: true,
+      hasEmail: true,
+      maskedEmail: maskEmail(userRecord.email),
+      code: generatedCode,
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Erreur lors de la demande de réinitialisation.' };
+  }
+}
+
+/**
+ * Réinitialise le mot de passe à l'aide d'un code OTP à 6 chiffres
+ */
+export async function resetPasswordWithCode(
+  identifier: string,
+  code: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanIdent = identifier.trim().toLowerCase();
+    const cleanCode = code.trim();
+
+    if (!cleanCode || cleanCode.length < 4) {
+      return { success: false, error: 'Code de confirmation incomplet.' };
+    }
+    if (!newPassword || newPassword.length < 4) {
+      return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 4 caractères.' };
+    }
+
+    let userRecord: any = null;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const { data: rows } = await supabase
+          .from('profiles')
+          .select('id, username, email')
+          .or(`username.ilike.${cleanIdent},email.ilike.${cleanIdent}`)
+          .limit(1);
+
+        if (rows && rows.length > 0) {
+          userRecord = rows[0];
+        }
+      }
+    }
+
+    if (!userRecord) {
+      const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+      const prof = rawProf ? JSON.parse(rawProf) : null;
+      if (prof?.id) {
+        userRecord = prof;
+      }
+    }
+
+    if (!userRecord) {
+      return { success: false, error: 'Compte athlète introuvable.' };
+    }
+
+    // Vérifier le code (côté Supabase ou côté local)
+    let codeValid = false;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const { data: resets } = await supabase
+            .from('password_resets')
+            .select('id, reset_code, expires_at, used')
+            .eq('user_id', userRecord.id)
+            .eq('reset_code', cleanCode)
+            .eq('used', false)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (resets && resets.length > 0) {
+            codeValid = true;
+            // Marquer le code comme consommé
+            await supabase
+              .from('password_resets')
+              .update({ used: true })
+              .eq('id', resets[0].id);
+          }
+        } catch {}
+      }
+    }
+
+    // Vérifier repli local
+    if (!codeValid) {
+      try {
+        const rawExisting = await AsyncStorage.getItem(STORAGE_KEY_RESET_CODES);
+        const list: ResetCodeRecord[] = rawExisting ? JSON.parse(rawExisting) : [];
+        const matchIdx = list.findIndex(
+          (r) =>
+            (r.userId === userRecord.id || r.username.toLowerCase() === userRecord.username.toLowerCase()) &&
+            r.code === cleanCode &&
+            r.expiresAt > Date.now()
+        );
+        if (matchIdx !== -1) {
+          codeValid = true;
+          list.splice(matchIdx, 1);
+          await AsyncStorage.setItem(STORAGE_KEY_RESET_CODES, JSON.stringify(list));
+        }
+      } catch {}
+    }
+
+    if (!codeValid) {
+      return { success: false, error: 'Code de confirmation invalide ou expiré.' };
+    }
+
+    const newHash = await hashPasswordPBKDF2(newPassword, userRecord.username);
+
+    // Mettre à jour dans Supabase
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        setSupabaseActiveUserId(userRecord.id);
+        const { error: updErr } = await supabase
+          .from('profiles')
+          .update({
+            password: newHash,
+            password_hash: newHash,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userRecord.id);
+
+        if (updErr && updErr.code === '42703') {
+          await supabase
+            .from('profiles')
+            .update({ password: newHash, updated_at: new Date().toISOString() })
+            .eq('id', userRecord.id);
+        }
+      }
+    }
+
+    // Mettre à jour localement
+    await AsyncStorage.setItem(
+      STORAGE_KEY_CREDENTIALS,
+      JSON.stringify({ username: userRecord.username, passwordHash: newHash })
+    );
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Erreur lors de la réinitialisation du mot de passe.' };
+  }
+}
+
+/**
+ * Réinitialise le mot de passe via la Clé de secours (Code Ami Athlète à 5 chiffres)
+ * Permet aux comptes créés avant l'ajout de l'email de réinitialiser leur accès et de renseigner leur email.
+ */
+export async function resetPasswordWithRescueCode(
+  username: string,
+  friendCode: string,
+  newPassword: string,
+  email?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanUser = username.trim();
+    const cleanCode = friendCode.trim();
+
+    if (!cleanUser || cleanUser.length < 2) {
+      return { success: false, error: 'Nom d’utilisateur invalide.' };
+    }
+    if (!cleanCode || !/^\d{5}$/.test(cleanCode)) {
+      return { success: false, error: 'Le Code Ami Athlète doit comporter exactement 5 chiffres.' };
+    }
+    if (!newPassword || newPassword.length < 4) {
+      return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 4 caractères.' };
+    }
+
+    const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
+    if (cleanEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return { success: false, error: 'Format d’adresse e-mail invalide.' };
+      }
+    }
+
+    let userRecord: any = null;
+
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        // Tenter d'abord la RPC sécurisée côté serveur
+        const newHashCandidate = await hashPasswordPBKDF2(newPassword, cleanUser);
+        try {
+          const { error: rpcErr } = await supabase.rpc('reset_password_with_rescue_secure', {
+            p_username: cleanUser,
+            p_friend_code: cleanCode,
+            p_new_password_hash: newHashCandidate,
+            p_email: cleanEmail,
+          });
+
+          if (!rpcErr) {
+            // Mettre à jour localement
+            await AsyncStorage.setItem(
+              STORAGE_KEY_CREDENTIALS,
+              JSON.stringify({ username: cleanUser, passwordHash: newHashCandidate })
+            );
+            return { success: true };
+          }
+
+          if (rpcErr.message?.includes('INVALID_FRIEND_CODE')) {
+            return { success: false, error: 'Code Ami Athlète incorrect.' };
+          }
+          if (rpcErr.message?.includes('USER_NOT_FOUND')) {
+            return { success: false, error: 'Compte athlète introuvable.' };
+          }
+        } catch {}
+
+        // Repli direct par requête sécurisée
+        const { data: rows, error: selErr } = await supabase
+          .from('profiles')
+          .select('id, username, email, friend_code')
+          .ilike('username', cleanUser)
+          .limit(1);
+
+        if (selErr || !rows || rows.length === 0) {
+          return { success: false, error: 'Compte athlète introuvable.' };
+        }
+
+        userRecord = rows[0];
+      }
+    }
+
+    // Repli local si hors-ligne
+    if (!userRecord) {
+      const rawCreds = await AsyncStorage.getItem(STORAGE_KEY_CREDENTIALS);
+      const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+      const creds = rawCreds ? JSON.parse(rawCreds) : null;
+      const prof = rawProf ? JSON.parse(rawProf) : null;
+
+      if (
+        (creds?.username && creds.username.toLowerCase() === cleanUser.toLowerCase()) ||
+        (prof?.username && prof.username.toLowerCase() === cleanUser.toLowerCase())
+      ) {
+        userRecord = {
+          id: prof?.id || `vtx_${sanitizeUsername(cleanUser)}`,
+          username: prof?.username || creds?.username || cleanUser,
+          email: prof?.email || null,
+          friend_code: prof?.friendCode || null,
+        };
+      }
+    }
+
+    if (!userRecord) {
+      return { success: false, error: 'Compte athlète introuvable.' };
+    }
+
+    // Vérifier le Code Ami
+    if (userRecord.friend_code && userRecord.friend_code !== cleanCode) {
+      return { success: false, error: 'Code Ami Athlète incorrect.' };
+    }
+
+    // Si un e-mail était déjà configuré sur le compte, vérifier qu'il correspond
+    if (userRecord.email && cleanEmail && userRecord.email.toLowerCase() !== cleanEmail) {
+      return {
+        success: false,
+        error: 'L’adresse e-mail saisie ne correspond pas à celle enregistrée sur ce compte.',
+      };
+    }
+
+    const newHash = await hashPasswordPBKDF2(newPassword, userRecord.username || cleanUser);
+
+    // Mettre à jour Supabase
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        setSupabaseActiveUserId(userRecord.id);
+        const updatePayload: Record<string, any> = {
+          password: newHash,
+          password_hash: newHash,
+          updated_at: new Date().toISOString(),
+        };
+        if (cleanEmail) {
+          updatePayload.email = cleanEmail;
+        }
+
+        const { error: updErr } = await supabase
+          .from('profiles')
+          .update(updatePayload)
+          .eq('id', userRecord.id);
+
+        if (updErr && (updErr.message?.includes('password_hash') || updErr.code === '42703')) {
+          delete updatePayload.password_hash;
+          await supabase.from('profiles').update(updatePayload).eq('id', userRecord.id);
+        }
+      }
+    }
+
+    // Mettre à jour localement
+    await AsyncStorage.setItem(
+      STORAGE_KEY_CREDENTIALS,
+      JSON.stringify({ username: userRecord.username || cleanUser, passwordHash: newHash })
+    );
+
+    const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+    if (rawProf) {
+      const prof = JSON.parse(rawProf);
+      if (cleanEmail) prof.email = cleanEmail;
+      await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(prof));
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Erreur lors de la réinitialisation du mot de passe.' };
+  }
+}
