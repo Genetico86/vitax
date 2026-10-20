@@ -3,6 +3,7 @@ import { View, Text, Modal, TextInput, TouchableOpacity, Alert } from 'react-nat
 import { Colors } from '../../../constants/colors';
 import { Button } from '../../common/Button';
 import { arenaStyles as styles } from '../styles/arenaStyles';
+import { ForgotPasswordModal } from '../../auth/ForgotPasswordModal';
 
 interface TrainerAuthModalProps {
   visible: boolean;
@@ -22,6 +23,7 @@ const TrainerAuthModalContent: React.FC<{
   const [authUsername, setAuthUsername] = useState(initialUsername);
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [isForgotPasswordVisible, setIsForgotPasswordVisible] = useState(false);
 
   const handleSubmit = async () => {
     if (!authUsername.trim() || !authPassword) {
@@ -78,6 +80,18 @@ const TrainerAuthModalContent: React.FC<{
           />
         </View>
 
+        {authMode === 'login' && (
+          <TouchableOpacity
+            style={{ alignSelf: 'flex-end', marginTop: -6, marginBottom: 12, paddingVertical: 2 }}
+            onPress={() => setIsForgotPasswordVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: '#38BDF8', fontSize: 12, fontWeight: '600' }}>
+              🔑 Mot de passe oublié ?
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.authPersistentHint}>
           <Text style={styles.authPersistentHintText}>
             🔒 Connexion permanente : vous n’aurez jamais besoin de resaisir votre mot de passe à l’ouverture de l’application.
@@ -118,6 +132,12 @@ const TrainerAuthModalContent: React.FC<{
               : 'Nouvel athlète ? Créez un compte'}
           </Text>
         </TouchableOpacity>
+
+        {/* Modal de récupération de mot de passe */}
+        <ForgotPasswordModal
+          visible={isForgotPasswordVisible}
+          onClose={() => setIsForgotPasswordVisible(false)}
+        />
       </View>
     </View>
   );

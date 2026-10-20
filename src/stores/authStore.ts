@@ -7,6 +7,11 @@ import {
   registerTrainer,
   logoutTrainer,
   onAuthStateChanged,
+  updateTrainerEmail,
+  updateTrainerPassword,
+  requestPasswordReset,
+  resetPasswordWithCode,
+  resetPasswordWithRescueCode,
 } from '../services/authService';
 
 export interface AuthState {
@@ -20,13 +25,33 @@ export interface AuthState {
   initialize: () => Promise<void>;
   register: (
     username: string,
-    password: string
+    password: string,
+    email?: string
   ) => Promise<{ success: boolean; profile?: TrainerProfile; error?: string }>;
   login: (
     username: string,
     password: string
   ) => Promise<{ success: boolean; profile?: TrainerProfile; error?: string }>;
   logout: () => Promise<void>;
+  updateEmail: (email: string | null) => Promise<{ success: boolean; error?: string }>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  requestPasswordReset: (
+    identifier: string
+  ) => Promise<{ success: boolean; hasEmail?: boolean; maskedEmail?: string; code?: string; error?: string }>;
+  resetPasswordWithCode: (
+    identifier: string,
+    code: string,
+    newPassword: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  resetPasswordWithRescueCode: (
+    username: string,
+    friendCode: string,
+    newPassword: string,
+    email?: string
+  ) => Promise<{ success: boolean; error?: string }>;
   setProfile: (profile: TrainerProfile | null) => void;
   setError: (error: string | null) => void;
 }
@@ -66,10 +91,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  register: async (username: string, password: string) => {
+  register: async (username: string, password: string, email?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await registerTrainer(username, password);
+      const res = await registerTrainer(username, password, email);
       if (res.success && res.profile) {
         const session = await getPersistedSession();
         set({
@@ -130,6 +155,58 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
+    }
+  },
+
+  updateEmail: async (email: string | null) => {
+    try {
+      const res = await updateTrainerEmail(email);
+      if (res.success) {
+        const currentProfile = get().profile;
+        if (currentProfile) {
+          set({ profile: { ...currentProfile, email: email || null } });
+        }
+      }
+      return res;
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Erreur lors de la mise à jour de l’e-mail.' };
+    }
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    try {
+      return await updateTrainerPassword(currentPassword, newPassword);
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Erreur lors du changement de mot de passe.' };
+    }
+  },
+
+  requestPasswordReset: async (identifier: string) => {
+    try {
+      return await requestPasswordReset(identifier);
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Erreur lors de la demande de réinitialisation.' };
+    }
+  },
+
+  resetPasswordWithCode: async (identifier: string, code: string, newPassword: string) => {
+    try {
+      return await resetPasswordWithCode(identifier, code, newPassword);
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Erreur lors de la réinitialisation.' };
+    }
+  },
+
+  resetPasswordWithRescueCode: async (
+    username: string,
+    friendCode: string,
+    newPassword: string,
+    email?: string
+  ) => {
+    try {
+      return await resetPasswordWithRescueCode(username, friendCode, newPassword, email);
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Erreur lors de la réinitialisation.' };
     }
   },
 

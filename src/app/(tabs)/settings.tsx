@@ -33,6 +33,8 @@ import {
 import { TrainerProfile } from '../../types/social';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { DeveloperFeedbackModal } from '../../components/workout/DeveloperFeedbackModal';
+import { ChangePasswordModal } from '../../components/auth/ChangePasswordModal';
+import { EditEmailModal } from '../../components/auth/EditEmailModal';
 
 export default function SettingsScreen() {
   const {
@@ -61,6 +63,8 @@ export default function SettingsScreen() {
   const [isTrainerLoggedIn, setIsTrainerLoggedIn] = useState(false);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [devFeedbackModalVisible, setDevFeedbackModalVisible] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+  const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
 
   // États pour les sections dépliables (accordéons)
   const [profileExpanded, setProfileExpanded] = useState(false);
@@ -451,6 +455,54 @@ export default function SettingsScreen() {
                       <Text style={styles.trainerShareBtnText}>📤 Partager</Text>
                     </TouchableOpacity>
                   </View>
+
+                  <View style={styles.trainerStatsDivider} />
+
+                  {/* Ligne Adresse e-mail */}
+                  <View style={styles.trainerMetaRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.trainerMetaLabel}>Adresse e-mail :</Text>
+                      <Text
+                        style={[
+                          styles.trainerMetaValue,
+                          !trainerProfile.email && { fontStyle: 'italic', color: Colors.textMuted },
+                        ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {trainerProfile.email || 'Non renseignée'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.trainerActionBtn}
+                      onPress={() => setIsEmailModalVisible(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.trainerActionBtnText}>
+                        {trainerProfile.email ? '✏️ Modifier' : '+ Renseigner'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Ligne Changement de mot de passe (si connecté) */}
+                  {isTrainerLoggedIn && (
+                    <>
+                      <View style={styles.trainerStatsDivider} />
+                      <View style={styles.trainerMetaRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.trainerMetaLabel}>Sécurité du compte :</Text>
+                          <Text style={styles.trainerMetaSub}>Mot de passe protégé (PBKDF2)</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.trainerActionBtn}
+                          onPress={() => setIsPasswordModalVisible(true)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.trainerActionBtnText}>🔑 Modifier</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  )}
 
                   <View style={styles.trainerStatsDivider} />
 
@@ -951,6 +1003,24 @@ export default function SettingsScreen() {
         visible={devFeedbackModalVisible}
         onClose={() => setDevFeedbackModalVisible(false)}
       />
+
+      {/* Modal de changement de mot de passe */}
+      <ChangePasswordModal
+        visible={isPasswordModalVisible}
+        onClose={() => setIsPasswordModalVisible(false)}
+      />
+
+      {/* Modal de modification de l'adresse e-mail */}
+      <EditEmailModal
+        visible={isEmailModalVisible}
+        initialEmail={trainerProfile?.email || null}
+        onClose={() => setIsEmailModalVisible(false)}
+        onSuccess={(newEmail) => {
+          if (trainerProfile) {
+            setTrainerProfile({ ...trainerProfile, email: newEmail });
+          }
+        }}
+      />
     </View>
   );
 }
@@ -1246,6 +1316,30 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 10,
     fontWeight: '600',
+  },
+  trainerMetaValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  trainerMetaSub: {
+    color: Colors.textMuted,
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  trainerActionBtn: {
+    backgroundColor: '#27272A',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3F3F46',
+  },
+  trainerActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   trainerMetaCode: {
     color: '#FF7A45',

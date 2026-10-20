@@ -577,6 +577,95 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('physiologyUtils: calculs IMC, classification OMS, jauge, BMR, TDEE et FFMI');
 
+  // 15. Sécurité du compte, gestion de l'e-mail & modification du mot de passe
+  const {
+    registerTrainer,
+    updateTrainerEmail,
+    updateTrainerPassword,
+  } = await import('../services/authService');
+
+  // Test inscription avec email
+  const regResult = await registerTrainer('AthlèteSecurise', 'MonSuperPass123', 'athlete@vitax.app');
+  assert(regResult.success === true, 'Inscription avec e-mail réussie');
+  assert(regResult.profile?.email === 'athlete@vitax.app', 'L’e-mail est correctement stocké sur le profil');
+
+  // Test validation d'e-mail invalide
+  const invalidEmailRes = await updateTrainerEmail('not-an-email');
+  assert(invalidEmailRes.success === false, 'Rejet d’un format e-mail invalide');
+
+  // Test mise à jour avec e-mail valide
+  const validEmailRes = await updateTrainerEmail('contact.nouveau@exemple.com');
+  assert(validEmailRes.success === true, 'Mise à jour d’un e-mail valide réussie');
+
+  // Test suppression de l'e-mail (dissociation)
+  const clearEmailRes = await updateTrainerEmail(null);
+  assert(clearEmailRes.success === true, 'Suppression de l’e-mail réussie');
+
+  // Test modification de mot de passe (trop court)
+  const shortPassRes = await updateTrainerPassword('MonSuperPass123', 'abc');
+  assert(shortPassRes.success === false, 'Rejet d’un nouveau mot de passe de moins de 4 caractères');
+
+  // Test modification de mot de passe (identique)
+  const samePassRes = await updateTrainerPassword('MonSuperPass123', 'MonSuperPass123');
+  assert(samePassRes.success === false, 'Rejet si le nouveau mot de passe est identique à l’ancien');
+
+  // Test modification de mot de passe valide
+  const validPassRes = await updateTrainerPassword('MonSuperPass123', 'NouveauPass2026!');
+  assert(validPassRes.success === true, 'Modification de mot de passe valide réussie');
+
+  names.push('athleteAccountSecurity & emailManagement: validation email, hachage PBKDF2 & modification sécurisée');
+
+  // 16. Module de Récupération de Mot de Passe (Par e-mail OTP et par Clé de secours Code Ami)
+  const {
+    maskEmail,
+    requestPasswordReset,
+    resetPasswordWithCode,
+    resetPasswordWithRescueCode,
+  } = await import('../services/authService');
+
+  // Test masquage d'email
+  assert(maskEmail('alexandre@vitax.app') === 'a***e@vitax.app', 'Masquage d’email conforme');
+  assert(maskEmail('al@vitax.app') === 'a***@vitax.app', 'Masquage d’email court conforme');
+
+  // Inscription d'un athlète de test pour la récupération
+  const testRecoveryUser = await registerTrainer('AthlèteRecup', 'AncienPass999', 'recup@vitax.app');
+  assert(testRecoveryUser.success === true, 'Création du compte de test pour la récupération');
+
+  // Test demande de réinitialisation avec identifiant inconnu
+  const reqUnknown = await requestPasswordReset('utilisateur_inexistant_9999');
+  assert(reqUnknown.success === false, 'Rejet d’un identifiant inconnu');
+
+  // Test demande de réinitialisation avec identifiant valide
+  const reqValid = await requestPasswordReset('AthlèteRecup');
+  assert(reqValid.success === true && reqValid.hasEmail === true, 'Demande de code OTP réussie');
+  assert(reqValid.maskedEmail === 'r***p@vitax.app', 'Email masqué correct');
+  assert(Boolean(reqValid.code && reqValid.code.length === 6), 'Code OTP à 6 chiffres généré');
+
+  // Test validation avec mauvais code
+  const resetWrongCode = await resetPasswordWithCode('AthlèteRecup', '000000', 'ToutNouveauPass123!');
+  assert(resetWrongCode.success === false, 'Rejet d’un mauvais code OTP');
+
+  // Test validation avec le bon code
+  const resetSuccess = await resetPasswordWithCode('AthlèteRecup', reqValid.code!, 'ToutNouveauPass123!');
+  assert(resetSuccess.success === true, 'Réinitialisation par code OTP réussie');
+
+  // Test récupération par Clé de secours (Code Ami)
+  const friendCode = testRecoveryUser.profile!.friendCode;
+
+  // Mauvais Code Ami
+  const rescueWrongCode = await resetPasswordWithRescueCode('AthlèteRecup', '00000', 'PassRescue456!');
+  assert(rescueWrongCode.success === false, 'Rejet d’un Code Ami incorrect');
+
+  // Mauvais email de confirmation
+  const rescueWrongEmail = await resetPasswordWithRescueCode('AthlèteRecup', friendCode, 'PassRescue456!', 'fake@autre.com');
+  assert(rescueWrongEmail.success === false, 'Rejet si l’email ne correspond pas au compte');
+
+  // Clé de secours valide
+  const rescueValid = await resetPasswordWithRescueCode('AthlèteRecup', friendCode, 'PassRescue456!', 'recup@vitax.app');
+  assert(rescueValid.success === true, 'Réinitialisation par Clé de secours (Code Ami) réussie');
+
+  names.push('passwordRecoveryModule: masquage email, code OTP 15min & Clé de secours Code Ami');
+
   return { passed: names.length, names };
 }
 

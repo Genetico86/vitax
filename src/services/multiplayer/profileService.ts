@@ -153,6 +153,7 @@ async function executeSyncTrainerProfile(profile: TrainerProfile): Promise<boole
       if (!profile.avatarPokemonId && cloudRow.avatar_pokemon_id) profile.avatarPokemonId = cloudRow.avatar_pokemon_id;
       if (!profile.avatarPokemonEmoji && cloudRow.avatar_pokemon_emoji) profile.avatarPokemonEmoji = cloudRow.avatar_pokemon_emoji;
       if (!profile.avatarUrl && cloudRow.avatar_url) profile.avatarUrl = cloudRow.avatar_url;
+      if (cloudRow.email && !profile.email) profile.email = cloudRow.email;
     }
 
     if (!friendCode || friendCode === '10000' || !/^\d{5}$/.test(friendCode)) {
@@ -190,6 +191,7 @@ async function executeSyncTrainerProfile(profile: TrainerProfile): Promise<boole
       total_xp: profile.totalXp || 0,
       total_workouts: profile.totalWorkouts || 0,
       avatar_url: avatarToSend,
+      ...(profile.email !== undefined ? { email: profile.email || null } : {}),
       updated_at: new Date().toISOString(),
     };
 
@@ -198,8 +200,9 @@ async function executeSyncTrainerProfile(profile: TrainerProfile): Promise<boole
       timeoutPromise<any>(5000, 'Timeout upsert profil cloud'),
     ]);
 
-    if (error && (error.message?.includes('avatar_url') || error.code === '42703')) {
+    if (error && (error.message?.includes('avatar_url') || error.message?.includes('email') || error.code === '42703')) {
       delete profilePayload.avatar_url;
+      if (error.message?.includes('email')) delete profilePayload.email;
       const retry = await Promise.race([
         supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' }),
         timeoutPromise<any>(5000, 'Timeout retry upsert profil cloud'),
