@@ -12,6 +12,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.profiles (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL,
+  email TEXT,
   password TEXT,
   password_hash TEXT,
   friend_code TEXT NOT NULL UNIQUE,
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Assurer que les colonnes password_hash et avatar_url existent
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
 
 -- Migration automatique des anciens mots de passe en clair vers pgcrypto (bcrypt) et purge du clair
 UPDATE public.profiles
@@ -44,6 +46,7 @@ WHERE password IS NOT NULL AND password_hash IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique_lower ON public.profiles (LOWER(TRIM(username)));
 CREATE INDEX IF NOT EXISTS idx_profiles_friend_code ON public.profiles(friend_code);
 CREATE INDEX IF NOT EXISTS idx_profiles_total_xp ON public.profiles(total_xp DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(LOWER(TRIM(email))) WHERE email IS NOT NULL;
 
 -- 2. TABLE DES SÉANCES D'ENTRAÎNEMENT (HISTORIQUE SYNCHRONISÉ)
 CREATE TABLE IF NOT EXISTS public.workout_sessions (
@@ -337,7 +340,8 @@ CREATE OR REPLACE FUNCTION public.register_trainer_secure(
   p_password_hash TEXT,
   p_friend_code TEXT,
   p_trainer_title TEXT DEFAULT 'Athlète Vitax',
-  p_avatar_url TEXT DEFAULT NULL
+  p_avatar_url TEXT DEFAULT NULL,
+  p_email TEXT DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -354,6 +358,7 @@ BEGIN
   INSERT INTO public.profiles (
     id,
     username,
+    email,
     password,
     password_hash,
     friend_code,
@@ -369,6 +374,7 @@ BEGIN
   ) VALUES (
     p_id,
     TRIM(p_username),
+    NULLIF(TRIM(p_email), ''),
     NULL,
     crypt(p_password_hash, gen_salt('bf')),
     p_friend_code,
@@ -386,6 +392,8 @@ END;
 $$;
 
 -- Authentification sécurisée côté serveur (vérifie le hash sans jamais exposer password/password_hash au client)
+DROP FUNCTION IF EXISTS public.authenticate_trainer_secure(TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.authenticate_trainer_secure(
   p_username TEXT,
   p_password_hash TEXT,
@@ -394,6 +402,7 @@ CREATE OR REPLACE FUNCTION public.authenticate_trainer_secure(
 RETURNS TABLE (
   id TEXT,
   username TEXT,
+  email TEXT,
   friend_code TEXT,
   trainer_title TEXT,
   avatar_pokemon_id TEXT,
@@ -456,6 +465,7 @@ BEGIN
   SELECT
     v_row.id,
     v_row.username,
+    v_row.email,
     v_row.friend_code,
     v_row.trainer_title,
     v_row.avatar_pokemon_id,
@@ -465,6 +475,55 @@ BEGIN
     v_row.total_workouts,
     v_row.avatar_url,
     v_row.created_at;
+END;
+$$;
+
+-- Modification sécurisée du mot de passe côté serveur (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.update_trainer_password_secure(
+  p_user_id TEXT,
+  p_current_password_hash TEXT,
+  p_new_password_hash TEXT,
+  p_legacy_plaintext TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_secret TEXT;
+  v_valid BOOLEAN := FALSE;
+BEGIN
+  SELECT COALESCE(password_hash, password) INTO v_secret
+  FROM public.profiles
+  WHERE id = p_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'USER_NOT_FOUND';
+  END IF;
+
+  IF v_secret LIKE '$2%' THEN
+    v_valid := (v_secret = crypt(p_current_password_hash, v_secret))
+      OR (p_legacy_plaintext IS NOT NULL AND v_secret = crypt(p_legacy_plaintext, v_secret));
+  ELSIF v_secret LIKE 'pbkdf2_sha256$%' THEN
+    v_valid := (v_secret = p_current_password_hash);
+  ELSE
+    v_valid := (p_legacy_plaintext IS NOT NULL AND v_secret = p_legacy_plaintext)
+      OR (v_secret = p_current_password_hash);
+  END IF;
+
+  IF NOT v_valid THEN
+    RAISE EXCEPTION 'INVALID_CREDENTIALS';
+  END IF;
+
+  UPDATE public.profiles
+  SET
+    password_hash = crypt(p_new_password_hash, gen_salt('bf')),
+    password = NULL,
+    updated_at = NOW()
+  WHERE id = p_user_id;
+
+  RETURN TRUE;
 END;
 $$;
 

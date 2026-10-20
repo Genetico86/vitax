@@ -13,6 +13,7 @@ export interface LeagueConfig {
 export interface TrainerProfile {
   id: string;
   username: string;
+  email?: string | null;
   friendCode: string; // e.g. "48219" (code unique à 5 chiffres)
   trainerTitle: string;
   avatarPokemonId: string;

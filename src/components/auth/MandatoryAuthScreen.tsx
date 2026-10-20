@@ -18,6 +18,7 @@ export const MandatoryAuthScreen: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -25,6 +26,7 @@ export const MandatoryAuthScreen: React.FC = () => {
 
   const handleModeSwitch = (registerMode: boolean) => {
     setIsRegisterMode(registerMode);
+    setEmail('');
     setLocalError(null);
     setError(null);
   };
@@ -46,13 +48,21 @@ export const MandatoryAuthScreen: React.FC = () => {
         setLocalError('Les deux mots de passe ne correspondent pas.');
         return;
       }
+      const trimmedEmail = email.trim();
+      if (trimmedEmail.length > 0) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(trimmedEmail)) {
+          setLocalError('Format d’adresse e-mail invalide.');
+          return;
+        }
+      }
     }
 
     setLocalError(null);
     setError(null);
 
     if (isRegisterMode) {
-      await register(trimmedUsername, password);
+      await register(trimmedUsername, password, email.trim() || undefined);
     } else {
       await login(trimmedUsername, password);
     }
@@ -191,7 +201,7 @@ export const MandatoryAuthScreen: React.FC = () => {
               </Text>
             </View>
 
-            {/* Confirm Password (only in registration mode) */}
+                        {/* Confirm Password (only in registration mode) */}
             {isRegisterMode && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Confirmer le mot de passe</Text>
@@ -208,9 +218,39 @@ export const MandatoryAuthScreen: React.FC = () => {
                       setError(null);
                     }
                   }}
+                  returnKeyType="next"
+                />
+              </View>
+            )}
+
+            {/* Email Input (facultatif à l'inscription) */}
+            {isRegisterMode && (
+              <View style={styles.inputGroup}>
+                <View style={styles.passwordLabelRow}>
+                  <Text style={styles.inputLabel}>Adresse e-mail</Text>
+                  <Text style={styles.optionalBadge}>Facultatif</Text>
+                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex: alex@exemple.com"
+                  placeholderTextColor={Colors.textMuted}
+                  value={email}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    if (activeError) {
+                      setLocalError(null);
+                      setError(null);
+                    }
+                  }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
                   returnKeyType="done"
                   onSubmitEditing={handleSubmit}
                 />
+                <Text style={styles.inputHelper}>
+                  Permet d’associer un contact à votre compte athlète
+                </Text>
               </View>
             )}
 
@@ -516,6 +556,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  optionalBadge: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
   },
   switchModeHighlight: {
     color: Colors.primaryLight,

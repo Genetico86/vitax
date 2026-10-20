@@ -126,13 +126,15 @@ async function syncSupabaseNativeAuth(
   userId: string,
   username: string,
   passwordHash: string,
-  isRegistration: boolean
+  isRegistration: boolean,
+  email?: string | null
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
   const supabase = getSupabaseClient();
   if (!supabase) return;
 
-  const syntheticEmail = `${cleanUser}@auth.vitax.app`;
+  const syntheticEmail =
+    email && email.trim().length > 0 ? email.trim().toLowerCase() : `${cleanUser}@auth.vitax.app`;
   const derivedAuthSecret = `Vtx!${passwordHash.slice(-28)}`;
 
   try {
@@ -194,7 +196,8 @@ async function migrateLegacyLocalCredentialsIfNeeded(): Promise<void> {
  */
 export async function registerTrainer(
   username: string,
-  password: string
+  password: string,
+  email?: string | null
 ): Promise<{ success: boolean; profile?: TrainerProfile; error?: string }> {
   const trimmedName = username.trim();
   if (trimmedName.length < 2) {
@@ -202,6 +205,14 @@ export async function registerTrainer(
   }
   if (!password || password.length < 4) {
     return { success: false, error: 'Le mot de passe doit comporter au moins 4 caractères.' };
+  }
+
+  const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
+  if (cleanEmail) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return { success: false, error: 'Format d’adresse e-mail invalide.' };
+    }
   }
 
   const cleanUser = sanitizeUsername(trimmedName);
@@ -214,6 +225,7 @@ export async function registerTrainer(
   const initialProfile: TrainerProfile = {
     id: userId,
     username: trimmedName,
+    email: cleanEmail,
     friendCode,
     trainerTitle: 'Athlète Vitax',
     avatarPokemonId: 'athlete',
@@ -365,7 +377,7 @@ export async function registerTrainer(
           }
         }
 
-        void syncSupabaseNativeAuth(cleanUser, userId, trimmedName, passwordHash, true);
+        void syncSupabaseNativeAuth(cleanUser, userId, trimmedName, passwordHash, true, cleanEmail);
       } catch (err: any) {
         console.warn('Exception inscription Supabase:', err?.message);
         return {
@@ -972,3 +984,180 @@ export async function deleteTrainerAccountAndCloudData(): Promise<{
   }
 }
 
+
+/**
+ * Met à jour ou supprime l'adresse email de l'athlète dans Supabase et en cache local
+ */
+export async function updateTrainerEmail(
+  email: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getPersistedSession();
+    if (!session?.userId) {
+      return { success: false, error: 'Aucune session active.' };
+    }
+
+    const cleanEmail = email && email.trim().length > 0 ? email.trim().toLowerCase() : null;
+
+    if (cleanEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(cleanEmail)) {
+        return { success: false, error: 'Format d’adresse e-mail invalide.' };
+      }
+    }
+
+    // 1. Sauvegarde dans Supabase
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        setSupabaseActiveUserId(session.userId);
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            email: cleanEmail,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', session.userId);
+
+        if (error) {
+          console.warn('Erreur mise à jour email Supabase:', error);
+          if (error.code === '42703' || error.message?.includes('email')) {
+            return {
+              success: false,
+              error: 'La colonne email n’est pas encore disponible sur votre base Supabase.',
+            };
+          }
+          return { success: false, error: error.message };
+        }
+      }
+    }
+
+    // 2. Mise à jour de la persistance locale
+    const rawProf = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
+    if (rawProf) {
+      const prof: TrainerProfile = JSON.parse(rawProf);
+      prof.email = cleanEmail;
+      await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(prof));
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Erreur lors de la mise à jour de l’e-mail.' };
+  }
+}
+
+/**
+ * Modifie le mot de passe de l'athlète connecté.
+ * Vérifie l'ancien mot de passe via son condensat PBKDF2, puis enregistre le nouveau mot de passe haché.
+ */
+export async function updateTrainerPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getPersistedSession();
+    if (!session?.userId || !session.username) {
+      return { success: false, error: 'Aucune session active.' };
+    }
+
+    if (!currentPassword) {
+      return { success: false, error: 'Veuillez saisir votre mot de passe actuel.' };
+    }
+
+    if (!newPassword || newPassword.length < 4) {
+      return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 4 caractères.' };
+    }
+
+    if (currentPassword === newPassword) {
+      return { success: false, error: 'Le nouveau mot de passe doit être différent de l’ancien.' };
+    }
+
+    const currentHash = await hashPasswordPBKDF2(currentPassword, session.username);
+    const newHash = await hashPasswordPBKDF2(newPassword, session.username);
+
+    // 1. Mise à jour dans Supabase
+    if (isSupabaseConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        setSupabaseActiveUserId(session.userId);
+
+        // Tenter d'abord la RPC sécurisée côté serveur
+        const { error: rpcErr } = await supabase.rpc('update_trainer_password_secure', {
+          p_user_id: session.userId,
+          p_current_password_hash: currentHash,
+          p_new_password_hash: newHash,
+        });
+
+        if (rpcErr) {
+          const isRpcMissing =
+            rpcErr.code === '42883' ||
+            rpcErr.code === 'PGRST202' ||
+            rpcErr.message?.includes('update_trainer_password_secure');
+
+          if (!isRpcMissing) {
+            if (
+              rpcErr.message?.includes('INVALID_CREDENTIALS') ||
+              rpcErr.message?.includes('INVALID_PASSWORD') ||
+              rpcErr.code === 'P0001'
+            ) {
+              return { success: false, error: 'Mot de passe actuel incorrect.' };
+            }
+            return { success: false, error: rpcErr.message };
+          }
+
+          // Repli direct si la RPC n'est pas encore créée dans Supabase
+          const { data: rows, error: selectErr } = await supabase
+            .from('profiles')
+            .select('id, username, password, password_hash')
+            .eq('id', session.userId)
+            .limit(1);
+
+          if (selectErr || !rows || rows.length === 0) {
+            return { success: false, error: 'Profil introuvable sur le serveur.' };
+          }
+
+          const row = rows[0];
+          const storedSecret = row.password_hash || row.password || null;
+          if (storedSecret) {
+            const { valid } = await verifyPasswordSecure(currentPassword, session.username, storedSecret);
+            if (!valid) {
+              return { success: false, error: 'Mot de passe actuel incorrect.' };
+            }
+          }
+
+          const updatePayload: Record<string, any> = {
+            password: newHash,
+            password_hash: newHash,
+            updated_at: new Date().toISOString(),
+          };
+
+          const { error: updateErr } = await supabase
+            .from('profiles')
+            .update(updatePayload)
+            .eq('id', session.userId);
+
+          if (updateErr) {
+            if (updateErr.message?.includes('password_hash') || updateErr.code === '42703') {
+              await supabase
+                .from('profiles')
+                .update({ password: newHash, updated_at: new Date().toISOString() })
+                .eq('id', session.userId);
+            } else {
+              return { success: false, error: updateErr.message };
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Mise à jour locale sécurisée
+    await AsyncStorage.setItem(
+      STORAGE_KEY_CREDENTIALS,
+      JSON.stringify({ username: session.username, passwordHash: newHash })
+    );
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Erreur lors du changement de mot de passe.' };
+  }
+}

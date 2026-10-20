@@ -577,6 +577,44 @@ export async function runVitaxUnitTests(): Promise<{ passed: number; names: stri
 
   names.push('physiologyUtils: calculs IMC, classification OMS, jauge, BMR, TDEE et FFMI');
 
+  // 15. Sécurité du compte, gestion de l'e-mail & modification du mot de passe
+  const {
+    registerTrainer,
+    updateTrainerEmail,
+    updateTrainerPassword,
+  } = await import('../services/authService');
+
+  // Test inscription avec email
+  const regResult = await registerTrainer('AthlèteSecurise', 'MonSuperPass123', 'athlete@vitax.app');
+  assert(regResult.success === true, 'Inscription avec e-mail réussie');
+  assert(regResult.profile?.email === 'athlete@vitax.app', 'L’e-mail est correctement stocké sur le profil');
+
+  // Test validation d'e-mail invalide
+  const invalidEmailRes = await updateTrainerEmail('not-an-email');
+  assert(invalidEmailRes.success === false, 'Rejet d’un format e-mail invalide');
+
+  // Test mise à jour avec e-mail valide
+  const validEmailRes = await updateTrainerEmail('contact.nouveau@exemple.com');
+  assert(validEmailRes.success === true, 'Mise à jour d’un e-mail valide réussie');
+
+  // Test suppression de l'e-mail (dissociation)
+  const clearEmailRes = await updateTrainerEmail(null);
+  assert(clearEmailRes.success === true, 'Suppression de l’e-mail réussie');
+
+  // Test modification de mot de passe (trop court)
+  const shortPassRes = await updateTrainerPassword('MonSuperPass123', 'abc');
+  assert(shortPassRes.success === false, 'Rejet d’un nouveau mot de passe de moins de 4 caractères');
+
+  // Test modification de mot de passe (identique)
+  const samePassRes = await updateTrainerPassword('MonSuperPass123', 'MonSuperPass123');
+  assert(samePassRes.success === false, 'Rejet si le nouveau mot de passe est identique à l’ancien');
+
+  // Test modification de mot de passe valide
+  const validPassRes = await updateTrainerPassword('MonSuperPass123', 'NouveauPass2026!');
+  assert(validPassRes.success === true, 'Modification de mot de passe valide réussie');
+
+  names.push('athleteAccountSecurity & emailManagement: validation email, hachage PBKDF2 & modification sécurisée');
+
   return { passed: names.length, names };
 }
 
