@@ -72,11 +72,13 @@ export function formatWorkoutShareText(
     notesText = `\n💬 Note : « ${session.notes.trim()} »\n`;
   }
 
+  const calStr = session.calories && session.calories > 0 ? ` • 🔥 ~${session.calories} kcal` : '';
+
   return (
     `🏋️ Vitax Sport — Séance Terminée !\n` +
     `⚡ ${session.program_name || 'Séance libre'}\n` +
     `📅 ${dateFormatted}\n` +
-    `⏱ Durée : ${durationText} • 💪 Volume : ${formatWeightWithUnit(session.total_volume, undefined, true)} • ✓ ${session.total_sets} séries\n` +
+    `⏱ Durée : ${durationText} • 💪 Volume : ${formatWeightWithUnit(session.total_volume, undefined, true)} • ✓ ${session.total_sets} séries${calStr}\n` +
     exerciseBreakdownText +
     notesText +
     `\n👤 Athlète : ${athleteName || 'Sportif Vitax'}\n` +
@@ -118,13 +120,19 @@ export function formatDailyWorkoutShareText(
       ? `🏋️ Vitax Sport — Bilan Complet du Jour (${summary.sessionsCount} séances) 📅`
       : `🏋️ Vitax Sport — Bilan d’Entraînement du Jour 📅`;
 
+  const calText =
+    summary.totalCalories && summary.totalCalories > 0
+      ? `🔥 Dépense totale : ~${summary.totalCalories} kcal brûlées\n`
+      : '';
+
   return (
     `${multiSessionHeader}\n` +
     `📅 Date : ${summary.formattedDate}\n` +
-    `🔥 ${summary.sessionsCount} séance${summary.sessionsCount > 1 ? 's' : ''} cumulée${summary.sessionsCount > 1 ? 's' : ''} aujourd'hui\n` +
+    `⚡ ${summary.sessionsCount} séance${summary.sessionsCount > 1 ? 's' : ''} cumulée${summary.sessionsCount > 1 ? 's' : ''} aujourd'hui\n` +
     `⏱ Durée totale : ${durationText}\n` +
     `💪 Volume cumulé : ${formatWeightWithUnit(summary.totalVolumeKg, undefined, true)}\n` +
     `✓ Séries validées : ${summary.totalSets} séries au total\n` +
+    calText +
     exercisesText +
     `\n👤 Athlète : ${athleteName || 'Sportif Vitax'}\n` +
     `🏆 Suis ma progression sur Vitax : ${APP_URL}`

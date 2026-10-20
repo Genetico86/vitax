@@ -235,8 +235,8 @@ export async function importDataFromFile(): Promise<{
         if (!s || typeof s.id !== 'string' || !s.id.trim()) continue;
         await db.runAsync(
           `INSERT OR REPLACE INTO workout_sessions (
-             id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             safeStr(s.id, 120),
             s.program_id ? safeStr(s.program_id, 120) : null,
@@ -247,6 +247,7 @@ export async function importDataFromFile(): Promise<{
             safeNum(s.total_volume, 0, 1000000, 0),
             Math.round(safeNum(s.total_sets, 0, 1000, 0)),
             s.completed ? 1 : 0,
+            s.calories != null ? Math.round(safeNum(s.calories, 0, 10000, 0)) : null,
           ]
         );
       }

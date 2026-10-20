@@ -59,6 +59,59 @@ export interface PhysiologicalProfile {
   ffmi: FfmiAnalysis | null;
 }
 
+export type WeightGoalType = 'loss' | 'bulk' | 'maintain';
+
+export interface WeightProgressionFeedback {
+  deltaKg: number;
+  deltaDirection: 'up' | 'down' | 'stable';
+  goalType: WeightGoalType;
+  goalLabel: string;
+  isAlignedWithGoal: boolean;
+  deltaColor: string;
+  badgeLabel: string;
+  feedbackTitle: string;
+  feedbackAdvice: string;
+  compositionInsight?: string;
+  remainingKg: number;
+  progressPercent: number;
+  isAchieved: boolean;
+}
+
+/**
+ * Extrait le type d'objectif depuis le titre ou par déduction
+ */
+export function parseWeightGoalTitle(title?: string | null): {
+  goalType: WeightGoalType;
+  targetWeight: number;
+} {
+  const defaultTarget = 75;
+  if (!title) {
+    return { goalType: 'loss', targetWeight: defaultTarget };
+  }
+
+  let goalType: WeightGoalType = 'loss';
+  if (title.includes('[bulk]') || title.includes('[prise_masse]') || title.toLowerCase().includes('masse')) {
+    goalType = 'bulk';
+  } else if (title.includes('[maintain]') || title.includes('[maintien]') || title.toLowerCase().includes('maintien')) {
+    goalType = 'maintain';
+  } else if (title.includes('[loss]') || title.includes('[seche]') || title.toLowerCase().includes('sèche') || title.toLowerCase().includes('perte')) {
+    goalType = 'loss';
+  }
+
+  const match = title.match(/(\d+(?:[.,]\d+)?)/);
+  const targetWeight = match ? parseFloat(match[1].replace(',', '.')) : defaultTarget;
+
+  return { goalType, targetWeight };
+}
+
+/**
+ * Formate le titre standardisé d'un objectif de poids avec tag machine
+ */
+export function formatWeightGoalTitle(targetKg: number, goalType: WeightGoalType): string {
+  const tag = goalType === 'bulk' ? '[prise_masse]' : goalType === 'maintain' ? '[maintien]' : '[seche]';
+  return `Poids cible : ${targetKg} kg ${tag}`;
+}
+
 /**
  * Calcule l'Indice de Masse Corporelle (IMC / BMI)
  */
@@ -118,11 +171,11 @@ export function analyzeBmi(weightKg: number, heightCm: number): BmiAnalysis | nu
     athleticNote = 'Zone optimale de forme et d’endurance. Idéal pour développer la force tout en maintenant un ratio puissance/poids élevé.';
   } else if (bmi <= 29.9) {
     category = 'overweight';
-    categoryLabel = 'Surpoids / Masse athlétique';
+    categoryLabel = 'Surpoids (IMC)';
     categoryShort = 'Surpoids';
     color = '#F59E0B'; // Amber orange
     healthDescription = 'Poids modérément supérieur au ratio standard de taille.';
-    athleticNote = '💪 Paradoxe de l’athlète : en musculation, une forte masse musculaire et une ossature dense placent souvent d’excellents sportifs dans cette catégorie sans aucun excès de masse grasse.';
+    athleticNote = '💪 Paradoxe de l’athlète musclé : l’IMC est un repère statistique qui ne distingue pas la masse musculaire du tissu adipeux. Pour savoir si une hausse de poids correspond à du muscle ou du gras, suivez votre % de masse grasse, vos mensurations et vos performances sous les barres.';
   } else if (bmi <= 34.9) {
     category = 'obese_1';
     categoryLabel = 'Obésité modérée (Classe I)';
@@ -152,6 +205,256 @@ export function analyzeBmi(weightKg: number, heightCm: number): BmiAnalysis | nu
     deltaToHealthyKg,
     healthDescription,
     athleticNote,
+  };
+}
+
+/**
+ * Analyse et interprète de manière scientifique et nuancée l'évolution du poids
+ * Ne félicite JAMAIS arbitrairement d'avoir gagné du muscle sans confirmation de la masse grasse.
+ */
+export function analyzeWeightProgression(params: {
+  currentWeight: number;
+  startingWeight?: number | null;
+  targetWeight?: number | null;
+  previousWeight?: number | null;
+  explicitGoalType?: WeightGoalType;
+  currentBodyFat?: number | null;
+  previousBodyFat?: number | null;
+}): WeightProgressionFeedback {
+  const {
+    currentWeight,
+    startingWeight = currentWeight,
+    targetWeight = currentWeight,
+    previousWeight,
+    explicitGoalType,
+    currentBodyFat,
+    previousBodyFat,
+  } = params;
+
+  const start = startingWeight ?? currentWeight;
+  const target = targetWeight ?? currentWeight;
+
+  // Déterminer le type d'objectif
+  let goalType: WeightGoalType = explicitGoalType || 'loss';
+  if (!explicitGoalType) {
+    if (start > target) {
+      goalType = 'loss';
+    } else if (start < target) {
+      goalType = 'bulk';
+    } else {
+      goalType = 'maintain';
+    }
+  }
+
+  const refWeight = previousWeight ?? start;
+  const deltaRecent = Math.round((currentWeight - refWeight) * 10) / 10;
+
+  let deltaDirection: 'up' | 'down' | 'stable' = 'stable';
+  if (deltaRecent > 0.1) deltaDirection = 'up';
+  else if (deltaRecent < -0.1) deltaDirection = 'down';
+
+  // Calcul d'accomplissement et de progression
+  let remainingKg = 0;
+  let progressPercent = 0;
+  let isAchieved = false;
+
+  if (goalType === 'maintain') {
+    remainingKg = Math.round(Math.abs(currentWeight - target) * 10) / 10;
+    // Si l'athlète reste dans une fourchette de ±1.5 kg, objectif tenu à 100%
+    isAchieved = remainingKg <= 1.5;
+    progressPercent = isAchieved ? 100 : Math.max(0, Math.min(100, Math.round(100 - remainingKg * 20)));
+  } else if (goalType === 'bulk') {
+    remainingKg = Math.max(0, Math.round((target - currentWeight) * 10) / 10);
+    const totalDist = Math.max(0.5, target - start);
+    const currentGain = currentWeight - start;
+    progressPercent = Math.max(0, Math.min(100, Math.round((currentGain / totalDist) * 100)));
+    isAchieved = currentWeight >= target;
+  } else {
+    // Sèche / Perte
+    remainingKg = Math.max(0, Math.round((currentWeight - target) * 10) / 10);
+    const totalDist = Math.max(0.5, start - target);
+    const currentLoss = start - currentWeight;
+    progressPercent = Math.max(0, Math.min(100, Math.round((currentLoss / totalDist) * 100)));
+    isAchieved = currentWeight <= target;
+  }
+
+  // Analyse de composition corporelle si la masse grasse est renseignée
+  let compositionInsight: string | undefined;
+  if (
+    currentBodyFat !== undefined &&
+    currentBodyFat !== null &&
+    previousBodyFat !== undefined &&
+    previousBodyFat !== null &&
+    previousWeight
+  ) {
+    const prevFatKg = previousWeight * (previousBodyFat / 100);
+    const prevLeanKg = previousWeight - prevFatKg;
+    const currFatKg = currentWeight * (currentBodyFat / 100);
+    const currLeanKg = currentWeight - currFatKg;
+
+    const leanDelta = Math.round((currLeanKg - prevLeanKg) * 10) / 10;
+    const fatDelta = Math.round((currFatKg - prevFatKg) * 10) / 10;
+
+    if (fatDelta <= -0.2 && leanDelta >= 0.1) {
+      compositionInsight = `🔬 Recomposition remarquable : perte de -${Math.abs(fatDelta)} kg de masse grasse combinée à un gain de +${leanDelta} kg de masse maigre !`;
+    } else if (fatDelta <= -0.2 && leanDelta >= -0.2) {
+      compositionInsight = `🔬 Sèche réussie : perte de -${Math.abs(fatDelta)} kg de masse grasse avec préservation de votre masse maigre.`;
+    } else if (leanDelta >= 0.2 && Math.abs(fatDelta) <= 0.2) {
+      compositionInsight = `🔬 Prise de muscle propre : +${leanDelta} kg de masse maigre (synthèse musculaire) sans augmentation du tissu adipeux.`;
+    } else if (fatDelta >= 0.2 && leanDelta <= 0.1) {
+      compositionInsight = `🔬 Attention composition : la hausse observée provient essentiellement de la masse grasse (+${fatDelta} kg).`;
+    } else if (leanDelta >= 0.2 && fatDelta >= 0.2) {
+      compositionInsight = `🔬 Prise de masse mixte : +${leanDelta} kg de masse maigre accompagnée de +${fatDelta} kg de masse grasse.`;
+    } else {
+      compositionInsight = `🔬 Évolution mesurée : variation masse maigre (${leanDelta > 0 ? '+' : ''}${leanDelta} kg) et masse grasse (${fatDelta > 0 ? '+' : ''}${fatDelta} kg).`;
+    }
+  } else if (!currentBodyFat) {
+    compositionInsight =
+      '💡 Rappel : Sans mesure du taux de masse grasse (% MG), une variation sur la balance reflète l’ensemble eau + glycogène + graisse + muscle.';
+  }
+
+  // Interprétation et orientation de coaching scientifique
+  let isAlignedWithGoal = false;
+  let deltaColor = '#94A3B8';
+  let badgeLabel = 'Stable';
+  let feedbackTitle = 'Stabilité pondérale';
+  let feedbackAdvice = 'Votre poids oscille dans une marge normale de régulation hydrique (±0,5 kg).';
+
+  if (goalType === 'bulk') {
+    const goalLabel = 'Prise de masse musculaire';
+    if (deltaDirection === 'up') {
+      isAlignedWithGoal = true;
+      deltaColor = '#22C55E'; // Vert (conforme à l'objectif)
+      badgeLabel = 'Gain pondéral';
+      if (deltaRecent > 1.2) {
+        feedbackTitle = '📈 Prise de poids rapide';
+        feedbackAdvice =
+          `+${deltaRecent} kg enregistrés. Attention : le tissu musculaire ne se synthétise que lentement (0,2 à 0,4 kg / semaine max). Un gain plus rapide reflète souvent de l’eau, du glycogène ou du stockage adipeux. Modérez légèrement le surplus calorique.`;
+      } else {
+        feedbackTitle = '📈 Gain pondéral régulier';
+        feedbackAdvice =
+          `+${deltaRecent} kg en phase avec votre objectif de prise de masse. Maintenez une surcharge progressive en musculation et un apport protéique adéquat pour orienter ce surplus vers l’anabolisme musculaire.`;
+      }
+    } else if (deltaDirection === 'down') {
+      isAlignedWithGoal = false;
+      deltaColor = '#F59E0B'; // Ambre (alerte déviation)
+      badgeLabel = 'Légère baisse';
+      feedbackTitle = '📉 Légère perte de poids';
+      feedbackAdvice =
+        `-${Math.abs(deltaRecent)} kg constatés. En phase de prise de masse, un déficit temporaire freine la croissance musculaire. Veillez à consommer un surplus calorique constant (+250 à +350 kcal/j).`;
+    } else {
+      isAlignedWithGoal = true;
+      deltaColor = '#38BDF8';
+      badgeLabel = 'Poids stable';
+      feedbackTitle = '⚖️ Palier de stabilisation';
+      feedbackAdvice =
+        'Votre poids est stable. Si vous ne progressez plus sur la balance depuis plus de 2 semaines, augmentez légèrement vos glucides autour de l’entraînement.';
+    }
+
+    return {
+      deltaKg: deltaRecent,
+      deltaDirection,
+      goalType,
+      goalLabel,
+      isAlignedWithGoal,
+      deltaColor,
+      badgeLabel,
+      feedbackTitle,
+      feedbackAdvice,
+      compositionInsight,
+      remainingKg,
+      progressPercent,
+      isAchieved,
+    };
+  }
+
+  if (goalType === 'maintain') {
+    const goalLabel = 'Maintien & Recomposition';
+    if (deltaDirection === 'stable') {
+      isAlignedWithGoal = true;
+      deltaColor = '#22C55E';
+      badgeLabel = 'Équilibre parfait';
+      feedbackTitle = '⚖️ Équilibre énergétique maintenu';
+      feedbackAdvice =
+        'Poids parfaitement stabilisé. Idéal pour optimiser les charges de travail et la récupération sans variation de masse grasse.';
+    } else if (deltaDirection === 'up') {
+      isAlignedWithGoal = Math.abs(deltaRecent) <= 1.0;
+      deltaColor = isAlignedWithGoal ? '#38BDF8' : '#F59E0B';
+      badgeLabel = `+${deltaRecent} kg`;
+      feedbackTitle = '📊 Légère variation haussière';
+      feedbackAdvice =
+        `+${deltaRecent} kg sur la balance. Ne concluez pas hâtivement à une prise de muscle ou de gras : le sel, les glucides stockés (eau liée au glycogène) et la fatigue d’entraînement créent souvent des fluctuations temporaires.`;
+    } else {
+      isAlignedWithGoal = Math.abs(deltaRecent) <= 1.0;
+      deltaColor = isAlignedWithGoal ? '#38BDF8' : '#F59E0B';
+      badgeLabel = `${deltaRecent} kg`;
+      feedbackTitle = '📊 Légère variation baissière';
+      feedbackAdvice =
+        `-${Math.abs(deltaRecent)} kg enregistrés. Légère fluctuation normale d’hydratation ou déficit modéré non intentionnel.`;
+    }
+
+    return {
+      deltaKg: deltaRecent,
+      deltaDirection,
+      goalType,
+      goalLabel,
+      isAlignedWithGoal,
+      deltaColor,
+      badgeLabel,
+      feedbackTitle,
+      feedbackAdvice,
+      compositionInsight,
+      remainingKg,
+      progressPercent,
+      isAchieved,
+    };
+  }
+
+  // Par défaut : Sèche / Perte de poids
+  const goalLabel = 'Sèche / Perte de poids';
+  if (deltaDirection === 'down') {
+    isAlignedWithGoal = true;
+    deltaColor = '#22C55E'; // Vert (conforme à la perte)
+    badgeLabel = 'Perte régulière';
+    if (Math.abs(deltaRecent) > 1.5) {
+      feedbackTitle = '📉 Baisse rapide sur la balance';
+      feedbackAdvice =
+        `-${Math.abs(deltaRecent)} kg enregistrés. Une perte supérieure à 1 kg / semaine comporte souvent une part d’eau et un risque de fonte musculaire. Conservez un apport protéique élevé (1,8 à 2,2 g/kg).`;
+    } else {
+      feedbackTitle = '📉 Perte progressive maîtrisée';
+      feedbackAdvice =
+        `-${Math.abs(deltaRecent)} kg en accord avec votre objectif de sèche. Ce rythme protège votre masse musculaire tout en stimulant l’oxydation des graisses.`;
+    }
+  } else if (deltaDirection === 'up') {
+    isAlignedWithGoal = false;
+    deltaColor = '#F59E0B'; // Ambre (non conforme, mais neutre et réaliste)
+    badgeLabel = 'Variation haussière';
+    feedbackTitle = '📊 Hausse temporaire constatée';
+    feedbackAdvice =
+      `+${deltaRecent} kg sur la balance. Inutile de paniquer : une hausse ponctuelle en période de sèche est le plus souvent liée à la rétention d’eau (sodium, micro-lésions musculaires post-entraînement, transit). Maintenez le cap sur votre déficit calorique.`;
+  } else {
+    isAlignedWithGoal = true;
+    deltaColor = '#38BDF8';
+    badgeLabel = 'Poids stable';
+    feedbackTitle = '⚖️ Palier temporaire';
+    feedbackAdvice =
+      'Votre poids est temporairement stable. Surveillez la tendance sur 10 à 14 jours avant d’envisager un réajustement de vos apports alimentaires.';
+  }
+
+  return {
+    deltaKg: deltaRecent,
+    deltaDirection,
+    goalType,
+    goalLabel,
+    isAlignedWithGoal,
+    deltaColor,
+    badgeLabel,
+    feedbackTitle,
+    feedbackAdvice,
+    compositionInsight,
+    remainingKg,
+    progressPercent,
+    isAchieved,
   };
 }
 

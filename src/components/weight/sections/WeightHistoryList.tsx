@@ -4,10 +4,12 @@ import { Colors } from '../../../constants/colors';
 import { Card } from '../../common/Card';
 import { Badge } from '../../common/Badge';
 import { BodyWeightLog } from '../../../types';
+import { WeightGoalType } from '../../../utils/physiologyUtils';
 
 interface WeightHistoryListProps {
   logs: BodyWeightLog[];
   weightUnit: string;
+  goalType?: WeightGoalType;
   onEditLog: (item: BodyWeightLog) => void;
   onDeleteLog: (id: string, weight: number, date: string) => void;
 }
@@ -15,6 +17,7 @@ interface WeightHistoryListProps {
 export const WeightHistoryList: React.FC<WeightHistoryListProps> = ({
   logs,
   weightUnit,
+  goalType,
   onEditLog,
   onDeleteLog,
 }) => {
@@ -57,13 +60,24 @@ export const WeightHistoryList: React.FC<WeightHistoryListProps> = ({
                         textColor="#06B6D4"
                       />
                     )}
-                    {delta !== null && delta !== 0 && (
-                      <Badge
-                        label={`${delta > 0 ? '+' : ''}${delta} kg`}
-                        color={delta > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)'}
-                        textColor={delta > 0 ? '#F87171' : '#4ADE80'}
-                      />
-                    )}
+                    {delta !== null && delta !== 0 && (() => {
+                      let isPositiveTrend = false;
+                      if (goalType === 'bulk') isPositiveTrend = delta > 0;
+                      else if (goalType === 'maintain') isPositiveTrend = Math.abs(delta) <= 0.8;
+                      else if (goalType === 'loss') isPositiveTrend = delta < 0;
+                      else isPositiveTrend = true;
+
+                      const badgeColor = isPositiveTrend ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+                      const textColor = isPositiveTrend ? '#4ADE80' : '#F59E0B';
+
+                      return (
+                        <Badge
+                          label={`${delta > 0 ? '+' : ''}${delta} kg`}
+                          color={badgeColor}
+                          textColor={textColor}
+                        />
+                      );
+                    })()}
                   </View>
                   <Text style={styles.logItemDate}>
                     {item.date} {item.note ? `• ${item.note}` : ''}

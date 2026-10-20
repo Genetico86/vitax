@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS public.workout_sessions (
   total_volume REAL DEFAULT 0,
   total_sets INTEGER DEFAULT 0,
   completed INTEGER DEFAULT 1,
+  calories INTEGER DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

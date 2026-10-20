@@ -29,8 +29,8 @@ export async function saveWorkoutSession(
   await runInTransaction(db, async () => {
     await db.runAsync(
       `INSERT OR REPLACE INTO workout_sessions (
-         id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         session.id,
         session.program_id,
@@ -41,6 +41,7 @@ export async function saveWorkoutSession(
         totalVolume,
         completedSetsCount,
         session.completed,
+        session.calories !== undefined ? session.calories : null,
       ]
     );
 
@@ -89,8 +90,8 @@ export async function getAllWorkoutSessions(): Promise<WorkoutSession[]> {
           for (const s of missingFromLocal) {
             await db.runAsync(
               `INSERT OR REPLACE INTO workout_sessions (
-                 id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 s.id,
                 s.program_id,
@@ -101,6 +102,7 @@ export async function getAllWorkoutSessions(): Promise<WorkoutSession[]> {
                 s.total_volume || 0,
                 s.total_sets || 0,
                 1,
+                s.calories !== undefined ? s.calories : null,
               ]
             );
           }
@@ -178,6 +180,7 @@ export interface OverallStats {
   totalVolumeKg: number;
   totalSets: number;
   totalDurationMinutes: number;
+  totalCaloriesBurned: number;
 }
 
 export async function getOverallStats(): Promise<OverallStats> {
@@ -187,12 +190,14 @@ export async function getOverallStats(): Promise<OverallStats> {
     volume: number;
     sets: number;
     duration: number;
+    calories: number;
   }>(`
     SELECT
       COUNT(id) AS count,
       COALESCE(SUM(total_volume), 0) AS volume,
       COALESCE(SUM(total_sets), 0) AS sets,
-      COALESCE(SUM(duration_seconds), 0) AS duration
+      COALESCE(SUM(duration_seconds), 0) AS duration,
+      COALESCE(SUM(calories), 0) AS calories
     FROM workout_sessions
     WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL)
   `);
@@ -202,6 +207,7 @@ export async function getOverallStats(): Promise<OverallStats> {
     totalVolumeKg: Math.round(row?.volume || 0),
     totalSets: row?.sets || 0,
     totalDurationMinutes: Math.round((row?.duration || 0) / 60),
+    totalCaloriesBurned: Math.round(row?.calories || 0),
   };
 }
 
@@ -450,6 +456,7 @@ export interface DailyWorkoutSummary {
   totalVolumeKg: number;
   totalSets: number;
   totalDurationSeconds: number;
+  totalCalories: number;
   exercises: DailyExerciseItem[];
   sessions: WorkoutSession[];
 }
@@ -495,6 +502,7 @@ export async function getDailyWorkoutSummary(targetDateStr?: string): Promise<Da
       totalVolumeKg: 0,
       totalSets: 0,
       totalDurationSeconds: 0,
+      totalCalories: 0,
       exercises: [],
       sessions: [],
     };
@@ -554,6 +562,7 @@ export async function getDailyWorkoutSummary(targetDateStr?: string): Promise<Da
   const totalVolumeKg = uniqueSessions.reduce((acc, s) => acc + (s.total_volume || 0), 0);
   const totalSets = uniqueSessions.reduce((acc, s) => acc + (s.total_sets || 0), 0);
   const totalDurationSeconds = uniqueSessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0);
+  const totalCalories = uniqueSessions.reduce((acc, s) => acc + (s.calories || 0), 0);
 
   return {
     date: localDayStr,
@@ -562,6 +571,7 @@ export async function getDailyWorkoutSummary(targetDateStr?: string): Promise<Da
     totalVolumeKg: Math.round(totalVolumeKg),
     totalSets,
     totalDurationSeconds,
+    totalCalories: Math.round(totalCalories),
     exercises: Array.from(exerciseMap.values()),
     sessions: uniqueSessions,
   };

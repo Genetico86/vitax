@@ -122,6 +122,11 @@ export async function initDatabase(): Promise<void> {
           await db.execAsync('DROP TABLE IF EXISTS pokemon_eggs;');
         } catch {}
 
+        // Migration ajout colonne calories sur workout_sessions si manquante
+        try {
+          await db.runAsync('ALTER TABLE workout_sessions ADD COLUMN calories INTEGER;');
+        } catch {}
+
         await db.runAsync(
           "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('schema_version', ?)",
           [SCHEMA_VERSION]

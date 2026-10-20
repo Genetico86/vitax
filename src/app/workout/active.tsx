@@ -38,6 +38,7 @@ import {
   calculateSingleExerciseXp,
 } from '../../services/gamificationService';
 import { computeNextWorkoutNavigation } from '../../utils/workoutNavigation';
+import { calculateWorkoutCalories } from '../../utils/workoutCalorieUtils';
 
 export default function ActiveWorkoutScreen() {
   const {
@@ -140,6 +141,22 @@ export default function ActiveWorkoutScreen() {
   const liveXp = useMemo(() => {
     return calculateActiveExercisesXp(exercises);
   }, [exercises]);
+
+  const liveCalories = useMemo(() => {
+    return calculateWorkoutCalories({
+      exercises: exercises.map((exItem) => ({
+        name: exItem.exercise.name,
+        targetMuscle: exItem.exercise.target_muscle,
+        equipment: exItem.exercise.equipment_needed,
+        sets: exItem.sets.map((s) => ({
+          weight: s.weight,
+          reps: s.reps,
+          completed: Boolean(s.completed),
+        })),
+      })),
+      durationSeconds: elapsedSeconds,
+    }).totalCalories;
+  }, [exercises, elapsedSeconds]);
 
   if (!isActive) {
     return (
@@ -349,6 +366,9 @@ export default function ActiveWorkoutScreen() {
           <View style={styles.timerBadgeRow}>
             <View style={styles.timerBadge}>
               <Text style={styles.timerText}>⏱ {formatElapsed(elapsedSeconds)}</Text>
+            </View>
+            <View style={styles.caloriesLiveBadge}>
+              <Text style={styles.caloriesLiveText}>🔥 ~{liveCalories} kcal</Text>
             </View>
             <View style={styles.xpLiveBadge}>
               <Text style={styles.xpLiveText}>⚡ +{liveXp.inProgressXp} XP</Text>
@@ -860,6 +880,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
+  },
+  caloriesLiveBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  caloriesLiveText: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '900',
   },
   xpLiveBadge: {
     backgroundColor: 'rgba(245, 158, 11, 0.15)',

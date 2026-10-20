@@ -40,7 +40,8 @@ export const CREATE_TABLES_SQL = `
     notes TEXT,
     total_volume REAL NOT NULL DEFAULT 0,
     total_sets INTEGER NOT NULL DEFAULT 0,
-    completed INTEGER NOT NULL DEFAULT 1
+    completed INTEGER NOT NULL DEFAULT 1,
+    calories INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS workout_sets (

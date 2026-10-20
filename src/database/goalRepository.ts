@@ -2,6 +2,7 @@ import { getDatabase, runInTransaction } from './db';
 import { FitnessGoal, GoalCategory } from '../types';
 import { getLatestWeightLog } from './weightRepository';
 import { syncFitnessGoalToCloud, fetchFitnessGoalsFromCloud } from '../services/cloudSyncService';
+import { WeightGoalType, formatWeightGoalTitle } from '../utils/physiologyUtils';
 
 export async function getAllGoals(): Promise<FitnessGoal[]> {
   const db = await getDatabase();
@@ -69,7 +70,8 @@ export async function getTargetWeightGoal(): Promise<FitnessGoal | null> {
 export async function setTargetWeightGoal(
   targetWeight: number,
   startingWeight?: number,
-  targetDate?: string
+  targetDate?: string,
+  goalType?: WeightGoalType
 ): Promise<string> {
   const db = await getDatabase();
   const latestLog = await getLatestWeightLog();
@@ -77,19 +79,32 @@ export async function setTargetWeightGoal(
   const currentWeight = latestLog ? latestLog.weight : initialWeight;
   const now = new Date().toISOString();
 
+  // Déterminer le type d'objectif
+  const resolvedGoalType: WeightGoalType =
+    goalType ||
+    (initialWeight > targetWeight ? 'loss' : initialWeight < targetWeight ? 'bulk' : 'maintain');
+
+  const title = formatWeightGoalTitle(targetWeight, resolvedGoalType);
+
   // Vérifier si un objectif de poids existe déjà
   const existing = await getTargetWeightGoal();
 
-  const isCompleted =
-    (initialWeight > targetWeight && currentWeight <= targetWeight) ||
-    (initialWeight < targetWeight && currentWeight >= targetWeight);
+  let isCompleted = false;
+  if (resolvedGoalType === 'maintain') {
+    isCompleted = Math.abs(currentWeight - targetWeight) <= 1.5;
+  } else if (resolvedGoalType === 'bulk') {
+    isCompleted = currentWeight >= targetWeight;
+  } else {
+    isCompleted = currentWeight <= targetWeight;
+  }
 
   if (existing) {
     await db.runAsync(
       `UPDATE fitness_goals
-       SET target_value = ?, starting_value = ?, current_value = ?, target_date = ?, completed = ?, completed_at = ?
+       SET title = ?, target_value = ?, starting_value = ?, current_value = ?, target_date = ?, completed = ?, completed_at = ?
        WHERE id = ?`,
       [
+        title,
         targetWeight,
         initialWeight,
         currentWeight,
@@ -102,6 +117,7 @@ export async function setTargetWeightGoal(
 
     void syncFitnessGoalToCloud({
       ...existing,
+      title,
       target_value: targetWeight,
       current_value: currentWeight,
       target_date: targetDate,
@@ -118,7 +134,7 @@ export async function setTargetWeightGoal(
      ) VALUES (?, ?, 'weight', ?, ?, ?, 'kg', ?, NULL, ?, ?, ?)`,
     [
       id,
-      `Poids cible : ${targetWeight} kg`,
+      title,
       targetWeight,
       initialWeight,
       currentWeight,
@@ -131,7 +147,7 @@ export async function setTargetWeightGoal(
 
   void syncFitnessGoalToCloud({
     id,
-    title: `Poids cible : ${targetWeight} kg`,
+    title,
     category: 'weight',
     target_value: targetWeight,
     starting_value: initialWeight,

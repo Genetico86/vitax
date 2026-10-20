@@ -17,6 +17,12 @@ import {
 } from '../../../database/goalRepository';
 import { getAllExercises } from '../../../database/exerciseRepository';
 import { useSettingsStore } from '../../../stores/settingsStore';
+import {
+  WeightGoalType,
+  parseWeightGoalTitle,
+  analyzeWeightProgression,
+  WeightProgressionFeedback,
+} from '../../../utils/physiologyUtils';
 
 export function useWeightGoals(onWeightUpdated?: () => void) {
   const { user_height_cm, weight_unit } = useSettingsStore();
@@ -94,9 +100,13 @@ export function useWeightGoals(onWeightUpdated?: () => void) {
     );
   };
 
-  // Enregistrer objectif de poids
-  const handleSaveWeightGoal = async (target: number, starting?: number) => {
-    await setTargetWeightGoal(target, starting);
+  // Enregistrer objectif de poids avec son type explicite
+  const handleSaveWeightGoal = async (
+    target: number,
+    starting?: number,
+    goalType?: WeightGoalType
+  ) => {
+    await setTargetWeightGoal(target, starting, undefined, goalType);
     await loadData();
     onWeightUpdated?.();
   };
@@ -133,31 +143,45 @@ export function useWeightGoals(onWeightUpdated?: () => void) {
     ]);
   };
 
-  // Calcul progression objectif de poids
+  // Décoder les informations de l'objectif de poids actuel
+  const weightGoalInfo = useMemo(() => {
+    if (!weightGoal) return null;
+    return parseWeightGoalTitle(weightGoal.title);
+  }, [weightGoal]);
+
+  // Analyse d'évolution scientifique et nuancée
+  const weightProgressionAnalysis = useMemo((): WeightProgressionFeedback | null => {
+    if (!stats?.currentWeight) return null;
+
+    const previousLog = logs[1];
+    const goalType = weightGoalInfo?.goalType;
+
+    return analyzeWeightProgression({
+      currentWeight: stats.currentWeight,
+      startingWeight: weightGoal?.starting_value ?? stats.startingWeight,
+      targetWeight: weightGoal?.target_value ?? stats.currentWeight,
+      previousWeight: previousLog?.weight ?? stats.startingWeight,
+      explicitGoalType: goalType,
+      currentBodyFat: stats.latestBodyFat,
+      previousBodyFat: previousLog?.body_fat_percentage,
+    });
+  }, [stats, weightGoal, weightGoalInfo, logs]);
+
+  // Progression de l'objectif de poids
   const weightGoalProgress = useMemo(() => {
     if (!weightGoal || !stats?.currentWeight) return null;
 
-    const start = weightGoal.starting_value;
-    const target = weightGoal.target_value;
-    const current = stats.currentWeight;
-
-    const isLosing = start > target;
-    const totalDiff = Math.abs(start - target);
-    const currentDiff = isLosing ? start - current : current - start;
-    const remainingKg = Math.abs(current - target);
-
-    let percent = totalDiff > 0 ? (currentDiff / totalDiff) * 100 : 0;
-    percent = Math.max(0, Math.min(100, Math.round(percent)));
-
-    const achieved = isLosing ? current <= target : current >= target;
-
+    const analysis = weightProgressionAnalysis;
     return {
-      percent,
-      isLosing,
-      remainingKg: Math.round(remainingKg * 10) / 10,
-      achieved,
+      percent: analysis?.progressPercent ?? 0,
+      isLosing: analysis?.goalType === 'loss',
+      goalType: analysis?.goalType || 'loss',
+      goalLabel: analysis?.goalLabel || 'Sèche / Perte',
+      remainingKg: analysis?.remainingKg ?? 0,
+      achieved: analysis?.isAchieved ?? false,
+      feedback: analysis,
     };
-  }, [weightGoal, stats]);
+  }, [weightGoal, stats, weightProgressionAnalysis]);
 
   // Données de graphique (12 dernières pesées inversées chronologiquement)
   const chartLogs = useMemo(() => {
@@ -169,15 +193,16 @@ export function useWeightGoals(onWeightUpdated?: () => void) {
     stats,
     goals,
     weightGoal,
+    weightGoalInfo,
     exercises,
     weight_unit,
     weightGoalProgress,
+    weightProgressionAnalysis,
     chartLogs,
     handleSaveLog,
     handleDeleteLog,
     handleSaveWeightGoal,
     handleSaveStrengthGoal,
     handleDeleteGoal,
-    reload: loadData,
   };
 }

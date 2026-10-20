@@ -67,6 +67,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
         stats={stats}
         weightUnit={weight_unit}
         userHeightCm={user_height_cm}
+        goalType={weightGoalProgress?.goalType}
         onAddLogPress={handleOpenAddLog}
         onSetHeightPress={() => setHeightModalVisible(true)}
       />
@@ -102,6 +103,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
       <WeightHistoryList
         logs={logs}
         weightUnit={weight_unit}
+        goalType={weightGoalProgress?.goalType}
         onEditLog={handleOpenEditLog}
         onDeleteLog={handleDeleteLog}
       />
@@ -122,6 +124,7 @@ export const WeightGoalsView: React.FC<WeightGoalsViewProps> = ({ onWeightUpdate
         weightUnit={weight_unit}
         initialTarget={weightGoal?.target_value}
         initialStarting={weightGoal?.starting_value ?? stats?.currentWeight}
+        initialGoalType={weightGoalProgress?.goalType}
         onClose={() => setWeightGoalModalVisible(false)}
         onSave={handleSaveWeightGoal}
       />

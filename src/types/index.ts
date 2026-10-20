@@ -98,6 +98,7 @@ export interface WorkoutSession {
   total_volume: number; // kg * reps
   total_sets: number;
   completed: number; // 0 or 1
+  calories?: number | null;
 }
 
 export interface WorkoutSet {
