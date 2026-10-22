@@ -317,7 +317,16 @@ export async function updateTrainerProfileXpAndStats(
   }
 }
 
-export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
+let cachedProfileInMemory: { profile: TrainerProfile; timestamp: number } | null = null;
+
+export function invalidateProfileMemoryCache(): void {
+  cachedProfileInMemory = null;
+}
+
+export async function getOrCreateTrainerProfile(forceRefresh = false): Promise<TrainerProfile> {
+  if (!forceRefresh && cachedProfileInMemory && Date.now() - cachedProfileInMemory.timestamp < 5000) {
+    return { ...cachedProfileInMemory.profile };
+  }
   try {
     const session = await getPersistedSession();
     const raw = await AsyncStorage.getItem(STORAGE_KEY_PROFILE);
@@ -365,11 +374,16 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
           const supabase = getSupabaseClient();
           if (supabase) {
             try {
-              const { data: cloudRow } = await supabase
-                .from('profiles')
-                .select(PUBLIC_PROFILE_COLUMNS)
-                .eq('id', session.userId)
-                .maybeSingle();
+              const { data: cloudRow } = await Promise.race([
+                supabase
+                  .from('profiles')
+                  .select(PUBLIC_PROFILE_COLUMNS)
+                  .eq('id', session.userId)
+                  .maybeSingle(),
+                new Promise<{ data: null; error: any }>((res) =>
+                  setTimeout(() => res({ data: null, error: { message: 'Timeout profil' } }), 1500)
+                ),
+              ]);
 
               if (cloudRow) {
                 if (cloudRow.friend_code) {
@@ -549,6 +563,7 @@ export async function getOrCreateTrainerProfile(): Promise<TrainerProfile> {
     }
 
     void syncTrainerProfileToSupabase(profileToReturn);
+    cachedProfileInMemory = { profile: profileToReturn, timestamp: Date.now() };
     return profileToReturn;
   } catch (err) {
     console.error('Erreur getOrCreateTrainerProfile:', err);
