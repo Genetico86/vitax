@@ -76,7 +76,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return openDbPromise;
 }
 
-const SCHEMA_VERSION = '3';
+const SCHEMA_VERSION = '4';
 const SEED_CATALOG_VERSION = `v2_${seedData.exercises.length}_${seedData.programs.length}`;
 
 /**
@@ -111,27 +111,44 @@ export async function initDatabase(): Promise<void> {
       const db = await getDatabase();
       await db.execAsync(CREATE_TABLES_SQL);
 
-      // Vérifier la version du schéma pour n'exécuter les migrations qu'en cas de besoin
-      const schemaMeta = await db.getFirstAsync<{ value: string }>(
-        "SELECT value FROM app_metadata WHERE key = 'schema_version'"
-      );
-
-      if (schemaMeta?.value !== SCHEMA_VERSION) {
-        // Suppression définitive de l'ancienne table pokemon_eggs si présente
-        try {
-          await db.execAsync('DROP TABLE IF EXISTS pokemon_eggs;');
-        } catch {}
-
-        // Migration ajout colonne calories sur workout_sessions si manquante
-        try {
+      // Migrations auto-cicatrisantes : s'assurer que toutes les colonnes requises existent
+      // quel que soit l'historique de versions ou le cache navigateur
+      try {
+        const wsCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(workout_sessions);');
+        if (!wsCols.some((c) => c.name === 'calories')) {
           await db.runAsync('ALTER TABLE workout_sessions ADD COLUMN calories INTEGER;');
-        } catch {}
-
-        await db.runAsync(
-          "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('schema_version', ?)",
-          [SCHEMA_VERSION]
-        );
+        }
+      } catch (colErr) {
+        console.warn('Vérification colonne calories workout_sessions:', colErr);
       }
+
+      try {
+        const rsCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(running_sessions);');
+        if (!rsCols.some((c) => c.name === 'calories')) {
+          await db.runAsync('ALTER TABLE running_sessions ADD COLUMN calories INTEGER;');
+        }
+      } catch (colErr) {
+        console.warn('Vérification colonne calories running_sessions:', colErr);
+      }
+
+      try {
+        const bwCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(body_weights);');
+        if (!bwCols.some((c) => c.name === 'body_fat_percentage')) {
+          await db.runAsync('ALTER TABLE body_weights ADD COLUMN body_fat_percentage REAL;');
+        }
+      } catch (colErr) {
+        console.warn('Vérification colonne body_fat_percentage body_weights:', colErr);
+      }
+
+      // Nettoyage table pokemon_eggs obsolète
+      try {
+        await db.execAsync('DROP TABLE IF EXISTS pokemon_eggs;');
+      } catch {}
+
+      await db.runAsync(
+        "INSERT OR REPLACE INTO app_metadata (key, value) VALUES ('schema_version', ?)",
+        [SCHEMA_VERSION]
+      );
 
       // Vérifier si le catalogue de base est déjà à jour pour éviter ~215 requêtes à chaque démarrage
       const seedMeta = await db.getFirstAsync<{ value: string }>(

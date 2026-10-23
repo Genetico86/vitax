@@ -772,43 +772,13 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
     };
 
     // Sauvegarde immédiate dans SQLite + synchronisation temps réel vers Supabase
-    await saveWorkoutSession(session, allSets);
-    void clearActiveWorkoutDraftFromCloud();
-
-    // Calcul de l'XP biomécanique des séries + bonus journalier d'entraînement
-    const setsXp = computeSessionXpFromExercises(state.exercises);
-    let dailyBonusXp = 0;
-    if (completedCount > 0) {
-      try {
-        const bonusRes = await claimDailyWorkoutBonus();
-        if (bonusRes.awarded) {
-          dailyBonusXp = bonusRes.bonusXp;
-        }
-      } catch (bErr) {
-        console.warn('Erreur claimDailyWorkoutBonus:', bErr);
-      }
-    }
-
-    const totalEarnedXp = setsXp + dailyBonusXp;
-
-    // Mise à jour immédiate du profil athlète (XP, séances, tonnage & ligue) + validation auto des défis amis
     try {
-      const {
-        updateTrainerProfileXpAndStats,
-        evaluateAndCompleteWorkoutChallenges,
-      } = await import('../services/multiplayerService');
-      await updateTrainerProfileXpAndStats(totalEarnedXp, session.total_volume || 0);
-      await evaluateAndCompleteWorkoutChallenges({
-        programId: session.program_id,
-        totalVolumeKg: session.total_volume || 0,
-        durationSeconds: session.duration_seconds || 0,
-        sets: allSets,
-      });
-    } catch (err) {
-      console.warn('Erreur mise à jour XP profil / défis:', err);
+      await saveWorkoutSession(session, allSets);
+    } catch (saveErr) {
+      console.error('Erreur critique saveWorkoutSession:', saveErr);
     }
 
-    // Arrêt de la session active et enregistrement du résumé
+    // Arrêt immédiat et inconditionnel de la session active et enregistrement du résumé
     set({
       isActive: false,
       sessionId: null,
@@ -831,6 +801,45 @@ export const useWorkoutSessionStore = create<WorkoutSessionState>((set, get) => 
         sets: allSets,
       },
     });
+
+    void clearActiveWorkoutDraftFromCloud().catch(() => {});
+    void AsyncStorage.removeItem(STORAGE_KEY_ACTIVE_WORKOUT_DRAFT).catch(() => {});
+
+    // Calcul de l'XP biomécanique des séries + bonus journalier d'entraînement
+    try {
+      const setsXp = computeSessionXpFromExercises(state.exercises);
+      let dailyBonusXp = 0;
+      if (completedCount > 0) {
+        try {
+          const bonusRes = await claimDailyWorkoutBonus();
+          if (bonusRes.awarded) {
+            dailyBonusXp = bonusRes.bonusXp;
+          }
+        } catch (bErr) {
+          console.warn('Erreur claimDailyWorkoutBonus:', bErr);
+        }
+      }
+
+      const totalEarnedXp = setsXp + dailyBonusXp;
+
+      // Mise à jour immédiate du profil athlète (XP, séances, tonnage & ligue) + validation auto des défis amis
+      const {
+        updateTrainerProfileXpAndStats,
+        evaluateAndCompleteWorkoutChallenges,
+      } = await import('../services/multiplayerService');
+
+      await Promise.allSettled([
+        updateTrainerProfileXpAndStats(totalEarnedXp, session.total_volume || 0),
+        evaluateAndCompleteWorkoutChallenges({
+          programId: session.program_id,
+          totalVolumeKg: session.total_volume || 0,
+          durationSeconds: session.duration_seconds || 0,
+          sets: allSets,
+        }),
+      ]);
+    } catch (err) {
+      console.warn('Erreur mise à jour XP profil / défis (non-bloquant):', err);
+    }
 
     return { session, sets: allSets };
   },

@@ -6,7 +6,7 @@ import { WeightGoalType, formatWeightGoalTitle } from '../utils/physiologyUtils'
 
 export async function getAllGoals(): Promise<FitnessGoal[]> {
   const db = await getDatabase();
-  let rows = await db.getAllAsync<FitnessGoal>(`
+  const rows = await db.getAllAsync<FitnessGoal>(`
     SELECT
       g.*,
       e.name AS exercise_name
@@ -16,44 +16,38 @@ export async function getAllGoals(): Promise<FitnessGoal[]> {
   `);
 
   if (rows.length === 0) {
-    try {
-      const cloudGoals = await fetchFitnessGoalsFromCloud();
-      if (cloudGoals.length > 0) {
-        await runInTransaction(db, async () => {
-          for (const g of cloudGoals) {
-            await db.runAsync(
-              `INSERT OR REPLACE INTO fitness_goals (
-                 id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                g.id,
-                g.title,
-                g.category,
-                g.target_value,
-                g.starting_value || 0,
-                g.current_value,
-                g.unit || 'kg',
-                g.target_date || null,
-                g.exercise_id || null,
-                g.completed ? 1 : 0,
-                g.completed_at || null,
-                g.created_at || new Date().toISOString(),
-              ]
-            );
-          }
-        });
-        rows = await db.getAllAsync<FitnessGoal>(`
-          SELECT
-            g.*,
-            e.name AS exercise_name
-          FROM fitness_goals g
-          LEFT JOIN exercises e ON e.id = g.exercise_id
-          ORDER BY g.completed ASC, g.created_at DESC
-        `);
+    void (async () => {
+      try {
+        const cloudGoals = await fetchFitnessGoalsFromCloud();
+        if (cloudGoals.length > 0) {
+          await runInTransaction(db, async () => {
+            for (const g of cloudGoals) {
+              await db.runAsync(
+                `INSERT OR REPLACE INTO fitness_goals (
+                   id, title, category, target_value, starting_value, current_value, unit, target_date, exercise_id, completed, completed_at, created_at
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  g.id,
+                  g.title,
+                  g.category,
+                  g.target_value,
+                  g.starting_value || 0,
+                  g.current_value,
+                  g.unit || 'kg',
+                  g.target_date || null,
+                  g.exercise_id || null,
+                  g.completed ? 1 : 0,
+                  g.completed_at || null,
+                  g.created_at || new Date().toISOString(),
+                ]
+              );
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Erreur synchro cloud objectifs (background):', err);
       }
-    } catch (err) {
-      console.warn('Erreur synchro cloud objectifs:', err);
-    }
+    })();
   }
 
   return rows;

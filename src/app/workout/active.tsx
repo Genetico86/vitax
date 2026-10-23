@@ -182,6 +182,23 @@ export default function ActiveWorkoutScreen() {
     return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const executeFinish = async () => {
+    setIsFinishing(true);
+    try {
+      const res = await finishWorkout();
+      if (res) {
+        router.replace('/workout/summary');
+      } else {
+        showAlert('Erreur', 'Impossible de valider la séance. Veuillez réessayer.');
+      }
+    } catch (err: any) {
+      console.error('Erreur validation séance:', err);
+      showAlert('Erreur', err?.message || 'Une erreur est survenue lors de la validation.');
+    } finally {
+      setIsFinishing(false);
+    }
+  };
+
   const handleFinish = async (forceDirect = false) => {
     if (isFinishing) return;
     const totalCompleted = exercises.reduce(
@@ -197,15 +214,7 @@ export default function ActiveWorkoutScreen() {
           { text: 'Continuer l’entraînement', style: 'cancel' },
           {
             text: 'Enregistrer quand même',
-            onPress: async () => {
-              setIsFinishing(true);
-              try {
-                const res = await finishWorkout();
-                if (res) router.replace('/workout/summary');
-              } finally {
-                setIsFinishing(false);
-              }
-            },
+            onPress: () => void executeFinish(),
           },
         ]
       );
@@ -230,30 +239,14 @@ export default function ActiveWorkoutScreen() {
           {
             text: 'Terminer quand même',
             style: 'destructive',
-            onPress: async () => {
-              setIsFinishing(true);
-              try {
-                const res = await finishWorkout();
-                if (res) router.replace('/workout/summary');
-              } finally {
-                setIsFinishing(false);
-              }
-            },
+            onPress: () => void executeFinish(),
           },
         ]
       );
       return;
     }
 
-    setIsFinishing(true);
-    try {
-      const res = await finishWorkout();
-      if (res) {
-        router.replace('/workout/summary');
-      }
-    } finally {
-      setIsFinishing(false);
-    }
+    void executeFinish();
   };
 
   const handleGoToNextExercise = (currentIdx: number) => {

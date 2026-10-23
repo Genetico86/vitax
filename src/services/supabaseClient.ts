@@ -92,10 +92,25 @@ export function getSupabaseClient(): SupabaseClient | null {
               headers.set('x-client-info', `${existingInfo};uid=${uid}`);
             }
           }
-          return fetch(input, {
-            ...init,
-            headers,
-          });
+
+          // Protection anti-blocage réseau : timeout de 10s si aucun signal n'est fourni
+          let signal = init?.signal;
+          let timeoutId: any = null;
+          if (!signal && typeof AbortController !== 'undefined') {
+            const controller = new AbortController();
+            signal = controller.signal;
+            timeoutId = setTimeout(() => controller.abort(), 10000);
+          }
+
+          try {
+            return await fetch(input, {
+              ...init,
+              headers,
+              signal,
+            });
+          } finally {
+            if (timeoutId) clearTimeout(timeoutId);
+          }
         },
       },
     });

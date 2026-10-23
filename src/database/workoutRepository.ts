@@ -27,23 +27,60 @@ export async function saveWorkoutSession(
   const now = new Date().toISOString();
 
   await runInTransaction(db, async () => {
-    await db.runAsync(
-      `INSERT OR REPLACE INTO workout_sessions (
-         id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        session.id,
-        session.program_id,
-        session.program_name,
-        session.date,
-        session.duration_seconds,
-        session.notes,
-        totalVolume,
-        completedSetsCount,
-        session.completed,
-        session.calories !== undefined ? session.calories : null,
-      ]
-    );
+    const insertSession = async (withCalories: boolean) => {
+      if (withCalories) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO workout_sessions (
+             id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            session.id,
+            session.program_id,
+            session.program_name,
+            session.date,
+            session.duration_seconds,
+            session.notes,
+            totalVolume,
+            completedSetsCount,
+            session.completed,
+            session.calories !== undefined ? session.calories : null,
+          ]
+        );
+      } else {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO workout_sessions (
+             id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            session.id,
+            session.program_id,
+            session.program_name,
+            session.date,
+            session.duration_seconds,
+            session.notes,
+            totalVolume,
+            completedSetsCount,
+            session.completed,
+          ]
+        );
+      }
+    };
+
+    try {
+      await insertSession(true);
+    } catch (insertErr: any) {
+      const msg = String(insertErr?.message || insertErr || '');
+      if (msg.includes('calories')) {
+        try {
+          await db.runAsync('ALTER TABLE workout_sessions ADD COLUMN calories INTEGER;');
+          await insertSession(true);
+        } catch {
+          await insertSession(false);
+        }
+      } else {
+        throw insertErr;
+      }
+    }
 
     // Supprimer les séries précédentes s'il s'agit d'une mise à jour
     await db.runAsync('DELETE FROM workout_sets WHERE workout_session_id = ?', [session.id]);
@@ -74,48 +111,46 @@ export async function saveWorkoutSession(
 
 export async function getAllWorkoutSessions(): Promise<WorkoutSession[]> {
   const db = await getDatabase();
-  let localSessions = await db.getAllAsync<WorkoutSession>(
+  const localSessions = await db.getAllAsync<WorkoutSession>(
     "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL) ORDER BY date DESC"
   );
 
-  // Synchronisation avec le cloud Supabase
-  try {
-    const cloudSessions = await fetchWorkoutSessionsFromCloud();
-    if (cloudSessions.length > 0) {
-      const localIds = new Set(localSessions.map((s) => s.id));
-      const missingFromLocal = cloudSessions.filter((cs) => !localIds.has(cs.id));
+  // Synchronisation avec le cloud Supabase en arrière-plan non bloquante (optimistic local-first)
+  void (async () => {
+    try {
+      const cloudSessions = await fetchWorkoutSessionsFromCloud();
+      if (cloudSessions.length > 0) {
+        const localIds = new Set(localSessions.map((s) => s.id));
+        const missingFromLocal = cloudSessions.filter((cs) => !localIds.has(cs.id));
 
-      if (missingFromLocal.length > 0) {
-        await runInTransaction(db, async () => {
-          for (const s of missingFromLocal) {
-            await db.runAsync(
-              `INSERT OR REPLACE INTO workout_sessions (
-                 id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                s.id,
-                s.program_id,
-                s.program_name,
-                s.date,
-                s.duration_seconds || 0,
-                s.notes || null,
-                s.total_volume || 0,
-                s.total_sets || 0,
-                1,
-                s.calories !== undefined ? s.calories : null,
-              ]
-            );
-          }
-        });
-
-        localSessions = await db.getAllAsync<WorkoutSession>(
-          "SELECT * FROM workout_sessions WHERE (completed = 1 OR completed = '1' OR completed = true OR completed IS NULL) ORDER BY date DESC"
-        );
+        if (missingFromLocal.length > 0) {
+          await runInTransaction(db, async () => {
+            for (const s of missingFromLocal) {
+              await db.runAsync(
+                `INSERT OR REPLACE INTO workout_sessions (
+                   id, program_id, program_name, date, duration_seconds, notes, total_volume, total_sets, completed, calories
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  s.id,
+                  s.program_id,
+                  s.program_name,
+                  s.date,
+                  s.duration_seconds || 0,
+                  s.notes || null,
+                  s.total_volume || 0,
+                  s.total_sets || 0,
+                  1,
+                  s.calories !== undefined ? s.calories : null,
+                ]
+              );
+            }
+          });
+        }
       }
+    } catch (err) {
+      console.warn('Erreur synchro cloud getAllWorkoutSessions (background):', err);
     }
-  } catch (err) {
-    console.warn('Erreur synchro cloud getAllWorkoutSessions:', err);
-  }
+  })();
 
   return localSessions;
 }

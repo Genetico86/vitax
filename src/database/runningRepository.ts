@@ -68,23 +68,40 @@ export async function createRunningSession(params: {
     xp_earned,
   };
 
-  // 1. Sauvegarde dans SQLite
+  // 1. Sauvegarde dans SQLite avec tolérance de schéma
   try {
     const db = await getDatabase();
-    await db.runAsync(
-      `INSERT INTO running_sessions (id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, calories, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        date,
-        distance,
-        duration,
-        pace,
-        params.notes?.trim() || null,
-        calories,
-        now,
-      ]
-    );
+    const insertRun = async (withCalories: boolean) => {
+      if (withCalories) {
+        await db.runAsync(
+          `INSERT INTO running_sessions (id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, calories, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, date, distance, duration, pace, params.notes?.trim() || null, calories, now]
+        );
+      } else {
+        await db.runAsync(
+          `INSERT INTO running_sessions (id, date, distance_km, duration_seconds, pace_seconds_per_km, notes, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [id, date, distance, duration, pace, params.notes?.trim() || null, now]
+        );
+      }
+    };
+
+    try {
+      await insertRun(true);
+    } catch (insertErr: any) {
+      const msg = String(insertErr?.message || insertErr || '');
+      if (msg.includes('calories')) {
+        try {
+          await db.runAsync('ALTER TABLE running_sessions ADD COLUMN calories INTEGER;');
+          await insertRun(true);
+        } catch {
+          await insertRun(false);
+        }
+      } else {
+        throw insertErr;
+      }
+    }
   } catch (err) {
     console.warn('Erreur SQLite createRunningSession:', err);
   }

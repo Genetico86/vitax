@@ -4,37 +4,36 @@ import { syncBodyWeightToCloud, fetchBodyWeightsFromCloud } from '../services/cl
 
 export async function getAllWeightLogs(): Promise<BodyWeightLog[]> {
   const db = await getDatabase();
-  let rows = await db.getAllAsync<BodyWeightLog>(
+  const rows = await db.getAllAsync<BodyWeightLog>(
     'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC'
   );
 
   if (rows.length === 0) {
-    try {
-      const cloudWeights = await fetchBodyWeightsFromCloud();
-      if (cloudWeights.length > 0) {
-        await runInTransaction(db, async () => {
-          for (const w of cloudWeights) {
-            await db.runAsync(
-              `INSERT OR REPLACE INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-              [
-                w.id,
-                w.weight,
-                w.date,
-                w.note || null,
-                w.body_fat_percentage || null,
-                w.created_at || new Date().toISOString(),
-              ]
-            );
-          }
-        });
-        rows = await db.getAllAsync<BodyWeightLog>(
-          'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC'
-        );
+    void (async () => {
+      try {
+        const cloudWeights = await fetchBodyWeightsFromCloud();
+        if (cloudWeights.length > 0) {
+          await runInTransaction(db, async () => {
+            for (const w of cloudWeights) {
+              await db.runAsync(
+                `INSERT OR REPLACE INTO body_weights (id, weight, date, note, body_fat_percentage, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [
+                  w.id,
+                  w.weight,
+                  w.date,
+                  w.note || null,
+                  w.body_fat_percentage || null,
+                  w.created_at || new Date().toISOString(),
+                ]
+              );
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Erreur synchro cloud poids (background):', err);
       }
-    } catch (err) {
-      console.warn('Erreur synchro cloud poids:', err);
-    }
+    })();
   }
 
   return rows;
@@ -51,21 +50,9 @@ export async function getRecentWeightLogs(limit = 30): Promise<BodyWeightLog[]> 
 
 export async function getLatestWeightLog(): Promise<BodyWeightLog | null> {
   const db = await getDatabase();
-  let row = await db.getFirstAsync<BodyWeightLog>(
+  const row = await db.getFirstAsync<BodyWeightLog>(
     'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC LIMIT 1'
   );
-
-  if (!row) {
-    try {
-      const cloudWeights = await fetchBodyWeightsFromCloud();
-      if (cloudWeights.length > 0) {
-        row = await db.getFirstAsync<BodyWeightLog>(
-          'SELECT * FROM body_weights ORDER BY date DESC, created_at DESC LIMIT 1'
-        );
-      }
-    } catch {}
-  }
-
   return row || null;
 }
 
